@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.97.0",
     "date-holidays": "^3.26.8",
     "iconv-lite": "^0.7.2",
     "lodash": "^4.17.23",

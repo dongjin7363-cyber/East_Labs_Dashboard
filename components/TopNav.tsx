@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AuthButton } from "@/components/AuthButton";
 import { exportPfBackup } from "@/lib/utils/backup";
 
 const NAV_ITEMS = [
@@ -53,6 +54,7 @@ export function TopNav() {
               );
             })}
           </nav>
+          <AuthButton />
           <button type="button" className="top-nav-backup-button" onClick={handleBackupClick}>
             Backup
           </button>
