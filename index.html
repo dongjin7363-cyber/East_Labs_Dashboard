@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio Tracker Web</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+
+  <main class="app">
+    <header class="topbar card">
+      <div>
+        <p class="eyebrow">KR + US Portfolio</p>
+        <h1>Portfolio Tracker</h1>
+      </div>
+      <div class="topbar-actions">
+        <label class="field-inline">
+          <span>순입금액</span>
+          <input id="netDepositsInput" type="number" step="1000" min="0" />
+        </label>
+        <label class="field-inline">
+          <span>현금</span>
+          <input id="cashInput" type="number" step="1000" min="0" />
+        </label>
+        <button id="addHoldingBtn" class="btn btn-primary" type="button">종목 추가</button>
+      </div>
+    </header>
+
+    <section class="stats-grid">
+      <article class="card stat">
+        <p>총 자산</p>
+        <strong id="totalAssetsValue">0</strong>
+      </article>
+      <article class="card stat">
+        <p>주식 평가금</p>
+        <strong id="totalEquityValue">0</strong>
+      </article>
+      <article class="card stat">
+        <p>총 손익</p>
+        <strong id="totalProfitValue">0</strong>
+      </article>
+      <article class="card stat">
+        <p>총 수익률</p>
+        <strong id="totalReturnValue">0%</strong>
+      </article>
+    </section>
+
+    <section class="charts-grid">
+      <article class="card chart-card">
+        <h2>시장 비중</h2>
+        <div id="marketChart" class="chart"></div>
+        <div id="marketLegend" class="legend"></div>
+      </article>
+      <article class="card chart-card">
+        <h2>섹터 비중</h2>
+        <div id="sectorChart" class="chart"></div>
+        <div id="sectorLegend" class="legend"></div>
+      </article>
+    </section>
+
+    <section class="card holdings-panel">
+      <div class="section-head">
+        <h2>보유 종목</h2>
+        <p><span id="positionCount">0</span> positions</p>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Market</th>
+              <th>Sector</th>
+              <th>Term</th>
+              <th>Portion</th>
+              <th>NAV</th>
+              <th>Ratio</th>
+              <th>Return</th>
+              <th>Profit</th>
+              <th>Status</th>
+              <th>Comment</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="holdingsBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="holdingDialog" class="dialog">
+    <form id="holdingForm" method="dialog" class="dialog-panel">
+      <div class="dialog-head">
+        <h3 id="dialogTitle">종목 추가</h3>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>Symbol</span>
+          <input id="symbolInput" name="symbol" type="text" required />
+        </label>
+        <label>
+          <span>Name</span>
+          <input id="nameInput" name="displayName" type="text" />
+        </label>
+        <label>
+          <span>Market</span>
+          <select id="marketInput" name="market">
+            <option value="KR">KR</option>
+            <option value="US">US</option>
+          </select>
+        </label>
+        <label>
+          <span>Sector</span>
+          <select id="sectorInput" name="sector"></select>
+        </label>
+        <label>
+          <span>Term</span>
+          <select id="termInput" name="term">
+            <option value="ST">ST</option>
+            <option value="LT">LT</option>
+          </select>
+        </label>
+        <label>
+          <span>Portion (원)</span>
+          <input id="costBasisInput" name="costBasis" type="number" min="0" step="1000" required />
+        </label>
+        <label>
+          <span>NAV (원)</span>
+          <input id="currentValueInput" name="currentValue" type="number" min="0" step="1000" required />
+        </label>
+        <label>
+          <span>Target Ratio (%)</span>
+          <input id="targetWeightInput" name="targetWeight" type="number" min="0" max="100" step="0.01" />
+        </label>
+        <label class="wide">
+          <span>Comment</span>
+          <textarea id="noteInput" name="note" rows="3"></textarea>
+        </label>
+      </div>
+
+      <p id="formError" class="error-text" hidden></p>
+
+      <div class="dialog-actions">
+        <button id="cancelBtn" class="btn" type="button">취소</button>
+        <button class="btn btn-primary" type="submit">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="./app.js"></script>
+</body>
+</html>

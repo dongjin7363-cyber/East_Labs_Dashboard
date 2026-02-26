@@ -1,0 +1,189 @@
+import { ExpenseEntry, RealizedTrade } from "@/lib/models/types";
+import { getPnlKrw } from "@/lib/services/realizedTradeService";
+
+export interface SalaryMonthRow {
+  month: number;
+  income: number;
+  stock: number;
+  earnings: number;
+  rent: number;
+  debt: number;
+  plus: number;
+  spending: number;
+}
+
+export interface SalaryYearTotals {
+  income: number;
+  stock: number;
+  earnings: number;
+  rent: number;
+  debt: number;
+  plus: number;
+  spending: number;
+}
+
+export interface SalaryYearSummary {
+  year: number;
+  months: SalaryMonthRow[];
+  totals: SalaryYearTotals;
+}
+
+function createMonthRow(month: number): SalaryMonthRow {
+  return {
+    month,
+    income: 0,
+    stock: 0,
+    earnings: 0,
+    rent: 0,
+    debt: 0,
+    plus: 0,
+    spending: 0,
+  };
+}
+
+function createYearTotals(): SalaryYearTotals {
+  return {
+    income: 0,
+    stock: 0,
+    earnings: 0,
+    rent: 0,
+    debt: 0,
+    plus: 0,
+    spending: 0,
+  };
+}
+
+function resolveMonthIndex(date: string, year: number): number | null {
+  const matched = date.match(/^(\d{4})-(\d{2})-\d{2}$/);
+
+  if (!matched) {
+    return null;
+  }
+
+  const parsedYear = Number.parseInt(matched[1], 10);
+  const month = Number.parseInt(matched[2], 10);
+
+  if (parsedYear !== year || month < 1 || month > 12) {
+    return null;
+  }
+
+  return month - 1;
+}
+
+function finalizeRows(rows: SalaryMonthRow[]): SalaryMonthRow[] {
+  return rows.map((row) => ({
+    ...row,
+    earnings: row.income + row.stock,
+  }));
+}
+
+function summarizeTotals(rows: SalaryMonthRow[]): SalaryYearTotals {
+  return rows.reduce<SalaryYearTotals>(
+    (acc, row) => ({
+      income: acc.income + row.income,
+      stock: acc.stock + row.stock,
+      earnings: acc.earnings + row.earnings,
+      rent: acc.rent + row.rent,
+      debt: acc.debt + row.debt,
+      plus: acc.plus + row.plus,
+      spending: acc.spending + row.spending,
+    }),
+    createYearTotals(),
+  );
+}
+
+export function getYearSummary(options: {
+  year: number;
+  entries: ExpenseEntry[];
+  trades: RealizedTrade[];
+  fxRate: number;
+}): SalaryYearSummary {
+  const safeYear = Number.isFinite(options.year)
+    ? Math.trunc(options.year)
+    : new Date().getFullYear();
+  const rows = Array.from({ length: 12 }, (_, index) => createMonthRow(index + 1));
+
+  options.entries.forEach((entry) => {
+    const monthIndex = resolveMonthIndex(entry.date, safeYear);
+
+    if (monthIndex === null) {
+      return;
+    }
+
+    const target = rows[monthIndex];
+
+    if (entry.bucket === "INCOME") {
+      target.income += entry.amountInt;
+    }
+
+    if (entry.bucket === "PLUS") {
+      target.plus += entry.amountInt;
+    }
+
+    // Spending in Asset Management means total monthly consumption:
+    // Subscription + Plus + Spending (Income excluded).
+    if (
+      entry.bucket === "SUBSCRIPTION" ||
+      entry.bucket === "PLUS" ||
+      entry.bucket === "SPENDING"
+    ) {
+      target.spending += entry.amountInt;
+    }
+
+    if (entry.subcategory === "Rent") {
+      target.rent += entry.amountInt;
+    }
+
+    if (entry.subcategory === "Debt") {
+      target.debt += entry.amountInt;
+    }
+  });
+
+  options.trades.forEach((trade) => {
+    const monthIndex = resolveMonthIndex(trade.date, safeYear);
+
+    if (monthIndex === null) {
+      return;
+    }
+
+    rows[monthIndex].stock += getPnlKrw(trade, options.fxRate);
+  });
+
+  const finalizedRows = finalizeRows(rows);
+
+  return {
+    year: safeYear,
+    months: finalizedRows,
+    totals: summarizeTotals(finalizedRows),
+  };
+}
+
+export interface EarningsChartPoint {
+  monthLabel: string;
+  income: number;
+  stock: number;
+  earnings: number;
+}
+
+export interface SalaryChartPoint {
+  monthLabel: string;
+  earnings: number;
+  spending: number;
+}
+
+export function buildEarningsChartData(rows: SalaryMonthRow[]): EarningsChartPoint[] {
+  return rows.map((row) => ({
+    monthLabel: `${row.month}`,
+    income: row.income,
+    stock: row.stock,
+    earnings: row.earnings,
+  }));
+}
+
+export function buildSalaryChartData(rows: SalaryMonthRow[]): SalaryChartPoint[] {
+  return rows.map((row) => ({
+    monthLabel: `${row.month}`,
+    earnings: row.earnings,
+    spending: row.spending,
+  }));
+}
