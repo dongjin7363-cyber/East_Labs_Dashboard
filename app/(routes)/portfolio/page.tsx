@@ -180,7 +180,17 @@ function writeQuoteBlacklist(blacklist: QuoteBlacklistMap): void {
 }
 
 export default function PortfolioPage() {
-  const { holdings, loading, create, update, remove, updateQuotes } = usePortfolio();
+  const {
+    holdings,
+    loading,
+    create,
+    update,
+    remove,
+    updateQuotes,
+    authLoading,
+    isCloudMode,
+    uploadLocalToCloud,
+  } = usePortfolio();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PortfolioHolding | undefined>();
   const [market, setMarket] = useState<"ALL" | Market>("ALL");
@@ -205,6 +215,7 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
+  const [isUploadingCloud, setIsUploadingCloud] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
   const portfolioDebugLoggedRef = useRef(false);
 
@@ -958,6 +969,29 @@ export default function PortfolioPage() {
     void refreshQuotesForVisible({ staleOnly: false, force: true });
   };
 
+  const handleUploadLocalToCloud = async () => {
+    if (!isCloudMode || authLoading || isUploadingCloud) {
+      return;
+    }
+
+    setIsUploadingCloud(true);
+
+    try {
+      const result = await uploadLocalToCloud();
+
+      if (result.total === 0) {
+        window.alert("업로드할 로컬 Portfolio 데이터가 없습니다.");
+        return;
+      }
+
+      window.alert(`클라우드 업로드 완료 (${result.uploaded}건)`);
+    } catch {
+      window.alert("클라우드 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setIsUploadingCloud(false);
+    }
+  };
+
   const unmatchedKrDisplayTickers = useMemo(() => {
     const blacklistedKrTickers = holdings
       .filter(
@@ -1116,6 +1150,16 @@ export default function PortfolioPage() {
         }
         actions={
           <>
+            {isCloudMode ? (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={handleUploadLocalToCloud}
+                disabled={isUploadingCloud || authLoading}
+              >
+                {isUploadingCloud ? "Uploading..." : "Upload local → Cloud"}
+              </button>
+            ) : null}
             <button
               type="button"
               className="secondary-button"
