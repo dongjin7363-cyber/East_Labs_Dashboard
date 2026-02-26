@@ -7,9 +7,16 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  cardClassName?: string;
 }
 
-export function Modal({ open, title, onClose, children }: ModalProps) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  cardClassName,
+}: ModalProps) {
   useEffect(() => {
     if (!open) {
       return;
@@ -35,7 +42,7 @@ export function Modal({ open, title, onClose, children }: ModalProps) {
   return (
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
-        className="modal-card"
+        className={`modal-card ${cardClassName ?? ""}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-label={title}

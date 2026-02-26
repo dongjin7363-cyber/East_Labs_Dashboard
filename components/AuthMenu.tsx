@@ -137,7 +137,7 @@ export function AuthMenu() {
           Log in
         </button>
       </div>
-      <Modal open={open} title={title} onClose={closeModal}>
+      <Modal open={open} title={title} onClose={closeModal} cardClassName="auth-modal-card">
         <form className="auth-modal-form" onSubmit={handleSubmit}>
           <div className="form-grid">
             <label className="full">

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AuthMenu } from "@/components/AuthMenu";
-import { exportPfBackup } from "@/lib/utils/backup";
 
 const NAV_ITEMS = [
   { label: "Portfolio", href: "/portfolio" },
@@ -16,19 +15,16 @@ const NAV_ITEMS = [
 
 export function TopNav() {
   const pathname = usePathname();
-  const handleBackupClick = () => {
-    const result = exportPfBackup();
-
-    if (!result.ok) {
-      window.alert("백업할 데이터가 없습니다");
-    }
-  };
 
   return (
     <header className="top-nav-wrap">
       <div className="top-nav-inner">
-        <div className="brand">Personal Finance Dashboard</div>
-        <div className="top-nav-actions">
+        <div className="top-nav-left">
+          <Link href="/portfolio" className="brand brand-east">
+            EAST
+          </Link>
+        </div>
+        <div className="top-nav-center">
           <nav className="top-nav">
             {NAV_ITEMS.map((item, index) => {
               if ("kind" in item && item.kind === "divider") {
@@ -54,10 +50,9 @@ export function TopNav() {
               );
             })}
           </nav>
+        </div>
+        <div className="top-nav-right">
           <AuthMenu />
-          <button type="button" className="top-nav-backup-button" onClick={handleBackupClick}>
-            Backup
-          </button>
         </div>
       </div>
     </header>
