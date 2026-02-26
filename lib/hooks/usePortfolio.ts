@@ -24,6 +24,18 @@ import {
   notifyFinanceDataChanged,
 } from "@/lib/services/events";
 
+function errorMessage(error: unknown): string {
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+
+    if (typeof message === "string" && message.trim() !== "") {
+      return message;
+    }
+  }
+
+  return "unknown error";
+}
+
 function sortHoldings(holdings: PortfolioHolding[]): PortfolioHolding[] {
   return [...holdings].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -172,14 +184,13 @@ export function usePortfolio() {
             updatedAt: nowIso,
           };
 
-          await repository.upsertHolding(next);
+          await repository.upsertHolding(next, { isCreate: true });
           setHoldings(await repository.getHoldings());
           notifyFinanceDataChanged();
         } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.error("[portfolio] failed to create holding", error);
-          }
-          window.alert("보유자산 저장에 실패했습니다.");
+          const message = errorMessage(error);
+          console.error("[portfolio] failed to create holding", error);
+          window.alert(`보유자산 저장 실패: ${message}`);
         }
       })();
     },
@@ -228,10 +239,9 @@ export function usePortfolio() {
           setHoldings(await repository.getHoldings());
           notifyFinanceDataChanged();
         } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.error("[portfolio] failed to update holding", error);
-          }
-          window.alert("보유자산 수정에 실패했습니다.");
+          const message = errorMessage(error);
+          console.error("[portfolio] failed to update holding", error);
+          window.alert(`보유자산 수정 실패: ${message}`);
         }
       })();
     },

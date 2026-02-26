@@ -2,27 +2,28 @@ import { PortfolioHolding, PORTFOLIO_SECTORS, PortfolioSector } from "@/lib/mode
 import { supabase } from "@/lib/supabaseClient";
 import { LocalStorageFinanceRepository } from "@/lib/storage/localStorageRepository";
 
+interface UpsertHoldingOptions {
+  isCreate?: boolean;
+}
+
 export interface PortfolioRepository {
   getHoldings(): Promise<PortfolioHolding[]>;
-  upsertHolding(holding: PortfolioHolding): Promise<void>;
+  upsertHolding(holding: PortfolioHolding, options?: UpsertHoldingOptions): Promise<void>;
   deleteHolding(id: string): Promise<void>;
 }
 
 type RawRecord = Record<string, unknown>;
 
 interface PortfolioHoldingRow {
-  id: string;
+  id?: string;
   user_id: string;
   market: "KR" | "US";
-  currency: "KRW" | "USD";
   ticker: string;
-  kr_code: string | null;
-  quote_disabled: boolean;
-  sector: PortfolioSector;
   qty: number;
-  avg_price: number;
-  current_price: number;
-  price_updated_at: string | null;
+  avg_price_int: number;
+  current_price_int: number;
+  sector: string | null;
+  kr_code: string | null;
   updated_at: string;
 }
 
@@ -54,20 +55,32 @@ function normalizeSector(value: unknown): PortfolioSector {
   return matched ?? "Other";
 }
 
-function toNumber(value: unknown, fallback = 0): number {
+function toInt(value: unknown, fallback = 0): number {
   if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
+    return Math.round(value);
   }
 
-  if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value);
+  if (typeof value === "string") {
+    const sanitized = value.replace(/,/g, "").trim();
+
+    if (!sanitized) {
+      return fallback;
+    }
+
+    const parsed = Number(sanitized);
 
     if (Number.isFinite(parsed)) {
-      return parsed;
+      return Math.round(parsed);
     }
   }
 
   return fallback;
+}
+
+function isValidUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function normalizeKrCode(value: unknown): string | undefined {
@@ -131,10 +144,13 @@ function parseHoldingFromUnknown(raw: unknown, index: number): PortfolioHolding 
     quoteDisabled:
       input.quoteDisabled === true || input.quote_disabled === true ? true : undefined,
     sector: normalizeSector(input.sector),
-    qty: Math.max(Math.round(toNumber(input.qty, 0)), 0),
-    avgPrice: Math.max(Math.round(toNumber(input.avgPrice ?? input.avg_price, 0)), 0),
+    qty: Math.max(toInt(input.qty, 0), 0),
+    avgPrice: Math.max(
+      toInt(input.avgPrice ?? input.avg_price_int ?? input.avg_price, 0),
+      0,
+    ),
     currentPrice: Math.max(
-      Math.round(toNumber(input.currentPrice ?? input.current_price, 0)),
+      toInt(input.currentPrice ?? input.current_price_int ?? input.current_price, 0),
       0,
     ),
     priceUpdatedAt,
@@ -142,22 +158,29 @@ function parseHoldingFromUnknown(raw: unknown, index: number): PortfolioHolding 
   };
 }
 
-function toSupabaseRow(holding: PortfolioHolding, userId: string): PortfolioHoldingRow {
-  return {
-    id: holding.id,
+function normalizeHoldingForDb(
+  holding: PortfolioHolding,
+  userId: string,
+  options?: UpsertHoldingOptions,
+): PortfolioHoldingRow {
+  const ticker = holding.ticker.trim();
+  const row: PortfolioHoldingRow = {
     user_id: userId,
     market: holding.market,
-    currency: holding.currency,
-    ticker: holding.ticker,
+    ticker,
+    qty: Math.max(toInt(holding.qty, 0), 0),
+    avg_price_int: Math.max(toInt(holding.avgPrice, 0), 0),
+    current_price_int: Math.max(toInt(holding.currentPrice, 0), 0),
+    sector: holding.sector?.trim() ? holding.sector : null,
     kr_code: holding.krCode ?? null,
-    quote_disabled: holding.quoteDisabled ?? false,
-    sector: holding.sector,
-    qty: holding.qty,
-    avg_price: holding.avgPrice,
-    current_price: holding.currentPrice,
-    price_updated_at: holding.priceUpdatedAt ?? null,
     updated_at: holding.updatedAt,
   };
+
+  if (!options?.isCreate && holding.id.trim() && isValidUuid(holding.id.trim())) {
+    row.id = holding.id.trim();
+  }
+
+  return row;
 }
 
 export class LocalPortfolioRepository implements PortfolioRepository {
@@ -184,7 +207,9 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
   async getHoldings(): Promise<PortfolioHolding[]> {
     const { data, error } = await supabase
       .from("portfolio_holdings")
-      .select("*")
+      .select(
+        "id,user_id,market,ticker,qty,avg_price_int,current_price_int,sector,kr_code,updated_at",
+      )
       .eq("user_id", this.userId);
 
     if (error) {
@@ -198,11 +223,14 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
     return sortByUpdatedAtDesc(parsed);
   }
 
-  async upsertHolding(holding: PortfolioHolding): Promise<void> {
-    const payload = toSupabaseRow(holding, this.userId);
+  async upsertHolding(
+    holding: PortfolioHolding,
+    options?: UpsertHoldingOptions,
+  ): Promise<void> {
+    const payload = normalizeHoldingForDb(holding, this.userId, options);
     const { error } = await supabase
       .from("portfolio_holdings")
-      .upsert(payload, { onConflict: "id" });
+      .upsert([payload], { onConflict: "id" });
 
     if (error) {
       throw error;
