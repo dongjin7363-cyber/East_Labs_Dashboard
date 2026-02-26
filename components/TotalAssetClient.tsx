@@ -218,8 +218,8 @@ export function TotalAssetClient() {
   }, [monthSnapshots]);
 
   const shouldShowMorningReminder = useMemo(
-    () => mounted && nowKstHour >= 7 && !snapshotsByDate.has(todayKst),
-    [mounted, nowKstHour, snapshotsByDate, todayKst],
+    () => mounted && isCloudMode && nowKstHour >= 7 && !snapshotsByDate.has(todayKst),
+    [isCloudMode, mounted, nowKstHour, snapshotsByDate, todayKst],
   );
 
   const fetchHoldingQuote = useCallback(
@@ -390,12 +390,22 @@ export function TotalAssetClient() {
       return;
     }
 
+    if (!isCloudMode) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     const notesToSave = notesInput.trim() || undefined;
     void recordSnapshot(selectedDate, notesToSave);
   };
 
   const handleSaveNotes = () => {
     if (!mounted) {
+      return;
+    }
+
+    if (!isCloudMode) {
+      window.alert("로그인 후 사용 가능합니다.");
       return;
     }
 
@@ -412,6 +422,11 @@ export function TotalAssetClient() {
 
   const handleDelete = () => {
     if (!mounted) {
+      return;
+    }
+
+    if (!isCloudMode) {
+      window.alert("로그인 후 사용 가능합니다.");
       return;
     }
 
@@ -471,17 +486,6 @@ export function TotalAssetClient() {
     [latestSnapshot, monthPeakSnapshot, monthRange.from, monthRange.to, monthSnapshots.length, mounted, selectedSnapshot],
   );
 
-  if (!authLoading && !isCloudMode) {
-    return (
-      <>
-        <PageHeader title="Total Asset" />
-        <section className="panel">
-          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -491,12 +495,18 @@ export function TotalAssetClient() {
             type="button"
             className="primary-button"
             onClick={handleRecordSelected}
-            disabled={!mounted || loading || isRecording}
+            disabled={!mounted || loading || isRecording || !isCloudMode}
           >
             {isRecording ? "자동 기록 중..." : mounted ? `${selectedDate} 자동 기록` : "자동 기록"}
           </button>
         }
       />
+
+      {!authLoading && !isCloudMode ? (
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      ) : null}
 
       {shouldShowMorningReminder ? (
         <section className="panel ta-reminder-banner">
@@ -595,7 +605,7 @@ export function TotalAssetClient() {
                 type="button"
                 className="primary-button"
                 onClick={handleRecordSelected}
-                disabled={!mounted || isRecording || loading}
+                disabled={!mounted || isRecording || loading || !isCloudMode}
               >
                 Refresh
               </button>
@@ -603,7 +613,7 @@ export function TotalAssetClient() {
                 type="button"
                 className="ghost-button"
                 onClick={handleSaveNotes}
-                disabled={!selectedSnapshot}
+                disabled={!selectedSnapshot || !isCloudMode}
               >
                 Save
               </button>
@@ -611,7 +621,7 @@ export function TotalAssetClient() {
                 type="button"
                 className="danger-button"
                 onClick={handleDelete}
-                disabled={!selectedSnapshot}
+                disabled={!selectedSnapshot || !isCloudMode}
               >
                 Delete
               </button>

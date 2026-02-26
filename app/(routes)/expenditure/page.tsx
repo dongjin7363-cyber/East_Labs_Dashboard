@@ -107,10 +107,19 @@ export default function ExpenditurePage() {
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
   const todayKst = useMemo(() => todayKstYmd(), []);
+  const isAuthed = isAuthenticated;
   const isCurrentKstMonthSelected = useMemo(
     () => selectedMonth === todayKst.slice(0, 7),
     [selectedMonth, todayKst],
   );
+
+  useEffect(() => {
+    if (authLoading || isAuthed) {
+      return;
+    }
+
+    setSelectedCell(null);
+  }, [authLoading, isAuthed]);
 
   const monthEntries = useMemo(
     () => listExpenseEntriesByMonth(entries, selectedMonth),
@@ -255,17 +264,6 @@ export default function ExpenditurePage() {
     return listExpenseEntriesByCell(monthEntries, selectedCell.date, selectedCell.bucket);
   }, [monthEntries, selectedCell]);
 
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <>
-        <PageHeader title="Expenditure" />
-        <section className="panel">
-          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -278,6 +276,12 @@ export default function ExpenditurePage() {
           </span>
         }
       />
+
+      {!authLoading && !isAuthed ? (
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      ) : null}
 
       <section className="panel">
         <div className="filter-row">
@@ -337,9 +341,14 @@ export default function ExpenditurePage() {
                           <button
                             type="button"
                             className={`expense-sheet-cell ${amount !== 0 ? "has-value" : ""}`}
-                            onClick={() =>
-                              setSelectedCell({ date: row.date, bucket: column.key })
-                            }
+                            onClick={() => {
+                              if (!isAuthed) {
+                                window.alert("로그인 후 사용 가능합니다.");
+                                return;
+                              }
+
+                              setSelectedCell({ date: row.date, bucket: column.key });
+                            }}
                           >
                             {cellDisplay(amount)}
                           </button>
@@ -416,9 +425,27 @@ export default function ExpenditurePage() {
         bucket={selectedCell?.bucket ?? "INCOME"}
         entries={selectedCellEntries}
         onClose={() => setSelectedCell(null)}
-        onCreate={create}
-        onUpdate={update}
-        onDelete={remove}
+        onCreate={(input) => {
+          if (!isAuthed) {
+            window.alert("로그인 후 사용 가능합니다.");
+            return;
+          }
+          create(input);
+        }}
+        onUpdate={(id, input) => {
+          if (!isAuthed) {
+            window.alert("로그인 후 사용 가능합니다.");
+            return;
+          }
+          update(id, input);
+        }}
+        onDelete={(id) => {
+          if (!isAuthed) {
+            window.alert("로그인 후 사용 가능합니다.");
+            return;
+          }
+          remove(id);
+        }}
       />
     </>
   );

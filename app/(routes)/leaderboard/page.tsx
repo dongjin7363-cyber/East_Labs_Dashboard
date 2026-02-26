@@ -96,6 +96,17 @@ export default function LeaderboardPage() {
   const [isFormOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RealizedTrade | undefined>();
   const [selected, setSelected] = useState<RealizedTrade | undefined>();
+  const isAuthed = isAuthenticated;
+
+  useEffect(() => {
+    if (authLoading || isAuthed) {
+      return;
+    }
+
+    setFormOpen(false);
+    setEditing(undefined);
+    setSelected(undefined);
+  }, [authLoading, isAuthed]);
 
   useEffect(() => {
     const savedFx = window.localStorage.getItem(FX_STORAGE_KEY);
@@ -310,6 +321,11 @@ export default function LeaderboardPage() {
   }, [monthlyTotal, sumDailyBars]);
 
   const openCreate = () => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     setEditing(undefined);
     setFormOpen(true);
   };
@@ -321,6 +337,11 @@ export default function LeaderboardPage() {
   };
 
   const handleDelete = (trade: RealizedTrade) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     if (!window.confirm("해당 거래를 삭제할까요?")) {
       return;
     }
@@ -346,27 +367,27 @@ export default function LeaderboardPage() {
       maximumFractionDigits: 2,
     }).format(fxRate)}` + (fxAsOf ? ` (${fxAsOf})` : "");
 
-  if (!authLoading && !isAuthenticated) {
-    return (
-      <>
-        <PageHeader title="Leaderboard" />
-        <section className="panel">
-          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
         title="Leaderboard"
         actions={
-          <button type="button" className="primary-button" onClick={openCreate}>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={openCreate}
+            disabled={!isAuthed}
+          >
             거래 추가
           </button>
         }
       />
+
+      {!authLoading && !isAuthed ? (
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      ) : null}
 
       <SummaryCardGrid
         cards={[
@@ -605,6 +626,11 @@ export default function LeaderboardPage() {
         trade={editing}
         onClose={() => setFormOpen(false)}
         onSubmit={(input) => {
+          if (!isAuthed) {
+            window.alert("로그인 후 사용 가능합니다.");
+            return;
+          }
+
           if (editing) {
             update(editing.id, input);
             return;

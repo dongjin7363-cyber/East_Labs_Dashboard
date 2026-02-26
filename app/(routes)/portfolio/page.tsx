@@ -218,6 +218,7 @@ export default function PortfolioPage() {
   const [isUploadingCloud, setIsUploadingCloud] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
   const portfolioDebugLoggedRef = useRef(false);
+  const isAuthed = isCloudMode;
 
   useEffect(() => {
     const savedFx = window.localStorage.getItem(FX_STORAGE_KEY);
@@ -226,6 +227,32 @@ export default function PortfolioPage() {
       if (Number.isFinite(parsedFx) && parsedFx > 0) {
         setFxRate(parsedFx);
       }
+    }
+
+    const savedLastRefreshAt = parseStoredTimestamp(
+      window.localStorage.getItem(LAST_QUOTE_REFRESH_STORAGE_KEY),
+    );
+    const savedLastFailAt = parseStoredTimestamp(
+      window.localStorage.getItem(LAST_QUOTE_FAIL_STORAGE_KEY),
+    );
+
+    setLastQuoteRefreshAt(savedLastRefreshAt);
+    setLastQuoteFailAt(savedLastFailAt);
+    setQuoteBlacklist(readQuoteBlacklist());
+    setQuoteMetaLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!isAuthed) {
+      setDepositKrw(0);
+      setDepositInput("");
+      setCashKrw(0);
+      setCashInput("");
+      return;
     }
 
     const savedDeposit = window.localStorage.getItem(DEPOSIT_STORAGE_KEY);
@@ -243,32 +270,27 @@ export default function PortfolioPage() {
       setCashInput("");
       window.localStorage.setItem(DEPOSIT_STORAGE_KEY, `${legacyDeposit}`);
       window.localStorage.setItem(CASH_STORAGE_KEY, "0");
+      return;
     }
 
-    if (!migratedFromLegacyCash && savedDeposit && /^\d+$/.test(savedDeposit)) {
+    if (savedDeposit && /^\d+$/.test(savedDeposit)) {
       const parsedDeposit = Number.parseInt(savedDeposit, 10);
       setDepositKrw(parsedDeposit);
       setDepositInput(parsedDeposit === 0 ? "" : `${parsedDeposit}`);
+    } else {
+      setDepositKrw(0);
+      setDepositInput("");
     }
 
-    if (!migratedFromLegacyCash && savedCash && /^\d+$/.test(savedCash)) {
+    if (savedCash && /^\d+$/.test(savedCash)) {
       const parsedCash = Number.parseInt(savedCash, 10);
       setCashKrw(parsedCash);
       setCashInput(parsedCash === 0 ? "" : `${parsedCash}`);
+    } else {
+      setCashKrw(0);
+      setCashInput("");
     }
-
-    const savedLastRefreshAt = parseStoredTimestamp(
-      window.localStorage.getItem(LAST_QUOTE_REFRESH_STORAGE_KEY),
-    );
-    const savedLastFailAt = parseStoredTimestamp(
-      window.localStorage.getItem(LAST_QUOTE_FAIL_STORAGE_KEY),
-    );
-
-    setLastQuoteRefreshAt(savedLastRefreshAt);
-    setLastQuoteFailAt(savedLastFailAt);
-    setQuoteBlacklist(readQuoteBlacklist());
-    setQuoteMetaLoaded(true);
-  }, []);
+  }, [authLoading, isAuthed]);
 
   useEffect(() => {
     let mounted = true;
@@ -309,6 +331,17 @@ export default function PortfolioPage() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (authLoading || isAuthed) {
+      return;
+    }
+
+    setModalOpen(false);
+    setEditing(undefined);
+    setManualKrTicker(null);
+    setManualKrCodeInput("");
+  }, [authLoading, isAuthed]);
 
   const filtered = useMemo(() => {
     return filterHoldings(holdings, {
@@ -914,6 +947,11 @@ export default function PortfolioPage() {
   ];
 
   const handleDepositInputChange = (rawDigits: string) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     if (!rawDigits) {
       setDepositInput("");
       setDepositKrw(0);
@@ -928,6 +966,11 @@ export default function PortfolioPage() {
   };
 
   const handleCashInputChange = (rawDigits: string) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     if (!rawDigits) {
       setCashInput("");
       setCashKrw(0);
@@ -942,6 +985,11 @@ export default function PortfolioPage() {
   };
 
   const handleCreate = () => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     setEditing(undefined);
     setModalOpen(true);
   };
@@ -965,6 +1013,11 @@ export default function PortfolioPage() {
   };
 
   const handleManualQuoteRefresh = () => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
     console.log("[quote-refresh] manual refresh clicked");
     void refreshQuotesForVisible({ staleOnly: false, force: true });
   };
@@ -1137,17 +1190,6 @@ export default function PortfolioPage() {
     return sortState.mode === "DESC" ? "▼" : "▲";
   };
 
-  if (!authLoading && !isCloudMode) {
-    return (
-      <>
-        <PageHeader title="Portfolio" />
-        <section className="panel">
-          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
-      </>
-    );
-  }
-
   return (
     <>
       <PageHeader
@@ -1161,30 +1203,39 @@ export default function PortfolioPage() {
         }
         actions={
           <>
-            {isCloudMode ? (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleUploadLocalToCloud}
-                disabled={isUploadingCloud || authLoading}
-              >
-                {isUploadingCloud ? "Uploading..." : "Upload local → Cloud"}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={handleUploadLocalToCloud}
+              disabled={!isAuthed || isUploadingCloud || authLoading}
+            >
+              {isUploadingCloud ? "Uploading..." : "Upload local → Cloud"}
+            </button>
             <button
               type="button"
               className="secondary-button"
               onClick={handleManualQuoteRefresh}
-              disabled={isRefreshingQuotes}
+              disabled={!isAuthed || isRefreshingQuotes}
             >
               {isRefreshingQuotes ? "현재가 갱신 중..." : "현재가 갱신"}
             </button>
-            <button type="button" className="primary-button" onClick={handleCreate}>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleCreate}
+              disabled={!isAuthed}
+            >
               추가
             </button>
           </>
         }
       />
+
+      {!authLoading && !isAuthed ? (
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      ) : null}
 
       <section className="panel cash-panel">
         <div className="filter-row cash-row">
@@ -1195,6 +1246,7 @@ export default function PortfolioPage() {
               placeholder="예: 1,000,000"
               value={depositInput}
               onValueChange={handleDepositInputChange}
+              disabled={!isAuthed}
             />
           </label>
           <label>
@@ -1204,6 +1256,7 @@ export default function PortfolioPage() {
               placeholder="예: 500,000"
               value={cashInput}
               onValueChange={handleCashInputChange}
+              disabled={!isAuthed}
             />
           </label>
           <div className="fx-meta">
@@ -1455,6 +1508,7 @@ export default function PortfolioPage() {
             type="button"
             className="primary-button"
             onClick={handleManualKrCodeSave}
+            disabled={!isAuthed}
           >
             Save
           </button>
@@ -1476,6 +1530,11 @@ export default function PortfolioPage() {
         onDelete={
           editing
             ? () => {
+                if (!isAuthed) {
+                  window.alert("로그인 후 사용 가능합니다.");
+                  return;
+                }
+
                 const deleted = handleDelete(editing.id);
 
                 if (!deleted) {
@@ -1488,6 +1547,11 @@ export default function PortfolioPage() {
             : undefined
         }
         onSubmit={(input) => {
+          if (!isAuthed) {
+            window.alert("로그인 후 사용 가능합니다.");
+            return;
+          }
+
           if (editing) {
             update(editing.id, input);
             return;
