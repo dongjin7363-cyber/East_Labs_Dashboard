@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -17,6 +18,16 @@ export function Modal({
   children,
   cardClassName,
 }: ModalProps) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+
+    return () => {
+      setMounted(false);
+    };
+  }, []);
+
   useEffect(() => {
     if (!open) {
       return;
@@ -35,11 +46,11 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) {
+  if (!open || !mounted) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div className="modal-overlay" role="presentation" onClick={onClose}>
       <div
         className={`modal-card ${cardClassName ?? ""}`.trim()}
@@ -56,6 +67,7 @@ export function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

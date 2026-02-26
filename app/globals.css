@@ -68,6 +68,8 @@ textarea {
 .brand-east {
   font-weight: 800;
   color: #0047ff;
+  font-size: 29px;
+  line-height: 1.05;
 }
 
 .top-nav-left {
@@ -989,12 +991,12 @@ table tfoot td {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.45);
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  z-index: 40;
+  z-index: 9999;
 }
 
 .modal-card {
@@ -1042,6 +1044,11 @@ table tfoot td {
 }
 
 @media (max-width: 860px) {
+  .brand-east {
+    font-size: 25px;
+    line-height: 1.05;
+  }
+
   .top-nav-inner {
     flex-wrap: wrap;
   }
