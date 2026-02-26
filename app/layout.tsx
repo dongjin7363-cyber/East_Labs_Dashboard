@@ -3,7 +3,7 @@ import "./globals.css";
 import { TopNav } from "@/components/TopNav";
 
 export const metadata: Metadata = {
-  title: "Personal Finance Dashboard",
+  title: "EAST",
   description: "Local-first personal finance dashboard MVP",
 };
 
