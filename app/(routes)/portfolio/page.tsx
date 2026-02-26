@@ -1137,6 +1137,17 @@ export default function PortfolioPage() {
     return sortState.mode === "DESC" ? "▼" : "▲";
   };
 
+  if (!authLoading && !isCloudMode) {
+    return (
+      <>
+        <PageHeader title="Portfolio" />
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader

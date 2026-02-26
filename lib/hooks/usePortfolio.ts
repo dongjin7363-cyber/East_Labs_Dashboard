@@ -93,6 +93,12 @@ export function usePortfolio() {
       return;
     }
 
+    if (!isAuthenticated) {
+      setHoldings([]);
+      setLoading(false);
+      return;
+    }
+
     const requestSeq = ++requestSeqRef.current;
     setLoading(true);
 
@@ -117,7 +123,7 @@ export function usePortfolio() {
         setLoading(false);
       }
     }
-  }, [authLoading, repository]);
+  }, [authLoading, isAuthenticated, repository]);
 
   useEffect(() => {
     if (authLoading) {
@@ -144,6 +150,10 @@ export function usePortfolio() {
 
   const create = useCallback(
     (input: PortfolioInput) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
       void (async () => {
         try {
           const nowIso = new Date().toISOString();
@@ -173,11 +183,15 @@ export function usePortfolio() {
         }
       })();
     },
-    [repository],
+    [isAuthenticated, repository],
   );
 
   const update = useCallback(
     (id: string, input: PortfolioInput) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
       void (async () => {
         try {
           const current = await repository.getHoldings();
@@ -221,11 +235,15 @@ export function usePortfolio() {
         }
       })();
     },
-    [repository],
+    [isAuthenticated, repository],
   );
 
   const remove = useCallback(
     (id: string) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
       void (async () => {
         try {
           await repository.deleteHolding(id);
@@ -239,12 +257,12 @@ export function usePortfolio() {
         }
       })();
     },
-    [repository],
+    [isAuthenticated, repository],
   );
 
   const updateQuotes = useCallback(
     (quoteUpdates: HoldingQuoteUpdate[]) => {
-      if (quoteUpdates.length === 0) {
+      if (!isAuthenticated || quoteUpdates.length === 0) {
         return;
       }
 
@@ -288,11 +306,11 @@ export function usePortfolio() {
         }
       })();
     },
-    [repository],
+    [isAuthenticated, repository],
   );
 
   const uploadLocalToCloud = useCallback(async () => {
-    if (!userId) {
+    if (!isAuthenticated || !userId) {
       return { uploaded: 0, total: 0 };
     }
 
@@ -315,7 +333,7 @@ export function usePortfolio() {
       uploaded: localHoldings.length,
       total: localHoldings.length,
     };
-  }, [userId]);
+  }, [isAuthenticated, userId]);
 
   return {
     holdings,

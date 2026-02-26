@@ -93,7 +93,15 @@ function cellDisplay(amountInt: number): string {
 }
 
 export default function ExpenditurePage() {
-  const { entries, loading, create, update, remove } = useExpenses();
+  const {
+    entries,
+    loading,
+    authLoading,
+    isAuthenticated,
+    create,
+    update,
+    remove,
+  } = useExpenses();
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
@@ -246,6 +254,17 @@ export default function ExpenditurePage() {
 
     return listExpenseEntriesByCell(monthEntries, selectedCell.date, selectedCell.bucket);
   }, [monthEntries, selectedCell]);
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <>
+        <PageHeader title="Expenditure" />
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

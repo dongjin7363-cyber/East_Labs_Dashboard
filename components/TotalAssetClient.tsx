@@ -5,8 +5,9 @@ import { PageHeader } from "@/components/PageHeader";
 import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
+import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
-import { PortfolioHolding, TotalAssetSnapshot } from "@/lib/models/types";
+import { PortfolioHolding } from "@/lib/models/types";
 import {
   calculatePortfolioTotalAsset,
   HoldingQuoteUpdate,
@@ -14,15 +15,9 @@ import {
 import {
   buildTotalAssetTrendByMonth,
   DEFAULT_USDKRW_FX_RATE,
-  deleteTotalAssetSnapshotByDate,
-  getTotalAssetSnapshotByDate,
-  listTotalAssetSnapshots,
   PORTFOLIO_FX_STORAGE_KEY,
   readPortfolioCashSettings,
   readStoredFxRate,
-  TotalAssetSnapshotInput,
-  upsertTotalAssetSnapshot,
-  updateTotalAssetSnapshotNotes,
 } from "@/lib/services/totalAssetService";
 import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm } from "@/lib/utils/date";
 import { moneyFormat } from "@/lib/utils/money";
@@ -62,13 +57,26 @@ const SSR_SAFE_MONTH = "1970-01";
 const SSR_SAFE_DATE = "1970-01-01";
 
 export function TotalAssetClient() {
-  const { holdings, loading, updateQuotes } = usePortfolio();
+  const {
+    holdings,
+    loading: portfolioLoading,
+    updateQuotes,
+    authLoading,
+    isCloudMode,
+  } = usePortfolio();
+  const {
+    snapshots,
+    loading: snapshotLoading,
+    getSnapshotByDate,
+    upsertSnapshot,
+    saveNotes,
+    removeSnapshot,
+  } = useTotalAssets();
   const [mounted, setMounted] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(SSR_SAFE_MONTH);
   const [selectedDate, setSelectedDate] = useState(SSR_SAFE_DATE);
   const [todayKst, setTodayKst] = useState(SSR_SAFE_DATE);
   const [nowKstHour, setNowKstHour] = useState(0);
-  const [snapshots, setSnapshots] = useState<TotalAssetSnapshot[]>([]);
   const [notesInput, setNotesInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -76,6 +84,7 @@ export function TotalAssetClient() {
   const [fxAsOf, setFxAsOf] = useState("");
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
+  const loading = portfolioLoading || snapshotLoading || authLoading;
 
   useEffect(() => {
     const initialMonth = toYm(new Date());
@@ -85,7 +94,6 @@ export function TotalAssetClient() {
     setSelectedDate(initialToday);
     setTodayKst(initialToday);
     setNowKstHour(currentKstHour());
-    setSnapshots(listTotalAssetSnapshots());
     setFxRate(readStoredFxRate());
     setMounted(true);
   }, []);
@@ -337,7 +345,7 @@ export function TotalAssetClient() {
 
   const recordSnapshot = useCallback(
     async (targetDate: string, explicitNotes?: string) => {
-      if (!mounted || loading) {
+      if (!mounted || loading || !isCloudMode) {
         return;
       }
 
@@ -359,15 +367,14 @@ export function TotalAssetClient() {
           cashKrw: cashSettings.cashKrw,
         });
 
-        const payload: TotalAssetSnapshotInput = {
+        const payload = {
           date: targetDate,
           totalAssetKrwInt: computed.totalAssetKrw,
           fxRate: fx.rate,
           notes: explicitNotes,
         };
 
-        const updated = upsertTotalAssetSnapshot(payload);
-        setSnapshots(updated);
+        upsertSnapshot(payload);
         setStatusMessage(`${targetDate} 스냅샷을 저장했습니다.`);
       } catch {
         setStatusMessage("스냅샷 저장 중 오류가 발생했습니다.");
@@ -375,7 +382,7 @@ export function TotalAssetClient() {
         setIsRecording(false);
       }
     },
-    [fetchFxRate, holdings, loading, mounted, refreshUsHoldingsQuotes],
+    [fetchFxRate, holdings, isCloudMode, loading, mounted, refreshUsHoldingsQuotes, upsertSnapshot],
   );
 
   const handleRecordSelected = () => {
@@ -392,15 +399,14 @@ export function TotalAssetClient() {
       return;
     }
 
-    const existing = getTotalAssetSnapshotByDate(selectedDate);
+    const existing = getSnapshotByDate(selectedDate);
 
     if (!existing) {
       window.alert("먼저 해당 날짜의 스냅샷을 기록하세요.");
       return;
     }
 
-    const updated = updateTotalAssetSnapshotNotes(selectedDate, notesInput);
-    setSnapshots(updated);
+    saveNotes(selectedDate, notesInput);
     setStatusMessage(`${selectedDate} 메모를 저장했습니다.`);
   };
 
@@ -409,7 +415,7 @@ export function TotalAssetClient() {
       return;
     }
 
-    const existing = getTotalAssetSnapshotByDate(selectedDate);
+    const existing = getSnapshotByDate(selectedDate);
 
     if (!existing) {
       return;
@@ -419,8 +425,7 @@ export function TotalAssetClient() {
       return;
     }
 
-    const updated = deleteTotalAssetSnapshotByDate(selectedDate);
-    setSnapshots(updated);
+    removeSnapshot(selectedDate);
     setStatusMessage(`${selectedDate} 스냅샷을 삭제했습니다.`);
   };
 
@@ -465,6 +470,17 @@ export function TotalAssetClient() {
           ],
     [latestSnapshot, monthPeakSnapshot, monthRange.from, monthRange.to, monthSnapshots.length, mounted, selectedSnapshot],
   );
+
+  if (!authLoading && !isCloudMode) {
+    return (
+      <>
+        <PageHeader title="Total Asset" />
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

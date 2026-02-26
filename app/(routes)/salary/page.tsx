@@ -31,8 +31,18 @@ function emptyCell(value: number): string {
 }
 
 export default function SalaryPage() {
-  const { entries, loading: expensesLoading } = useExpenses();
-  const { trades, loading: tradesLoading } = useRealizedTrades();
+  const {
+    entries,
+    loading: expensesLoading,
+    authLoading: expensesAuthLoading,
+    isAuthenticated: expensesAuthenticated,
+  } = useExpenses();
+  const {
+    trades,
+    loading: tradesLoading,
+    authLoading: tradesAuthLoading,
+    isAuthenticated: tradesAuthenticated,
+  } = useRealizedTrades();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [fxRate, setFxRate] = useState(DEFAULT_USDKRW_FX_RATE);
 
@@ -98,6 +108,19 @@ export default function SalaryPage() {
     [summary.months],
   );
   const loading = expensesLoading || tradesLoading;
+  const authLoading = expensesAuthLoading || tradesAuthLoading;
+  const isAuthenticated = expensesAuthenticated && tradesAuthenticated;
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <>
+        <PageHeader title="Asset Management" />
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

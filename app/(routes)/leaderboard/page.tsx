@@ -73,7 +73,15 @@ function buildWeekdaysFallback(from: string, to: string): string[] {
 }
 
 export default function LeaderboardPage() {
-  const { trades, loading, create, update, remove } = useRealizedTrades();
+  const {
+    trades,
+    loading,
+    authLoading,
+    isAuthenticated,
+    create,
+    update,
+    remove,
+  } = useRealizedTrades();
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [search, setSearch] = useState("");
   const [rating, setRating] = useState<"ALL" | TradeRating>("ALL");
@@ -337,6 +345,17 @@ export default function LeaderboardPage() {
     `1 USD = ₩${new Intl.NumberFormat("ko-KR", {
       maximumFractionDigits: 2,
     }).format(fxRate)}` + (fxAsOf ? ` (${fxAsOf})` : "");
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <>
+        <PageHeader title="Leaderboard" />
+        <section className="panel">
+          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
+        </section>
+      </>
+    );
+  }
 
   return (
     <>

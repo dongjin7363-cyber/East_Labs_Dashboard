@@ -193,6 +193,12 @@ textarea {
   gap: 10px;
 }
 
+.auth-gate-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .auth-modal-card {
   width: min(520px, 92vw);
 }
