@@ -69,7 +69,7 @@ export function TotalAssetClient() {
     loading: snapshotLoading,
     getSnapshotByDate,
     upsertSnapshot,
-    saveNotes,
+    saveMemo,
     removeSnapshot,
   } = useTotalAssets();
   const [mounted, setMounted] = useState(false);
@@ -77,7 +77,7 @@ export function TotalAssetClient() {
   const [selectedDate, setSelectedDate] = useState(SSR_SAFE_DATE);
   const [todayKst, setTodayKst] = useState(SSR_SAFE_DATE);
   const [nowKstHour, setNowKstHour] = useState(0);
-  const [notesInput, setNotesInput] = useState("");
+  const [memoInput, setMemoInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [fxRate, setFxRate] = useState(DEFAULT_USDKRW_FX_RATE);
@@ -184,8 +184,8 @@ export function TotalAssetClient() {
   );
 
   useEffect(() => {
-    setNotesInput(selectedSnapshot?.notes ?? "");
-  }, [selectedSnapshot?.id, selectedSnapshot?.notes]);
+    setMemoInput(selectedSnapshot?.memo ?? "");
+  }, [selectedSnapshot?.id, selectedSnapshot?.memo]);
 
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
 
@@ -344,7 +344,7 @@ export function TotalAssetClient() {
   }, []);
 
   const recordSnapshot = useCallback(
-    async (targetDate: string, explicitNotes?: string) => {
+    async (targetDate: string, explicitMemo?: string) => {
       if (!mounted || loading || !isCloudMode) {
         return;
       }
@@ -371,7 +371,7 @@ export function TotalAssetClient() {
           date: targetDate,
           totalAssetKrwInt: computed.totalAssetKrw,
           fxRate: fx.rate,
-          notes: explicitNotes,
+          memo: explicitMemo,
         };
 
         upsertSnapshot(payload);
@@ -395,8 +395,8 @@ export function TotalAssetClient() {
       return;
     }
 
-    const notesToSave = notesInput.trim() || undefined;
-    void recordSnapshot(selectedDate, notesToSave);
+    const memoToSave = memoInput.trim() || undefined;
+    void recordSnapshot(selectedDate, memoToSave);
   };
 
   const handleSaveNotes = () => {
@@ -416,7 +416,7 @@ export function TotalAssetClient() {
       return;
     }
 
-    saveNotes(selectedDate, notesInput);
+    saveMemo(selectedDate, memoInput);
     setStatusMessage(`${selectedDate} 메모를 저장했습니다.`);
   };
 
@@ -518,7 +518,7 @@ export function TotalAssetClient() {
             className="secondary-button"
             onClick={() => {
               setSelectedDate(todayKst);
-              void recordSnapshot(todayKst, snapshotsByDate.get(todayKst)?.notes);
+              void recordSnapshot(todayKst, snapshotsByDate.get(todayKst)?.memo);
             }}
             disabled={isRecording || loading}
           >
@@ -595,8 +595,8 @@ export function TotalAssetClient() {
               <textarea
                 rows={4}
                 placeholder="선택 날짜 메모"
-                value={notesInput}
-                onChange={(event) => setNotesInput(event.target.value)}
+                value={memoInput}
+                onChange={(event) => setMemoInput(event.target.value)}
               />
             </label>
 

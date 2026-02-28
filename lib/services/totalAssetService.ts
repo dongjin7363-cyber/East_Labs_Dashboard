@@ -21,7 +21,7 @@ export interface TotalAssetSnapshotInput {
   date: string;
   totalAssetKrwInt: number;
   fxRate: number;
-  notes?: string;
+  memo?: string;
 }
 
 export interface TotalAssetTrendPoint {
@@ -77,7 +77,12 @@ function normalizeSnapshot(raw: unknown, index: number): TotalAssetSnapshot | nu
 
       return rate;
     })(),
-    notes: typeof input.notes === "string" && input.notes.trim() !== "" ? input.notes.trim() : undefined,
+    memo:
+      typeof input.memo === "string" && input.memo.trim() !== ""
+        ? input.memo.trim()
+        : typeof input.notes === "string" && input.notes.trim() !== ""
+          ? input.notes.trim()
+          : undefined,
     createdAt:
       typeof input.createdAt === "string" && input.createdAt.trim() !== ""
         ? input.createdAt
@@ -175,7 +180,7 @@ export function getTotalAssetSnapshotByDate(date: string): TotalAssetSnapshot | 
 
 export function upsertTotalAssetSnapshot(input: TotalAssetSnapshotInput): TotalAssetSnapshot[] {
   const existing = listTotalAssetSnapshots();
-  const normalizedNotes = input.notes?.trim() ? input.notes.trim() : undefined;
+  const normalizedMemo = input.memo?.trim() ? input.memo.trim() : undefined;
   const parsedRate = Number(input.fxRate);
   const normalizedRate = Number.isFinite(parsedRate) && parsedRate > 0
     ? parsedRate
@@ -194,7 +199,7 @@ export function upsertTotalAssetSnapshot(input: TotalAssetSnapshotInput): TotalA
           ...snapshot,
           totalAssetKrwInt: normalizedAmount,
           fxRate: normalizedRate,
-          notes: normalizedNotes,
+          memo: normalizedMemo,
         };
       })
     : [
@@ -204,10 +209,34 @@ export function upsertTotalAssetSnapshot(input: TotalAssetSnapshotInput): TotalA
           date: input.date,
           totalAssetKrwInt: normalizedAmount,
           fxRate: normalizedRate,
-          notes: normalizedNotes,
+          memo: normalizedMemo,
           createdAt: new Date().toISOString(),
         },
       ];
+
+  const sorted = sortSnapshotsByDate(next);
+  writeSchema({ ...readSchema(), snapshots: sorted });
+
+  return sorted;
+}
+
+export function updateTotalAssetSnapshotMemo(
+  date: string,
+  memo: string,
+): TotalAssetSnapshot[] {
+  const existing = listTotalAssetSnapshots();
+  const normalized = memo.trim();
+
+  const next = existing.map((snapshot) => {
+    if (snapshot.date !== date) {
+      return snapshot;
+    }
+
+    return {
+      ...snapshot,
+      memo: normalized ? normalized : undefined,
+    };
+  });
 
   const sorted = sortSnapshotsByDate(next);
   writeSchema({ ...readSchema(), snapshots: sorted });
@@ -219,24 +248,7 @@ export function updateTotalAssetSnapshotNotes(
   date: string,
   notes: string,
 ): TotalAssetSnapshot[] {
-  const existing = listTotalAssetSnapshots();
-  const normalized = notes.trim();
-
-  const next = existing.map((snapshot) => {
-    if (snapshot.date !== date) {
-      return snapshot;
-    }
-
-    return {
-      ...snapshot,
-      notes: normalized ? normalized : undefined,
-    };
-  });
-
-  const sorted = sortSnapshotsByDate(next);
-  writeSchema({ ...readSchema(), snapshots: sorted });
-
-  return sorted;
+  return updateTotalAssetSnapshotMemo(date, notes);
 }
 
 export function deleteTotalAssetSnapshotByDate(date: string): TotalAssetSnapshot[] {

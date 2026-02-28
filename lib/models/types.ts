@@ -100,7 +100,7 @@ export interface TotalAssetSnapshot {
   date: string;
   totalAssetKrwInt: number;
   fxRate: number;
-  notes?: string;
+  memo?: string;
   createdAt: string;
 }
 

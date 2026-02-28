@@ -51,7 +51,7 @@ function buildSnapshotFromInput(
       Number.isFinite(normalizedFxRate) && normalizedFxRate > 0
         ? normalizedFxRate
         : 1350,
-    notes: input.notes?.trim() ? input.notes.trim() : undefined,
+    memo: input.memo?.trim() ? input.memo.trim() : undefined,
     createdAt: base.createdAt,
   };
 }
@@ -224,8 +224,8 @@ export function useTotalAssets() {
     [isAuthenticated, repository, snapshots],
   );
 
-  const saveNotes = useCallback(
-    (date: string, notes: string): TotalAssetSnapshot[] => {
+  const saveMemo = useCallback(
+    (date: string, memo: string): TotalAssetSnapshot[] => {
       if (!isAuthenticated) {
         return snapshots;
       }
@@ -241,7 +241,7 @@ export function useTotalAssets() {
 
           const next: TotalAssetSnapshot = {
             ...existing,
-            notes: notes.trim() ? notes.trim() : undefined,
+            memo: memo.trim() ? memo.trim() : undefined,
           };
 
           await repository.upsertSnapshot(next);
@@ -249,7 +249,7 @@ export function useTotalAssets() {
           notifyFinanceDataChanged();
         } catch (error) {
           const message = errorMessage(error);
-          console.error("[total-assets] failed to save notes", error);
+          console.error("[total-assets] failed to save memo", error);
           window.alert(`총자산 메모 저장 실패: ${message}`);
         }
       })();
@@ -302,7 +302,7 @@ export function useTotalAssets() {
     getSnapshotByDate,
     readSnapshotByDate,
     upsertSnapshot,
-    saveNotes,
+    saveMemo,
     removeSnapshot,
   };
 }
