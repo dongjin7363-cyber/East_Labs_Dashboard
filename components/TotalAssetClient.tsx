@@ -364,6 +364,7 @@ export function TotalAssetClient() {
           holdings: holdingsWithLatestPrice,
           fxRate: fx.rate,
           depositKrw: cashSettings.depositKrw,
+          depositUsdCents: cashSettings.depositUsdCents,
           cashKrw: cashSettings.cashKrw,
         });
 

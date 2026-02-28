@@ -8,6 +8,7 @@ const TOTAL_ASSET_SCHEMA_VERSION = 1;
 
 export const PORTFOLIO_FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 export const PORTFOLIO_DEPOSIT_STORAGE_KEY = "pf_deposit_krw_v1";
+export const PORTFOLIO_DEPOSIT_USD_STORAGE_KEY = "pf_deposit_usd_v1";
 export const PORTFOLIO_CASH_STORAGE_KEY = "pf_cash_krw_v1";
 export const DEFAULT_USDKRW_FX_RATE = 1350;
 
@@ -304,16 +305,20 @@ export function calculateTotalAssetKrwFromPortfolio(options: {
 
 export function readPortfolioCashSettings(): {
   depositKrw: number;
+  depositUsdCents: number;
   cashKrw: number;
 } {
   if (!isClient()) {
     return {
       depositKrw: 0,
+      depositUsdCents: 0,
       cashKrw: 0,
     };
   }
 
   const rawDeposit = window.localStorage.getItem(PORTFOLIO_DEPOSIT_STORAGE_KEY) ?? "0";
+  const rawDepositUsd =
+    window.localStorage.getItem(PORTFOLIO_DEPOSIT_USD_STORAGE_KEY) ?? "0";
   const rawCash = window.localStorage.getItem(PORTFOLIO_CASH_STORAGE_KEY) ?? "0";
   const hasRawDeposit = window.localStorage.getItem(PORTFOLIO_DEPOSIT_STORAGE_KEY) !== null;
   const hasRawCash = window.localStorage.getItem(PORTFOLIO_CASH_STORAGE_KEY) !== null;
@@ -325,12 +330,14 @@ export function readPortfolioCashSettings(): {
 
     return {
       depositKrw: legacyDeposit,
+      depositUsdCents: 0,
       cashKrw: 0,
     };
   }
 
   return {
     depositKrw: toNonNegativeInt(rawDeposit, 0),
+    depositUsdCents: toNonNegativeInt(rawDepositUsd, 0),
     cashKrw: toNonNegativeInt(rawCash, 0),
   };
 }

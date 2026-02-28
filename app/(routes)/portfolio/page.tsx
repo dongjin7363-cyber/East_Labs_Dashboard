@@ -22,11 +22,18 @@ import {
   filterHoldings,
   HoldingQuoteUpdate,
 } from "@/lib/services/portfolioService";
-import { moneyFormatParts, percentFormat } from "@/lib/utils/money";
+import {
+  moneyFormatParts,
+  parsePriceInputToInt,
+  percentFormat,
+  usdCentsToUsdFloat,
+  usdToKrw,
+} from "@/lib/utils/money";
 import { SortState, sortRows, toggleSort } from "@/lib/utils/sort";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const DEPOSIT_STORAGE_KEY = "pf_deposit_krw_v1";
+const DEPOSIT_USD_STORAGE_KEY = "pf_deposit_usd_v1";
 const CASH_STORAGE_KEY = "pf_cash_krw_v1";
 const LAST_QUOTE_REFRESH_STORAGE_KEY = "pf_last_quote_refresh_at_v1";
 const LAST_QUOTE_FAIL_STORAGE_KEY = "pf_last_quote_fail_at_v1";
@@ -189,7 +196,6 @@ export default function PortfolioPage() {
     updateQuotes,
     authLoading,
     isCloudMode,
-    uploadLocalToCloud,
   } = usePortfolio();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PortfolioHolding | undefined>();
@@ -202,7 +208,9 @@ export default function PortfolioPage() {
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
   const [fxAsOf, setFxAsOf] = useState("");
   const [depositKrw, setDepositKrw] = useState(0);
-  const [depositInput, setDepositInput] = useState("");
+  const [depositKrwInput, setDepositKrwInput] = useState("");
+  const [depositUsdCents, setDepositUsdCents] = useState(0);
+  const [depositUsdInput, setDepositUsdInput] = useState("");
   const [cashKrw, setCashKrw] = useState(0);
   const [cashInput, setCashInput] = useState("");
   const [isRefreshingQuotes, setIsRefreshingQuotes] = useState(false);
@@ -215,9 +223,7 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
-  const [isUploadingCloud, setIsUploadingCloud] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
-  const portfolioDebugLoggedRef = useRef(false);
   const isAuthed = isCloudMode;
 
   useEffect(() => {
@@ -249,13 +255,16 @@ export default function PortfolioPage() {
 
     if (!isAuthed) {
       setDepositKrw(0);
-      setDepositInput("");
+      setDepositKrwInput("");
+      setDepositUsdCents(0);
+      setDepositUsdInput("");
       setCashKrw(0);
       setCashInput("");
       return;
     }
 
     const savedDeposit = window.localStorage.getItem(DEPOSIT_STORAGE_KEY);
+    const savedDepositUsd = window.localStorage.getItem(DEPOSIT_USD_STORAGE_KEY);
     const savedCash = window.localStorage.getItem(CASH_STORAGE_KEY);
 
     const migratedFromLegacyCash =
@@ -265,10 +274,13 @@ export default function PortfolioPage() {
       // Backward compatibility: previous versions stored the single cash input as deposit.
       const legacyDeposit = Number.parseInt(savedCash, 10);
       setDepositKrw(legacyDeposit);
-      setDepositInput(legacyDeposit === 0 ? "" : `${legacyDeposit}`);
+      setDepositKrwInput(legacyDeposit === 0 ? "" : `${legacyDeposit}`);
+      setDepositUsdCents(0);
+      setDepositUsdInput("");
       setCashKrw(0);
       setCashInput("");
       window.localStorage.setItem(DEPOSIT_STORAGE_KEY, `${legacyDeposit}`);
+      window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, "0");
       window.localStorage.setItem(CASH_STORAGE_KEY, "0");
       return;
     }
@@ -276,10 +288,23 @@ export default function PortfolioPage() {
     if (savedDeposit && /^\d+$/.test(savedDeposit)) {
       const parsedDeposit = Number.parseInt(savedDeposit, 10);
       setDepositKrw(parsedDeposit);
-      setDepositInput(parsedDeposit === 0 ? "" : `${parsedDeposit}`);
+      setDepositKrwInput(parsedDeposit === 0 ? "" : `${parsedDeposit}`);
     } else {
       setDepositKrw(0);
-      setDepositInput("");
+      setDepositKrwInput("");
+    }
+
+    if (savedDepositUsd && /^\d+$/.test(savedDepositUsd)) {
+      const parsedDepositUsdCents = Number.parseInt(savedDepositUsd, 10);
+      setDepositUsdCents(parsedDepositUsdCents);
+      setDepositUsdInput(
+        parsedDepositUsdCents === 0
+          ? ""
+          : (parsedDepositUsdCents / 100).toFixed(2),
+      );
+    } else {
+      setDepositUsdCents(0);
+      setDepositUsdInput("");
     }
 
     if (savedCash && /^\d+$/.test(savedCash)) {
@@ -767,12 +792,13 @@ export default function PortfolioPage() {
   const totalAsset = useMemo(
     () =>
       calculatePortfolioTotalAsset({
-        holdings: filtered,
+        holdings,
         fxRate,
         depositKrw,
+        depositUsdCents,
         cashKrw,
       }),
-    [cashKrw, depositKrw, filtered, fxRate],
+    [cashKrw, depositKrw, depositUsdCents, fxRate, holdings],
   );
   const tableRows = useMemo<PortfolioTableRow[]>(
     () =>
@@ -820,10 +846,40 @@ export default function PortfolioPage() {
     [sortState, tableRows],
   );
   const totalKrwEval = totalAsset.totalKrwEval;
+  const totalUsdEvalCents = totalAsset.totalUsdEvalCents;
   const usdTotalKrw = totalAsset.usdTotalKrw;
   const usdPnlKrw = totalAsset.usdPnlKrw;
-  const totalKrwPnl = totalAsset.totalKrwPnl;
   const totalAssetKrw = totalAsset.totalAssetKrw;
+  const krHoldingsPnlKrw = totalAsset.krHoldingsPnlKrw;
+  const usdHoldingsPnlCents = totalAsset.usdHoldingsPnlCents;
+  const accountPnlKrw = krHoldingsPnlKrw + usdPnlKrw;
+  const totalDepositKrw = useMemo(
+    () => depositKrw + usdToKrw(usdCentsToUsdFloat(depositUsdCents), fxRate),
+    [depositKrw, depositUsdCents, fxRate],
+  );
+  const accountBaseKrw = useMemo(() => {
+    const bases = holdings.reduce(
+      (acc, holding) => {
+        const costBasis = holding.qty * holding.avgPrice;
+
+        if (holding.market === "US") {
+          acc.usdBaseCents += costBasis;
+        } else {
+          acc.krBaseKrw += costBasis;
+        }
+
+        return acc;
+      },
+      { krBaseKrw: 0, usdBaseCents: 0 },
+    );
+
+    return (
+      bases.krBaseKrw +
+      usdToKrw(usdCentsToUsdFloat(bases.usdBaseCents), fxRate)
+    );
+  }, [fxRate, holdings]);
+  const totalPnlPct =
+    accountBaseKrw > 0 ? (accountPnlKrw / accountBaseKrw) * 100 : null;
 
   const tableUsdMvCents = useMemo(
     () =>
@@ -845,18 +901,14 @@ export default function PortfolioPage() {
   );
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development") {
-      return;
-    }
-
-    if (portfolioDebugLoggedRef.current || loading) {
+    if (process.env.NODE_ENV !== "development" || loading) {
       return;
     }
 
     const sumTableUsdMv = tableUsdMvCents / 100;
     const totalUsdMv = totalAsset.usdHoldingsMarketValueCents / 100;
     const sumTableKrwMv = tableKrwMvWon;
-    const totalKrwMvWon = totalAsset.totalKrwEval;
+    const totalKrwMvWithoutDeposit = totalAsset.totalKrwEval - Math.max(depositKrw, 0);
     const totalAssetKrwWon = totalAsset.totalAssetKrw;
     const formulaTotalAssetKrw =
       totalAsset.totalKrwEval + totalAsset.usdTotalKrw + Math.max(cashKrw, 0);
@@ -870,8 +922,8 @@ export default function PortfolioPage() {
       },
       {
         sumTableKrwMv,
-        totalKrwMvWithoutDeposit: totalKrwMvWon - Math.max(depositKrw, 0),
-        krwMatch: sumTableKrwMv === totalKrwMvWon - Math.max(depositKrw, 0),
+        totalKrwMvWithoutDeposit,
+        krwMatch: sumTableKrwMv === totalKrwMvWithoutDeposit,
       },
       {
         totalAssetKrwWon,
@@ -879,8 +931,6 @@ export default function PortfolioPage() {
         totalMatch: totalAssetKrwWon === formulaTotalAssetKrw,
       },
     );
-
-    portfolioDebugLoggedRef.current = true;
   }, [
     cashKrw,
     depositKrw,
@@ -912,7 +962,7 @@ export default function PortfolioPage() {
     },
     {
       title: "총 평가금액 (USD)",
-      value: renderMoney("USD", totalAsset.marketValue.USD),
+      value: renderMoney("USD", totalUsdEvalCents),
       subtitle: (
         <span>
           ({renderMoney("KRW", usdTotalKrw)})
@@ -920,8 +970,9 @@ export default function PortfolioPage() {
       ),
     },
     {
-      title: "예수금 (KRW)",
-      value: renderMoney("KRW", depositKrw),
+      title: "예수금(총, KRW 환산)",
+      value: renderMoney("KRW", totalDepositKrw),
+      subtitle: <span>({renderMoney("USD", depositUsdCents)})</span>,
     },
     {
       title: "현금 (KRW)",
@@ -929,31 +980,31 @@ export default function PortfolioPage() {
     },
     {
       title: "총 손익 (KRW)",
-      value: renderMoney("KRW", totalKrwPnl),
+      value: renderMoney("KRW", krHoldingsPnlKrw),
       tone:
-        totalKrwPnl >= 0 ? ("positive" as const) : ("negative" as const),
+        krHoldingsPnlKrw >= 0 ? ("positive" as const) : ("negative" as const),
     },
     {
       title: "총 손익 (USD)",
-      value: renderMoney("USD", totalAsset.pnl.USD),
+      value: renderMoney("USD", usdHoldingsPnlCents),
       subtitle: (
         <span>
           ({renderMoney("KRW", usdPnlKrw)})
         </span>
       ),
       tone:
-        totalAsset.pnl.USD >= 0 ? ("positive" as const) : ("negative" as const),
+        usdHoldingsPnlCents >= 0 ? ("positive" as const) : ("negative" as const),
     },
   ];
 
-  const handleDepositInputChange = (rawDigits: string) => {
+  const handleDepositKrwInputChange = (rawDigits: string) => {
     if (!isAuthed) {
       window.alert("로그인 후 사용 가능합니다.");
       return;
     }
 
     if (!rawDigits) {
-      setDepositInput("");
+      setDepositKrwInput("");
       setDepositKrw(0);
       window.localStorage.setItem(DEPOSIT_STORAGE_KEY, "0");
       return;
@@ -961,8 +1012,32 @@ export default function PortfolioPage() {
 
     const amount = Number.parseInt(rawDigits, 10);
     setDepositKrw(amount);
-    setDepositInput(rawDigits);
+    setDepositKrwInput(rawDigits);
     window.localStorage.setItem(DEPOSIT_STORAGE_KEY, `${amount}`);
+  };
+
+  const handleDepositUsdInputChange = (rawValue: string) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
+    if (!rawValue.trim()) {
+      setDepositUsdInput("");
+      setDepositUsdCents(0);
+      window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, "0");
+      return;
+    }
+
+    const nextCents = parsePriceInputToInt("USD", rawValue);
+
+    if (nextCents === null) {
+      return;
+    }
+
+    setDepositUsdInput(rawValue);
+    setDepositUsdCents(nextCents);
+    window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, `${nextCents}`);
   };
 
   const handleCashInputChange = (rawDigits: string) => {
@@ -1020,29 +1095,6 @@ export default function PortfolioPage() {
 
     console.log("[quote-refresh] manual refresh clicked");
     void refreshQuotesForVisible({ staleOnly: false, force: true });
-  };
-
-  const handleUploadLocalToCloud = async () => {
-    if (!isCloudMode || authLoading || isUploadingCloud) {
-      return;
-    }
-
-    setIsUploadingCloud(true);
-
-    try {
-      const result = await uploadLocalToCloud();
-
-      if (result.total === 0) {
-        window.alert("업로드할 로컬 Portfolio 데이터가 없습니다.");
-        return;
-      }
-
-      window.alert(`클라우드 업로드 완료 (${result.uploaded}건)`);
-    } catch {
-      window.alert("클라우드 업로드 중 오류가 발생했습니다.");
-    } finally {
-      setIsUploadingCloud(false);
-    }
   };
 
   const unmatchedKrDisplayTickers = useMemo(() => {
@@ -1197,20 +1249,36 @@ export default function PortfolioPage() {
         titleMeta={
           <span className="inline-title-metric">
             <span className="inline-title-divider">|</span>
-            <span className="inline-title-metric-label">총자산(원화)</span>
+            <span className="inline-title-metric-label">총 자산(KRW)</span>
             {renderMoney("KRW", totalAssetKrw)}
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 PNL %</span>
+            <strong
+              style={{
+                color:
+                  totalPnlPct === null
+                    ? "var(--muted)"
+                    : totalPnlPct >= 0
+                      ? "var(--positive)"
+                      : "var(--negative)",
+              }}
+            >
+              {totalPnlPct === null ? "—" : percentFormat(totalPnlPct)}
+            </strong>
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 계좌 손익(KRW)</span>
+            <span
+              style={{
+                color:
+                  accountPnlKrw >= 0 ? "var(--positive)" : "var(--negative)",
+              }}
+            >
+              {renderMoney("KRW", accountPnlKrw)}
+            </span>
           </span>
         }
         actions={
           <>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={handleUploadLocalToCloud}
-              disabled={!isAuthed || isUploadingCloud || authLoading}
-            >
-              {isUploadingCloud ? "Uploading..." : "Upload local → Cloud"}
-            </button>
             <button
               type="button"
               className="secondary-button"
@@ -1244,8 +1312,20 @@ export default function PortfolioPage() {
             <FormattedNumberInput
               className="cash-input"
               placeholder="예: 1,000,000"
-              value={depositInput}
-              onValueChange={handleDepositInputChange}
+              value={depositKrwInput}
+              onValueChange={handleDepositKrwInputChange}
+              disabled={!isAuthed}
+            />
+          </label>
+          <label>
+            예수금 (USD)
+            <FormattedNumberInput
+              className="cash-input"
+              placeholder="예: 1,250.75"
+              value={depositUsdInput}
+              onValueChange={handleDepositUsdInputChange}
+              allowDecimal
+              maxDecimals={2}
               disabled={!isAuthed}
             />
           </label>
@@ -1352,6 +1432,7 @@ export default function PortfolioPage() {
                     <span className="sort-indicator">{sortIndicator("ticker")}</span>
                   </button>
                 </th>
+                <th>Sector</th>
                 <th>
                   <button
                     type="button"
@@ -1417,11 +1498,11 @@ export default function PortfolioPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7}>로딩 중...</td>
+                  <td colSpan={8}>로딩 중...</td>
                 </tr>
               ) : sortedTableRows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="empty-state">
+                  <td colSpan={8} className="empty-state">
                     데이터가 없습니다.
                   </td>
                 </tr>
@@ -1443,6 +1524,7 @@ export default function PortfolioPage() {
                       tabIndex={0}
                     >
                       <td>{holding.ticker}</td>
+                      <td>{holding.sector}</td>
                       <td>{holding.qty}</td>
                       <td>{renderMoney(holding.currency, holding.avgPrice, "table")}</td>
                       <td>{renderMoney(holding.currency, holding.currentPrice, "table")}</td>

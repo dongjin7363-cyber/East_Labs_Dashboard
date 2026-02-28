@@ -40,6 +40,7 @@ export interface PortfolioTotalAssetInput {
   holdings: PortfolioHolding[];
   fxRate: number;
   depositKrw: number;
+  depositUsdCents?: number;
   cashKrw: number;
 }
 
@@ -48,6 +49,7 @@ export interface PortfolioTotalAssetResult {
   pnl: CurrencyTotals;
   krHoldingsMarketValueKrw: number;
   usdHoldingsMarketValueCents: number;
+  totalUsdEvalCents: number;
   krHoldingsPnlKrw: number;
   usdHoldingsPnlCents: number;
   totalKrwEval: number;
@@ -309,15 +311,21 @@ export function calculatePortfolioTotalAsset(
   input: PortfolioTotalAssetInput,
 ): PortfolioTotalAssetResult {
   const summary = summarizePortfolio(input.holdings);
-  const normalizedDeposit = Math.max(Math.round(input.depositKrw), 0);
+  const normalizedDepositKrw = Math.max(Math.round(input.depositKrw), 0);
+  const normalizedDepositUsdCents = Math.max(
+    Math.round(input.depositUsdCents ?? 0),
+    0,
+  );
   const normalizedCash = Math.max(Math.round(input.cashKrw), 0);
   const krHoldingsMarketValueKrw = summary.marketValue.KRW;
   const usdHoldingsMarketValueCents = summary.marketValue.USD;
+  const totalUsdEvalCents =
+    usdHoldingsMarketValueCents + normalizedDepositUsdCents;
   const krHoldingsPnlKrw = summary.pnl.KRW;
   const usdHoldingsPnlCents = summary.pnl.USD;
 
-  const totalKrwEval = krHoldingsMarketValueKrw + normalizedDeposit;
-  const usdTotalKrw = usdToKrw(usdCentsToUsdFloat(usdHoldingsMarketValueCents), input.fxRate);
+  const totalKrwEval = krHoldingsMarketValueKrw + normalizedDepositKrw;
+  const usdTotalKrw = usdToKrw(usdCentsToUsdFloat(totalUsdEvalCents), input.fxRate);
   const usdPnlKrw = usdToKrw(usdCentsToUsdFloat(usdHoldingsPnlCents), input.fxRate);
   const totalKrwPnl = krHoldingsPnlKrw + usdPnlKrw;
   const totalAssetKrw = totalKrwEval + usdTotalKrw + normalizedCash;
@@ -327,6 +335,7 @@ export function calculatePortfolioTotalAsset(
     pnl: summary.pnl,
     krHoldingsMarketValueKrw,
     usdHoldingsMarketValueCents,
+    totalUsdEvalCents,
     krHoldingsPnlKrw,
     usdHoldingsPnlCents,
     totalKrwEval,
