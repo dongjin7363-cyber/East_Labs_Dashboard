@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { RealizedTradeModal } from "@/components/RealizedTradeModal";
 import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
-import { RealizedTrade, TradeRating } from "@/lib/models/types";
+import { Market, RealizedTrade, TradeRating } from "@/lib/models/types";
 import {
   buildDailyNetSeries,
   buildMonthlyNetSeriesByYear,
@@ -84,13 +84,13 @@ export default function LeaderboardPage() {
   } = useRealizedTrades();
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [search, setSearch] = useState("");
+  const [market, setMarket] = useState<"ALL" | Market>("ALL");
   const [rating, setRating] = useState<"ALL" | TradeRating>("ALL");
   const [sortState, setSortState] = useState<SortState<LeaderboardSortKey>>({
     key: null,
     mode: null,
   });
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
-  const [fxAsOf, setFxAsOf] = useState("");
   const [tradingDays, setTradingDays] = useState<string[]>([]);
 
   const [isFormOpen, setFormOpen] = useState(false);
@@ -135,7 +135,6 @@ export default function LeaderboardPage() {
         }
 
         setFxRate(nextRate);
-        setFxAsOf(typeof data.asOf === "string" ? data.asOf : "");
         window.localStorage.setItem(FX_STORAGE_KEY, `${nextRate}`);
       } catch {
         // Keep localStorage/default fx rate.
@@ -198,19 +197,21 @@ export default function LeaderboardPage() {
     () =>
       filterRealizedTrades(trades, {
         dateRange,
+        market,
         search,
         rating,
       }),
-    [dateRange, rating, search, trades],
+    [dateRange, market, rating, search, trades],
   );
 
   const filteredForYearlyMonthly = useMemo(
     () =>
       filterRealizedTrades(trades, {
+        market,
         search,
         rating,
       }),
-    [rating, search, trades],
+    [market, rating, search, trades],
   );
 
   const sortedFiltered = useMemo(
@@ -362,11 +363,6 @@ export default function LeaderboardPage() {
     return sortState.mode === "DESC" ? "▼" : "▲";
   };
 
-  const fxRateText =
-    `1 USD = ₩${new Intl.NumberFormat("ko-KR", {
-      maximumFractionDigits: 2,
-    }).format(fxRate)}` + (fxAsOf ? ` (${fxAsOf})` : "");
-
   return (
     <>
       <PageHeader
@@ -403,7 +399,6 @@ export default function LeaderboardPage() {
           {
             title: "순수익 합계(KRW 환산)",
             value: moneyFormat("KRW", monthlyTotal),
-            subtitle: `USD 포함 환산 · ${fxRateText}`,
             tone: monthlyTotal >= 0 ? ("positive" as const) : ("negative" as const),
           },
           {
@@ -424,6 +419,18 @@ export default function LeaderboardPage() {
                 setSelectedMonth(event.target.value || toYm(new Date()))
               }
             />
+          </label>
+
+          <label>
+            Market
+            <select
+              value={market}
+              onChange={(event) => setMarket(event.target.value as "ALL" | Market)}
+            >
+              <option value="ALL">ALL</option>
+              <option value="KR">KR</option>
+              <option value="US">US</option>
+            </select>
           </label>
 
           <label>

@@ -190,7 +190,7 @@ export function RealizedTradeModal({
   return (
     <Modal
       open={open}
-      title={mode === "create" ? "실현 거래 추가" : "실현 거래 수정"}
+      title={mode === "create" ? "Realized Position" : "Realized Position 수정"}
       onClose={onClose}
     >
       <form onSubmit={handleSubmit}>

@@ -35,6 +35,7 @@ export interface RealizedTradeInput {
 
 export interface RealizedTradeFilter {
   dateRange?: DateRange;
+  market?: Market | "ALL";
   search?: string;
   rating?: TradeRating | "ALL";
 }
@@ -1031,6 +1032,10 @@ export function filterRealizedTrades(
 
   return trades.filter((trade) => {
     if (filter.dateRange && !isDateInRange(trade.date, filter.dateRange)) {
+      return false;
+    }
+
+    if (filter.market && filter.market !== "ALL" && trade.market !== filter.market) {
       return false;
     }
 
