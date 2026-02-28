@@ -325,6 +325,16 @@ export function deleteExpenseEntry(id: string): ExpenseEntry[] {
   return updated;
 }
 
+export function replaceExpenseEntries(entries: ExpenseEntry[]): ExpenseEntry[] {
+  const normalized = entries
+    .map((entry, index) => normalizeEntry(entry, index))
+    .filter((entry): entry is ExpenseEntry => Boolean(entry));
+  const updated = sortEntries(normalized);
+  writeSchema({ ...readSchema(), entries: updated });
+
+  return updated;
+}
+
 export function listExpenseEntriesByMonth(
   entries: ExpenseEntry[],
   ym: string,

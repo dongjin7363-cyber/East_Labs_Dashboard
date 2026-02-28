@@ -247,6 +247,18 @@ export function deleteTotalAssetSnapshotByDate(date: string): TotalAssetSnapshot
   return sorted;
 }
 
+export function replaceTotalAssetSnapshots(
+  snapshots: TotalAssetSnapshot[],
+): TotalAssetSnapshot[] {
+  const normalized = snapshots
+    .map((snapshot, index) => normalizeSnapshot(snapshot, index))
+    .filter((snapshot): snapshot is TotalAssetSnapshot => Boolean(snapshot));
+  const sorted = sortSnapshotsByDate(normalized);
+  writeSchema({ ...readSchema(), snapshots: sorted });
+
+  return sorted;
+}
+
 export function buildTotalAssetTrendByMonth(
   snapshots: TotalAssetSnapshot[],
   ym: string,
