@@ -40,9 +40,12 @@ FINNHUB_API_KEY=your_finnhub_key
 ## 페이지
 - `/portfolio`: 보유자산 CRUD, KR/US 필터, 평가금액/손익 요약
 - `/leaderboard`: 실현손익 일지, 월 필터/차트/행 클릭 상세 모달
-- `/total-asset`: 일별 총자산 스냅샷 기록(달력), 자동 기록, 일별 추이 차트
-- `/expenditure`: 입금/소비 거래 CRUD, 기간/타입/통화/검색 필터
-- `/salary`: 기간별 총 입금/총 소비/총 수익(평가손익) 요약
+- `/memo`: 데일리 메모(날짜별 저장/삭제, 최근 30일)
+- `/expenditure`: 월별 시트형 지출 관리
+- `/asset-management`: 연도별 자산관리(기존 `/salary`는 redirect)
+- `/asset-trend`: 총자산 스냅샷/달력/추이(기존 `/total-asset`는 redirect)
+- `/market`: 시장 기록(Macro/Indices/Notes)
+- `/membership`: 멤버십 콘텐츠 CRUD
 
 ## 데이터 저장
 - storage key: `personal-finance-dashboard`
@@ -58,9 +61,14 @@ app/
   (routes)/
     leaderboard/
     expenditure/
+    asset-management/
+    market/
+    membership/
+    memo/
     portfolio/
-    salary/
+  asset-trend/
 components/
+  NavMenu.tsx
   expenditure/
   portfolio/
 lib/

@@ -128,3 +128,36 @@ export interface ExpenseEntry {
   note: string;
   createdAt: string;
 }
+
+export interface MemoEntry {
+  id: string;
+  date: string;
+  title?: string;
+  body: string;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketPost {
+  id: string;
+  date: string;
+  macroText: string;
+  indicesText: string;
+  notesText: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const MEMBERSHIP_CATEGORIES = ["시장", "종목", "리포트"] as const;
+export type MembershipCategory = (typeof MEMBERSHIP_CATEGORIES)[number];
+
+export interface MembershipPost {
+  id: string;
+  title: string;
+  category: MembershipCategory;
+  body: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}

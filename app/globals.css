@@ -93,31 +93,72 @@ textarea {
   justify-content: flex-end;
 }
 
-.top-nav {
+.top-nav-dropdown {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.top-nav-link {
+.nav-group {
+  position: relative;
+}
+
+.nav-group-trigger {
   border: 1px solid transparent;
   border-radius: 999px;
   padding: 8px 12px;
   color: var(--muted);
+  background: transparent;
+  cursor: pointer;
 }
 
-.top-nav-link.is-active {
+.nav-group-trigger.is-active,
+.nav-group-trigger:hover {
   border-color: #c4d5e6;
   background: #eef4fb;
   color: var(--brand);
   font-weight: 600;
 }
 
-.top-nav-divider {
+.nav-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: none;
+  min-width: 190px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  z-index: 40;
+}
+
+.nav-group:hover .nav-dropdown,
+.nav-group:focus-within .nav-dropdown,
+.nav-group.is-open .nav-dropdown {
+  display: grid;
+  gap: 4px;
+}
+
+.nav-dropdown-link {
+  display: block;
+  border-radius: 8px;
+  padding: 8px 10px;
   color: var(--muted);
-  padding: 0 2px;
-  user-select: none;
+  font-size: 14px;
+}
+
+.nav-dropdown-link:hover {
+  background: #eef4fb;
+  color: var(--brand);
+}
+
+.nav-dropdown-link.is-active {
+  background: #e7f0ff;
+  color: var(--brand);
+  font-weight: 600;
 }
 
 .top-nav-backup-button {
@@ -1072,6 +1113,36 @@ table tfoot td {
     flex: 1 1 100%;
     order: 3;
     justify-content: center;
+  }
+
+  .top-nav-dropdown {
+    width: 100%;
+    display: grid;
+    gap: 8px;
+  }
+
+  .nav-group {
+    width: 100%;
+  }
+
+  .nav-group-trigger {
+    width: 100%;
+    text-align: left;
+  }
+
+  .nav-dropdown {
+    position: static;
+    margin-top: 6px;
+    width: 100%;
+  }
+
+  .nav-group:hover .nav-dropdown,
+  .nav-group:focus-within .nav-dropdown {
+    display: none;
+  }
+
+  .nav-group.is-open .nav-dropdown {
+    display: grid;
   }
 
   .form-grid,

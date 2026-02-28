@@ -490,7 +490,7 @@ export function TotalAssetClient() {
   return (
     <>
       <PageHeader
-        title="Total Asset"
+        title="Asset Trend"
         actions={
           <button
             type="button"
