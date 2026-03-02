@@ -149,15 +149,19 @@ export interface MarketPost {
   updatedAt: string;
 }
 
-export const MEMBERSHIP_CATEGORIES = ["시장", "종목", "리포트"] as const;
+export const MEMBERSHIP_CATEGORIES = ["Market", "KR", "US", "Coin"] as const;
 export type MembershipCategory = (typeof MEMBERSHIP_CATEGORIES)[number];
+export const MEMBERSHIP_VISIBILITIES = ["Public", "Private"] as const;
+export type MembershipVisibility = (typeof MEMBERSHIP_VISIBILITIES)[number];
 
 export interface MembershipPost {
   id: string;
+  userId?: string;
+  date: string;
   title: string;
   category: MembershipCategory;
   body: string;
-  isPublic: boolean;
+  visibility: MembershipVisibility;
   createdAt: string;
   updatedAt: string;
 }

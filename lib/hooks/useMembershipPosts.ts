@@ -7,18 +7,31 @@ import {
   LocalMembershipRepository,
   MembershipRepository,
 } from "@/lib/repository/membershipRepository";
-import { MembershipCategory, MembershipPost } from "@/lib/models/types";
+import {
+  MembershipCategory,
+  MembershipPost,
+  MembershipVisibility,
+} from "@/lib/models/types";
 import { createId } from "@/lib/utils/id";
 
 interface MembershipPostInput {
+  date: string;
   title: string;
   category: MembershipCategory;
+  visibility: MembershipVisibility;
   body: string;
-  isPublic: boolean;
 }
 
 function sortPosts(posts: MembershipPost[]): MembershipPost[] {
-  return [...posts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return [...posts].sort((a, b) => {
+    const byDate = b.date.localeCompare(a.date);
+
+    if (byDate !== 0) {
+      return byDate;
+    }
+
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
 }
 
 function errorMessage(error: unknown): string {
@@ -57,12 +70,6 @@ export function useMembershipPosts() {
       return;
     }
 
-    if (!isAuthenticated) {
-      setPosts([]);
-      setLoading(false);
-      return;
-    }
-
     const requestSeq = ++requestSeqRef.current;
     setLoading(true);
 
@@ -76,7 +83,7 @@ export function useMembershipPosts() {
       setPosts(sortPosts(next));
     } catch {
       try {
-        fallbackRepositoryRef.current = new LocalMembershipRepository();
+        fallbackRepositoryRef.current = new LocalMembershipRepository(userId);
         const next = await fallbackRepositoryRef.current.getPosts();
 
         if (requestSeq !== requestSeqRef.current) {
@@ -98,7 +105,7 @@ export function useMembershipPosts() {
         setLoading(false);
       }
     }
-  }, [activeRepository, authLoading, isAuthenticated]);
+  }, [activeRepository, authLoading, userId]);
 
   useEffect(() => {
     if (authLoading) {
@@ -119,10 +126,12 @@ export function useMembershipPosts() {
           const nowIso = new Date().toISOString();
           const next: MembershipPost = {
             id: createId(),
+            userId: userId ?? undefined,
+            date: input.date,
             title: input.title.trim(),
             category: input.category,
+            visibility: input.visibility,
             body: input.body,
-            isPublic: input.isPublic,
             createdAt: nowIso,
             updatedAt: nowIso,
           };
@@ -135,7 +144,7 @@ export function useMembershipPosts() {
         }
       })();
     },
-    [activeRepository, isAuthenticated],
+    [activeRepository, isAuthenticated, userId],
   );
 
   const updatePost = useCallback(
@@ -156,10 +165,11 @@ export function useMembershipPosts() {
 
           const next: MembershipPost = {
             ...target,
+            date: input.date,
             title: input.title.trim(),
             category: input.category,
+            visibility: input.visibility,
             body: input.body,
-            isPublic: input.isPublic,
             updatedAt: new Date().toISOString(),
           };
 
@@ -199,6 +209,7 @@ export function useMembershipPosts() {
     loading,
     authLoading,
     isAuthenticated,
+    userId,
     refresh,
     createPost,
     updatePost,

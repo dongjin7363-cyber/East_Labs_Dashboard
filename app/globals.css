@@ -896,6 +896,46 @@ textarea {
   color: var(--muted);
 }
 
+.membership-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.membership-card-header strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.membership-card-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.membership-visibility-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.membership-visibility-chip.is-public {
+  background: #e7f7ee;
+  color: #0f7a3d;
+  border-color: #bce5cb;
+}
+
+.membership-visibility-chip.is-private {
+  background: #fff1e8;
+  color: #b54708;
+  border-color: #ffd4ad;
+}
+
 .memo-form-wrap {
   border: 1px solid var(--line);
   border-radius: 12px;

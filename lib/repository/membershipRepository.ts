@@ -1,8 +1,8 @@
+import { MembershipPost } from "@/lib/models/types";
 import {
-  MembershipCategory,
-  MEMBERSHIP_CATEGORIES,
-  MembershipPost,
-} from "@/lib/models/types";
+  normalizeMembershipCategory,
+  normalizeMembershipVisibility,
+} from "@/lib/services/membershipService";
 import { supabase } from "@/lib/supabaseClient";
 
 export const MEMBERSHIP_POSTS_STORAGE_KEY = "pf_membership_posts_v1";
@@ -23,10 +23,11 @@ export interface MembershipRepository {
 interface MembershipPostRow {
   id?: string;
   user_id: string;
+  date: string;
   title: string;
-  category: MembershipCategory;
+  category: string;
+  visibility: string;
   body: string;
-  is_public: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -37,29 +38,25 @@ function isClient(): boolean {
   return typeof window !== "undefined";
 }
 
-function normalizeCategory(value: unknown): MembershipCategory {
+function toYmd(value: unknown): string {
   if (typeof value === "string") {
-    const matched = MEMBERSHIP_CATEGORIES.find((item) => item === value);
+    const normalized = value.trim();
+    const match = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
 
-    if (matched) {
-      return matched;
+    if (match) {
+      return match[1];
     }
   }
 
-  return "시장";
+  return new Date().toISOString().slice(0, 10);
 }
 
-function normalizeBoolean(value: unknown): boolean {
-  if (typeof value === "boolean") {
-    return value;
-  }
-
+function toText(value: unknown): string {
   if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    return normalized === "true" || normalized === "1";
+    return value.trim();
   }
 
-  return false;
+  return "";
 }
 
 function normalizePost(raw: unknown, index: number): MembershipPost | null {
@@ -68,41 +65,48 @@ function normalizePost(raw: unknown, index: number): MembershipPost | null {
   }
 
   const input = raw as RawRecord;
-  const title =
-    typeof input.title === "string" && input.title.trim() !== ""
-      ? input.title.trim()
-      : "";
+  const title = toText(input.title);
 
   if (!title) {
     return null;
   }
+
+  const createdAt =
+    toText(input.createdAt) ||
+    toText(input.created_at) ||
+    new Date().toISOString();
 
   return {
     id:
       typeof input.id === "string" && input.id.trim() !== ""
         ? input.id
         : `membership-${index}-${Date.now()}`,
+    userId: toText(input.userId) || toText(input.user_id) || undefined,
+    date: toYmd(input.date ?? createdAt),
     title,
-    category: normalizeCategory(input.category),
-    body: typeof input.body === "string" ? input.body : "",
-    isPublic: normalizeBoolean(input.isPublic ?? input.is_public),
-    createdAt:
-      typeof input.createdAt === "string" && input.createdAt.trim() !== ""
-        ? input.createdAt
-        : typeof input.created_at === "string" && input.created_at.trim() !== ""
-          ? input.created_at
-          : new Date().toISOString(),
+    category: normalizeMembershipCategory(input.category),
+    visibility: normalizeMembershipVisibility(
+      input.visibility ?? input.isPublic ?? input.is_public,
+    ),
+    body: toText(input.body),
+    createdAt,
     updatedAt:
-      typeof input.updatedAt === "string" && input.updatedAt.trim() !== ""
-        ? input.updatedAt
-        : typeof input.updated_at === "string" && input.updated_at.trim() !== ""
-          ? input.updated_at
-          : new Date().toISOString(),
+      toText(input.updatedAt) ||
+      toText(input.updated_at) ||
+      new Date().toISOString(),
   };
 }
 
 function sortPosts(posts: MembershipPost[]): MembershipPost[] {
-  return [...posts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return [...posts].sort((a, b) => {
+    const byDate = b.date.localeCompare(a.date);
+
+    if (byDate !== 0) {
+      return byDate;
+    }
+
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
 }
 
 function readLocalPosts(): MembershipPost[] {
@@ -151,10 +155,11 @@ function normalizePostForDb(
 ): MembershipPostRow {
   const row: MembershipPostRow = {
     user_id: userId,
+    date: toYmd(post.date),
     title: post.title.trim(),
-    category: normalizeCategory(post.category),
+    category: normalizeMembershipCategory(post.category),
+    visibility: normalizeMembershipVisibility(post.visibility),
     body: post.body,
-    is_public: post.isPublic,
     created_at: post.createdAt || new Date().toISOString(),
     updated_at: post.updatedAt || new Date().toISOString(),
   };
@@ -167,8 +172,16 @@ function normalizePostForDb(
 }
 
 export class LocalMembershipRepository implements MembershipRepository {
+  constructor(private readonly viewerUserId?: string | null) {}
+
   async getPosts(): Promise<MembershipPost[]> {
-    return readLocalPosts();
+    const all = readLocalPosts();
+
+    if (this.viewerUserId) {
+      return all;
+    }
+
+    return all.filter((post) => post.visibility === "Public");
   }
 
   async upsertPost(post: MembershipPost): Promise<void> {
@@ -193,14 +206,22 @@ export class LocalMembershipRepository implements MembershipRepository {
 }
 
 export class SupabaseMembershipRepository implements MembershipRepository {
-  constructor(private readonly userId: string) {}
+  constructor(private readonly viewerUserId?: string | null) {}
 
   async getPosts(): Promise<MembershipPost[]> {
-    const { data, error } = await supabase
+    let query = supabase
       .from("membership_posts")
-      .select("id,user_id,title,category,body,is_public,created_at,updated_at")
-      .eq("user_id", this.userId)
+      .select("id,user_id,date,title,category,visibility,body,created_at,updated_at")
+      .order("date", { ascending: false })
       .order("updated_at", { ascending: false });
+
+    if (this.viewerUserId) {
+      query = query.or(`visibility.eq.Public,user_id.eq.${this.viewerUserId}`);
+    } else {
+      query = query.eq("visibility", "Public");
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
@@ -217,7 +238,11 @@ export class SupabaseMembershipRepository implements MembershipRepository {
     post: MembershipPost,
     options?: UpsertMembershipPostOptions,
   ): Promise<void> {
-    const payload = normalizePostForDb(post, this.userId, options);
+    if (!this.viewerUserId) {
+      throw new Error("로그인 후 저장할 수 있습니다.");
+    }
+
+    const payload = normalizePostForDb(post, this.viewerUserId, options);
     const { error } = await supabase
       .from("membership_posts")
       .upsert([payload], { onConflict: "id" });
@@ -228,11 +253,15 @@ export class SupabaseMembershipRepository implements MembershipRepository {
   }
 
   async deletePost(id: string): Promise<void> {
+    if (!this.viewerUserId) {
+      throw new Error("로그인 후 삭제할 수 있습니다.");
+    }
+
     const { error } = await supabase
       .from("membership_posts")
       .delete()
       .eq("id", id)
-      .eq("user_id", this.userId);
+      .eq("user_id", this.viewerUserId);
 
     if (error) {
       throw error;
@@ -243,9 +272,5 @@ export class SupabaseMembershipRepository implements MembershipRepository {
 export function createMembershipRepository(
   userId?: string | null,
 ): MembershipRepository {
-  if (userId) {
-    return new SupabaseMembershipRepository(userId);
-  }
-
-  return new LocalMembershipRepository();
+  return new SupabaseMembershipRepository(userId);
 }
