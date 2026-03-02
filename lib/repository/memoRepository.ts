@@ -1,4 +1,5 @@
 import { MemoEntry } from "@/lib/models/types";
+import { normalizeTickerCsv } from "@/lib/services/memoService";
 import { supabase } from "@/lib/supabaseClient";
 
 export const MEMO_ENTRIES_STORAGE_KEY = "pf_memo_entries_v1";
@@ -17,14 +18,16 @@ interface MemoRow {
   id?: string;
   user_id: string;
   date: string;
-  title: string | null;
-  body: string;
-  tags: string[];
+  buy_tickers: string;
+  sell_tickers: string;
+  comment: string;
   created_at: string;
   updated_at: string;
 }
 
 type RawRecord = Record<string, unknown>;
+
+const LEGACY_TAG_STOPWORDS = new Set(["시장", "종목", "실수", "회고", "개선점", "일지"]);
 
 function isClient(): boolean {
   return typeof window !== "undefined";
@@ -43,24 +46,38 @@ function toYmd(value: unknown): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function toTags(value: unknown): string[] {
+function toText(value: unknown): string {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  return "";
+}
+
+function parseLegacyTags(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value
       .filter((item): item is string => typeof item === "string")
       .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 30);
+      .filter(Boolean);
   }
 
   if (typeof value === "string") {
     return value
-      .split(",")
+      .split(/[,\s]+/)
       .map((item) => item.trim())
-      .filter(Boolean)
-      .slice(0, 30);
+      .filter(Boolean);
   }
 
   return [];
+}
+
+function migrateLegacyBuyTickers(input: RawRecord): string {
+  const legacyTags = parseLegacyTags(input.tags)
+    .map((tag) => tag.replace(/^#/, ""))
+    .filter((tag) => tag && !LEGACY_TAG_STOPWORDS.has(tag));
+
+  return normalizeTickerCsv(legacyTags.join(","));
 }
 
 function normalizeEntry(raw: unknown, index: number): MemoEntry | null {
@@ -69,11 +86,16 @@ function normalizeEntry(raw: unknown, index: number): MemoEntry | null {
   }
 
   const input = raw as RawRecord;
-  const body =
-    typeof input.body === "string" && input.body.trim() !== ""
-      ? input.body
-      : "";
   const date = toYmd(input.date);
+  const buyTickersRaw =
+    toText(input.buyTickers) ||
+    toText(input.buy_tickers) ||
+    migrateLegacyBuyTickers(input);
+  const sellTickersRaw = toText(input.sellTickers) || toText(input.sell_tickers);
+  const commentRaw =
+    toText(input.comment) ||
+    toText(input.body) ||
+    toText(input.comment_text);
 
   return {
     id:
@@ -81,12 +103,9 @@ function normalizeEntry(raw: unknown, index: number): MemoEntry | null {
         ? input.id
         : `memo-${index}-${date}`,
     date,
-    title:
-      typeof input.title === "string" && input.title.trim() !== ""
-        ? input.title.trim()
-        : undefined,
-    body,
-    tags: toTags(input.tags),
+    buyTickers: normalizeTickerCsv(buyTickersRaw),
+    sellTickers: normalizeTickerCsv(sellTickersRaw),
+    comment: commentRaw,
     createdAt:
       typeof input.createdAt === "string" && input.createdAt.trim() !== ""
         ? input.createdAt
@@ -110,7 +129,13 @@ function sortEntries(entries: MemoEntry[]): MemoEntry[] {
       return byDate;
     }
 
-    return b.updatedAt.localeCompare(a.updatedAt);
+    const byUpdatedAt = b.updatedAt.localeCompare(a.updatedAt);
+
+    if (byUpdatedAt !== 0) {
+      return byUpdatedAt;
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
   });
 }
 
@@ -161,12 +186,9 @@ function normalizeEntryForDb(
   const row: MemoRow = {
     user_id: userId,
     date: toYmd(entry.date),
-    title:
-      typeof entry.title === "string" && entry.title.trim() !== ""
-        ? entry.title.trim()
-        : null,
-    body: entry.body.trim(),
-    tags: toTags(entry.tags),
+    buy_tickers: normalizeTickerCsv(entry.buyTickers),
+    sell_tickers: normalizeTickerCsv(entry.sellTickers),
+    comment: entry.comment,
     created_at: entry.createdAt || new Date().toISOString(),
     updated_at: entry.updatedAt || new Date().toISOString(),
   };
@@ -191,10 +213,11 @@ export class LocalMemoRepository implements MemoRepository {
     }
 
     const current = readLocalEntries();
-    const withoutCurrentDate = current.filter(
-      (item) => item.date !== normalized.date && item.id !== normalized.id,
-    );
-    writeLocalEntries([...withoutCurrentDate, normalized]);
+    const next = sortEntries([
+      ...current.filter((item) => item.id !== normalized.id),
+      normalized,
+    ]);
+    writeLocalEntries(next);
   }
 
   async deleteEntry(id: string): Promise<void> {
@@ -209,9 +232,10 @@ export class SupabaseMemoRepository implements MemoRepository {
   async getEntries(): Promise<MemoEntry[]> {
     const { data, error } = await supabase
       .from("memo_entries")
-      .select("id,user_id,date,title,body,tags,created_at,updated_at")
+      .select("id,user_id,date,buy_tickers,sell_tickers,comment,created_at,updated_at")
       .eq("user_id", this.userId)
-      .order("date", { ascending: false });
+      .order("date", { ascending: false })
+      .order("updated_at", { ascending: false });
 
     if (error) {
       throw error;
@@ -228,7 +252,7 @@ export class SupabaseMemoRepository implements MemoRepository {
     const payload = normalizeEntryForDb(entry, this.userId, options);
     const { error } = await supabase
       .from("memo_entries")
-      .upsert([payload], { onConflict: "user_id,date" });
+      .upsert([payload], { onConflict: "id" });
 
     if (error) {
       throw error;

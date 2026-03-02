@@ -8,13 +8,14 @@ import {
   LocalMemoRepository,
   MemoRepository,
 } from "@/lib/repository/memoRepository";
+import { normalizeTickerCsv } from "@/lib/services/memoService";
 import { createId } from "@/lib/utils/id";
 
-interface MemoEntryInput {
+export interface MemoEntryInput {
   date: string;
-  title?: string;
-  body: string;
-  tags: string[];
+  buyTickers: string;
+  sellTickers: string;
+  comment: string;
 }
 
 function sortEntries(entries: MemoEntry[]): MemoEntry[] {
@@ -25,7 +26,13 @@ function sortEntries(entries: MemoEntry[]): MemoEntry[] {
       return byDate;
     }
 
-    return b.updatedAt.localeCompare(a.updatedAt);
+    const byUpdatedAt = b.updatedAt.localeCompare(a.updatedAt);
+
+    if (byUpdatedAt !== 0) {
+      return byUpdatedAt;
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
   });
 }
 
@@ -113,7 +120,7 @@ export function useMemoEntries() {
     void refresh();
   }, [authLoading, refresh]);
 
-  const upsert = useCallback(
+  const createEntry = useCallback(
     (input: MemoEntryInput) => {
       if (!isAuthenticated) {
         return;
@@ -123,23 +130,20 @@ export function useMemoEntries() {
         try {
           const repo = activeRepository();
           const nowIso = new Date().toISOString();
-          const current = await repo.getEntries();
-          const existing = current.find((item) => item.date === input.date);
-
           const next: MemoEntry = {
-            id: existing?.id ?? createId(),
+            id: createId(),
             date: input.date,
-            title: input.title?.trim() ? input.title.trim() : undefined,
-            body: input.body,
-            tags: input.tags,
-            createdAt: existing?.createdAt ?? nowIso,
+            buyTickers: normalizeTickerCsv(input.buyTickers),
+            sellTickers: normalizeTickerCsv(input.sellTickers),
+            comment: input.comment,
+            createdAt: nowIso,
             updatedAt: nowIso,
           };
 
-          await repo.upsertEntry(next, { isCreate: !existing });
+          await repo.upsertEntry(next, { isCreate: true });
           setEntries(sortEntries(await repo.getEntries()));
         } catch (error) {
-          console.error("[memo] failed to save", error);
+          console.error("[memo] failed to create", error);
           window.alert(`메모 저장 실패: ${errorMessage(error)}`);
         }
       })();
@@ -147,8 +151,8 @@ export function useMemoEntries() {
     [activeRepository, isAuthenticated],
   );
 
-  const removeByDate = useCallback(
-    (date: string) => {
+  const updateEntry = useCallback(
+    (id: string, input: MemoEntryInput) => {
       if (!isAuthenticated) {
         return;
       }
@@ -157,13 +161,42 @@ export function useMemoEntries() {
         try {
           const repo = activeRepository();
           const current = await repo.getEntries();
-          const target = current.find((item) => item.date === date);
+          const target = current.find((item) => item.id === id);
 
           if (!target) {
             return;
           }
 
-          await repo.deleteEntry(target.id);
+          const next: MemoEntry = {
+            ...target,
+            date: input.date,
+            buyTickers: normalizeTickerCsv(input.buyTickers),
+            sellTickers: normalizeTickerCsv(input.sellTickers),
+            comment: input.comment,
+            updatedAt: new Date().toISOString(),
+          };
+
+          await repo.upsertEntry(next);
+          setEntries(sortEntries(await repo.getEntries()));
+        } catch (error) {
+          console.error("[memo] failed to update", error);
+          window.alert(`메모 수정 실패: ${errorMessage(error)}`);
+        }
+      })();
+    },
+    [activeRepository, isAuthenticated],
+  );
+
+  const deleteEntry = useCallback(
+    (id: string) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          const repo = activeRepository();
+          await repo.deleteEntry(id);
           setEntries(sortEntries(await repo.getEntries()));
         } catch (error) {
           console.error("[memo] failed to delete", error);
@@ -180,7 +213,8 @@ export function useMemoEntries() {
     authLoading,
     isAuthenticated,
     refresh,
-    upsert,
-    removeByDate,
+    createEntry,
+    updateEntry,
+    deleteEntry,
   };
 }

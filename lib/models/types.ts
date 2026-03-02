@@ -132,9 +132,9 @@ export interface ExpenseEntry {
 export interface MemoEntry {
   id: string;
   date: string;
-  title?: string;
-  body: string;
-  tags: string[];
+  buyTickers: string;
+  sellTickers: string;
+  comment: string;
   createdAt: string;
   updatedAt: string;
 }

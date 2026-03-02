@@ -1,46 +1,211 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MemoCalendar } from "@/components/MemoCalendar";
+import { MemoDayPanel } from "@/components/MemoDayPanel";
+import { MemoEntryForm } from "@/components/MemoEntryForm";
 import { PageHeader } from "@/components/PageHeader";
+import { MemoEntry } from "@/lib/models/types";
 import { useMemoEntries } from "@/lib/hooks/useMemoEntries";
-import { toYmd } from "@/lib/utils/date";
+import {
+  buildMemoCountByDate,
+  isMemoMatched,
+  listMemoEntriesByDate,
+  listMemoEntriesByMonth,
+} from "@/lib/services/memoService";
+import { getMonthRangeFromYm, todayKstYmd, toYm } from "@/lib/utils/date";
 
-function parseTags(input: string): string[] {
-  return input
-    .split(/[\s,]+/)
-    .map((tag) => tag.trim())
-    .filter(Boolean)
-    .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`))
-    .slice(0, 20);
+interface CalendarDayMeta {
+  date: string;
+  dow: number;
+  isHoliday: boolean;
+  holidayName?: string;
 }
 
+interface CalendarDaysApiResponse {
+  days?: CalendarDayMeta[];
+}
+
+interface CalendarDayInfo {
+  dow: number;
+  isHoliday: boolean;
+  holidayName?: string;
+}
+
+interface MemoFormValue {
+  buyTickers: string;
+  sellTickers: string;
+  comment: string;
+}
+
+const EMPTY_FORM: MemoFormValue = {
+  buyTickers: "",
+  sellTickers: "",
+  comment: "",
+};
+
 export default function MemoPage() {
-  const { entries, loading, authLoading, isAuthenticated, upsert, removeByDate } =
-    useMemoEntries();
-  const [selectedDate, setSelectedDate] = useState(() => toYmd(new Date()));
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
+  const {
+    entries,
+    loading,
+    authLoading,
+    isAuthenticated,
+    createEntry,
+    updateEntry,
+    deleteEntry,
+  } = useMemoEntries();
+  const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
+  const [search, setSearch] = useState("");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [form, setForm] = useState<MemoFormValue>(EMPTY_FORM);
+  const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
+  const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
 
-  const selectedEntry = useMemo(
-    () => entries.find((entry) => entry.date === selectedDate),
-    [entries, selectedDate],
-  );
-
-  const recentEntries = useMemo(() => entries.slice(0, 30), [entries]);
+  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
+  const todayKst = useMemo(() => todayKstYmd(), []);
 
   useEffect(() => {
-    if (selectedEntry) {
-      setTitle(selectedEntry.title ?? "");
-      setBody(selectedEntry.body);
-      setTagsInput(selectedEntry.tags.join(" "));
+    if (selectedDate < monthRange.from || selectedDate > monthRange.to) {
+      setSelectedDate(monthRange.from);
+    }
+  }, [monthRange.from, monthRange.to, selectedDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cached = calendarMonthCacheRef.current[selectedMonth];
+
+    if (cached) {
+      setCalendarMap(cached);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setCalendarMap({});
+
+    const loadCalendarDays = async () => {
+      try {
+        const response = await fetch(
+          `/api/calendar-days?from=${monthRange.from}&to=${monthRange.to}&country=KR`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error(`calendar-days API error: ${response.status}`);
+        }
+
+        const data = (await response.json()) as CalendarDaysApiResponse;
+        const days = Array.isArray(data.days) ? data.days : [];
+        const nextMap: Record<string, CalendarDayInfo> = {};
+
+        days.forEach((day) => {
+          nextMap[day.date] = {
+            dow: day.dow,
+            isHoliday: day.isHoliday,
+            holidayName: day.holidayName,
+          };
+        });
+
+        if (!cancelled) {
+          calendarMonthCacheRef.current[selectedMonth] = nextMap;
+          setCalendarMap(nextMap);
+        }
+      } catch {
+        if (!cancelled) {
+          setCalendarMap({});
+        }
+      }
+    };
+
+    void loadCalendarDays();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [monthRange.from, monthRange.to, selectedMonth]);
+
+  const monthEntries = useMemo(
+    () => listMemoEntriesByMonth(entries, selectedMonth),
+    [entries, selectedMonth],
+  );
+
+  const countByDate = useMemo(() => buildMemoCountByDate(monthEntries), [monthEntries]);
+
+  const searchedMonthEntries = useMemo(
+    () => monthEntries.filter((entry) => isMemoMatched(entry, search)),
+    [monthEntries, search],
+  );
+
+  const dayEntries = useMemo(
+    () => listMemoEntriesByDate(searchedMonthEntries, selectedDate),
+    [searchedMonthEntries, selectedDate],
+  );
+
+  const selectedEntry = useMemo(
+    () => monthEntries.find((entry) => entry.id === selectedEntryId),
+    [monthEntries, selectedEntryId],
+  );
+
+  useEffect(() => {
+    if (selectedEntry && selectedEntry.date !== selectedDate) {
+      setSelectedDate(selectedEntry.date);
       return;
     }
 
-    setTitle("");
-    setBody("");
-    setTagsInput("");
-  }, [selectedEntry]);
+    if (selectedEntry) {
+      setForm({
+        buyTickers: selectedEntry.buyTickers,
+        sellTickers: selectedEntry.sellTickers,
+        comment: selectedEntry.comment,
+      });
+      return;
+    }
+
+    setForm(EMPTY_FORM);
+  }, [selectedDate, selectedEntry]);
+
+  useEffect(() => {
+    if (!selectedEntryId) {
+      return;
+    }
+
+    const exists = monthEntries.some((entry) => entry.id === selectedEntryId);
+
+    if (!exists) {
+      setSelectedEntryId(null);
+      setForm(EMPTY_FORM);
+    }
+  }, [monthEntries, selectedEntryId]);
+
+  useEffect(() => {
+    if (!selectedEntryId) {
+      return;
+    }
+
+    const visible = searchedMonthEntries.some((entry) => entry.id === selectedEntryId);
+
+    if (!visible) {
+      setSelectedEntryId(null);
+      setForm(EMPTY_FORM);
+    }
+  }, [searchedMonthEntries, selectedEntryId]);
+
+  const handleSelectDate = (date: string) => {
+    setSelectedDate(date);
+    setSelectedEntryId(null);
+    setForm(EMPTY_FORM);
+  };
+
+  const handleSelectEntry = (entry: MemoEntry) => {
+    setSelectedDate(entry.date);
+    setSelectedEntryId(entry.id);
+  };
+
+  const handleNew = () => {
+    setSelectedEntryId(null);
+    setForm(EMPTY_FORM);
+  };
 
   const handleSave = () => {
     if (!isAuthenticated) {
@@ -48,12 +213,20 @@ export default function MemoPage() {
       return;
     }
 
-    upsert({
+    const payload = {
       date: selectedDate,
-      title,
-      body,
-      tags: parseTags(tagsInput),
-    });
+      buyTickers: form.buyTickers,
+      sellTickers: form.sellTickers,
+      comment: form.comment,
+    };
+
+    if (selectedEntryId) {
+      updateEntry(selectedEntryId, payload);
+      return;
+    }
+
+    createEntry(payload);
+    setForm(EMPTY_FORM);
   };
 
   const handleDelete = () => {
@@ -62,15 +235,17 @@ export default function MemoPage() {
       return;
     }
 
-    if (!selectedEntry) {
+    if (!selectedEntryId) {
       return;
     }
 
-    if (!window.confirm(`${selectedDate} 메모를 삭제할까요?`)) {
+    if (!window.confirm("선택한 메모를 삭제할까요?")) {
       return;
     }
 
-    removeByDate(selectedDate);
+    deleteEntry(selectedEntryId);
+    setSelectedEntryId(null);
+    setForm(EMPTY_FORM);
   };
 
   return (
@@ -84,104 +259,63 @@ export default function MemoPage() {
       ) : null}
 
       <section className="panel">
-        <div className="filter-row">
+        <div className="filter-row memo-header-row">
           <label>
-            날짜
+            월 선택
             <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value || toYmd(new Date()))}
-              disabled={!isAuthenticated}
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value || toYm(new Date()))}
             />
           </label>
-        </div>
 
-        <div className="form-grid">
-          <label className="full">
-            제목 (옵션)
-            <input
-              placeholder="예: 오전 시황 대응 메모"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              disabled={!isAuthenticated}
-            />
-          </label>
-          <label className="full">
-            Tags (옵션)
-            <input
-              placeholder="#시장 #종목 #실수"
-              value={tagsInput}
-              onChange={(event) => setTagsInput(event.target.value)}
-              disabled={!isAuthenticated}
-            />
-          </label>
-          <label className="full">
-            내용
-            <textarea
-              rows={14}
-              placeholder="하루 시장 대응 / 회고 / 개선점"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              disabled={!isAuthenticated}
-            />
-          </label>
-        </div>
-
-        <div className="form-actions">
-          <button
-            type="button"
-            className="primary-button"
-            onClick={handleSave}
-            disabled={!isAuthenticated}
-          >
-            Save
-          </button>
-          <button
-            type="button"
-            className="danger-button"
-            onClick={handleDelete}
-            disabled={!isAuthenticated || !selectedEntry}
-          >
-            Delete
-          </button>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>최근 30일</h3>
-          {loading ? <div className="panel-submetric">로딩 중...</div> : null}
-        </div>
-        {recentEntries.length === 0 ? (
-          <div className="empty-state">기록이 없습니다.</div>
-        ) : (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Title</th>
-                  <th>Tags</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentEntries.map((entry) => (
-                  <tr
-                    key={entry.id}
-                    className="clickable-row"
-                    onClick={() => setSelectedDate(entry.date)}
-                  >
-                    <td>{entry.date}</td>
-                    <td>{entry.title || "-"}</td>
-                    <td>{entry.tags.join(" ") || "-"}</td>
-                    <td>{entry.updatedAt.slice(0, 16).replace("T", " ")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="memo-selected-date">
+            선택 날짜
+            <strong>{selectedDate}</strong>
           </div>
-        )}
+
+          <label>
+            검색
+            <input
+              placeholder="buy/sell/comment"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="memo-layout">
+          <MemoCalendar
+            month={selectedMonth}
+            selectedDate={selectedDate}
+            today={todayKst}
+            countByDate={countByDate}
+            calendarMap={calendarMap}
+            onSelectDate={handleSelectDate}
+          />
+
+          <div className="memo-right-panel">
+            <MemoDayPanel
+              selectedDate={selectedDate}
+              entries={dayEntries}
+              selectedEntryId={selectedEntryId}
+              disabled={!isAuthenticated}
+              onNew={handleNew}
+              onSelectEntry={handleSelectEntry}
+            />
+
+            <MemoEntryForm
+              value={form}
+              disabled={!isAuthenticated}
+              isEditing={Boolean(selectedEntryId)}
+              onChange={setForm}
+              onSave={handleSave}
+              onDelete={handleDelete}
+            />
+          </div>
+        </div>
+
+        {loading ? <p className="ta-status-text">로딩 중...</p> : null}
       </section>
     </>
   );
