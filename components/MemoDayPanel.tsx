@@ -1,6 +1,7 @@
 "use client";
 
 import { MemoEntry } from "@/lib/models/types";
+import { formatKST } from "@/lib/utils/time";
 
 interface MemoDayPanelProps {
   selectedDate: string;
@@ -57,7 +58,7 @@ export function MemoDayPanel({
               </div>
               <div className="memo-day-card-comment">{previewText(entry.comment || "-")}</div>
               <div className="memo-day-card-time">
-                {entry.updatedAt.slice(0, 16).replace("T", " ")}
+                {formatKST(entry.updatedAt)}
               </div>
             </button>
           ))}
