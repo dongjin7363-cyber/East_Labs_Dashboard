@@ -113,7 +113,7 @@ export function AssetManagementClient() {
 
   return (
     <>
-      <PageHeader title="Asset Management" />
+      <PageHeader title="Salary" />
 
       {!authLoading && !isAuthenticated ? (
         <section className="panel">
@@ -138,13 +138,14 @@ export function AssetManagementClient() {
                 <th>Rent</th>
                 <th>Debt</th>
                 <th>Plus</th>
+                <th>Spending</th>
                 <th>Total Spending</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8}>로딩 중...</td>
+                  <td colSpan={9}>로딩 중...</td>
                 </tr>
               ) : (
                 summary.months.map((row) => (
@@ -158,6 +159,7 @@ export function AssetManagementClient() {
                     <td>{emptyCell(row.rent)}</td>
                     <td>{emptyCell(row.debt)}</td>
                     <td>{emptyCell(row.plus)}</td>
+                    <td>{emptyCell(row.spendingOnly)}</td>
                     <td>
                       <strong>{emptyCell(row.spending)}</strong>
                     </td>
@@ -176,6 +178,7 @@ export function AssetManagementClient() {
                 <th>{moneyFormat("KRW", summary.totals.rent)}</th>
                 <th>{moneyFormat("KRW", summary.totals.debt)}</th>
                 <th>{moneyFormat("KRW", summary.totals.plus)}</th>
+                <th>{moneyFormat("KRW", summary.totals.spendingOnly)}</th>
                 <th>
                   <strong>{moneyFormat("KRW", summary.totals.spending)}</strong>
                 </th>

@@ -9,6 +9,7 @@ export interface SalaryMonthRow {
   rent: number;
   debt: number;
   plus: number;
+  spendingOnly: number;
   spending: number;
 }
 
@@ -19,6 +20,7 @@ export interface SalaryYearTotals {
   rent: number;
   debt: number;
   plus: number;
+  spendingOnly: number;
   spending: number;
 }
 
@@ -37,6 +39,7 @@ function createMonthRow(month: number): SalaryMonthRow {
     rent: 0,
     debt: 0,
     plus: 0,
+    spendingOnly: 0,
     spending: 0,
   };
 }
@@ -49,6 +52,7 @@ function createYearTotals(): SalaryYearTotals {
     rent: 0,
     debt: 0,
     plus: 0,
+    spendingOnly: 0,
     spending: 0,
   };
 }
@@ -86,6 +90,7 @@ function summarizeTotals(rows: SalaryMonthRow[]): SalaryYearTotals {
       rent: acc.rent + row.rent,
       debt: acc.debt + row.debt,
       plus: acc.plus + row.plus,
+      spendingOnly: acc.spendingOnly + row.spendingOnly,
       spending: acc.spending + row.spending,
     }),
     createYearTotals(),
@@ -128,6 +133,10 @@ export function getYearSummary(options: {
       entry.bucket === "SPENDING"
     ) {
       target.spending += entry.amountInt;
+    }
+
+    if (entry.bucket === "SPENDING") {
+      target.spendingOnly += entry.amountInt;
     }
 
     if (entry.subcategory === "Rent") {
@@ -184,6 +193,7 @@ export function buildSalaryChartData(rows: SalaryMonthRow[]): SalaryChartPoint[]
   return rows.map((row) => ({
     monthLabel: `${row.month}`,
     earnings: row.earnings,
+    // Salary chart keeps using total monthly spending.
     spending: row.spending,
   }));
 }
