@@ -10,6 +10,7 @@ interface MemoEntryFormProps {
   value: MemoEntryFormValue;
   disabled: boolean;
   isEditing: boolean;
+  onNew: () => void;
   onChange: (next: MemoEntryFormValue) => void;
   onSave: () => void;
   onDelete: () => void;
@@ -19,6 +20,7 @@ export function MemoEntryForm({
   value,
   disabled,
   isEditing,
+  onNew,
   onChange,
   onSave,
   onDelete,
@@ -74,6 +76,9 @@ export function MemoEntryForm({
       </div>
 
       <div className="form-actions">
+        <button type="button" className="secondary-button" onClick={onNew} disabled={disabled}>
+          New
+        </button>
         <button type="button" className="primary-button" onClick={onSave} disabled={disabled}>
           Save
         </button>

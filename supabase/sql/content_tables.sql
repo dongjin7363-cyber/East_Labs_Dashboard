@@ -193,3 +193,30 @@ for delete using (auth.uid() = user_id);
 --   allowed_user_id uuid references auth.users(id) on delete cascade,
 --   primary key (post_id, allowed_user_id)
 -- );
+
+-- Portfolio account state
+create table if not exists public.portfolio_account_state (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  deposit_krw_int bigint not null default 0,
+  deposit_usd_cents bigint not null default 0,
+  cash_krw_int bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.portfolio_account_state enable row level security;
+
+drop policy if exists portfolio_account_state_select_own on public.portfolio_account_state;
+create policy portfolio_account_state_select_own on public.portfolio_account_state
+for select using (auth.uid() = user_id);
+
+drop policy if exists portfolio_account_state_insert_own on public.portfolio_account_state;
+create policy portfolio_account_state_insert_own on public.portfolio_account_state
+for insert with check (auth.uid() = user_id);
+
+drop policy if exists portfolio_account_state_update_own on public.portfolio_account_state;
+create policy portfolio_account_state_update_own on public.portfolio_account_state
+for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists portfolio_account_state_delete_own on public.portfolio_account_state;
+create policy portfolio_account_state_delete_own on public.portfolio_account_state
+for delete using (auth.uid() = user_id);

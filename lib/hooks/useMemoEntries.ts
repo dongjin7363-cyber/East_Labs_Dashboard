@@ -6,7 +6,9 @@ import { MemoEntry } from "@/lib/models/types";
 import {
   createMemoRepository,
   LocalMemoRepository,
+  MEMO_ENTRIES_SYNCED_FLAG_KEY,
   MemoRepository,
+  SupabaseMemoRepository,
 } from "@/lib/repository/memoRepository";
 import { normalizeTickerCsv } from "@/lib/services/memoService";
 import { createId } from "@/lib/utils/id";
@@ -55,14 +57,66 @@ export function useMemoEntries() {
   const [entries, setEntries] = useState<MemoEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const requestSeqRef = useRef(0);
+  const syncAttemptedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     fallbackRepositoryRef.current = null;
   }, [userId]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      syncAttemptedUserRef.current = null;
+    }
+  }, [isAuthenticated]);
+
   const activeRepository = useCallback((): MemoRepository => {
     return fallbackRepositoryRef.current ?? primaryRepository;
   }, [primaryRepository]);
+
+  const maybeAutoSyncFromLocal = useCallback(
+    async (cloudEntries: MemoEntry[]): Promise<boolean> => {
+      if (!userId || cloudEntries.length > 0) {
+        return false;
+      }
+
+      if (syncAttemptedUserRef.current === userId) {
+        return false;
+      }
+      syncAttemptedUserRef.current = userId;
+
+      if (typeof window === "undefined") {
+        return false;
+      }
+
+      const alreadySynced =
+        window.localStorage.getItem(MEMO_ENTRIES_SYNCED_FLAG_KEY) === "true";
+
+      if (alreadySynced) {
+        return false;
+      }
+
+      try {
+        const localRepository = new LocalMemoRepository();
+        const cloudRepository = new SupabaseMemoRepository(userId);
+        const localEntries = await localRepository.getEntries();
+
+        if (localEntries.length === 0) {
+          return false;
+        }
+
+        for (const entry of localEntries) {
+          await cloudRepository.upsertEntry(entry);
+        }
+
+        window.localStorage.setItem(MEMO_ENTRIES_SYNCED_FLAG_KEY, "true");
+        return true;
+      } catch (error) {
+        console.error("[memo] auto sync failed", errorMessage(error));
+        return false;
+      }
+    },
+    [userId],
+  );
 
   const refresh = useCallback(async () => {
     if (authLoading) {
@@ -79,7 +133,15 @@ export function useMemoEntries() {
     setLoading(true);
 
     try {
-      const next = await activeRepository().getEntries();
+      let next = await activeRepository().getEntries();
+
+      if (userId) {
+        const synced = await maybeAutoSyncFromLocal(next);
+
+        if (synced) {
+          next = await activeRepository().getEntries();
+        }
+      }
 
       if (requestSeq !== requestSeqRef.current) {
         return;
@@ -110,7 +172,7 @@ export function useMemoEntries() {
         setLoading(false);
       }
     }
-  }, [activeRepository, authLoading, isAuthenticated]);
+  }, [activeRepository, authLoading, isAuthenticated, maybeAutoSyncFromLocal, userId]);
 
   useEffect(() => {
     if (authLoading) {

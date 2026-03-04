@@ -104,6 +104,13 @@ export interface TotalAssetSnapshot {
   createdAt: string;
 }
 
+export interface PortfolioAccountState {
+  depositKrwInt: number;
+  depositUsdCents: number;
+  cashKrwInt: number;
+  updatedAt: string;
+}
+
 export type ExpenseBucket =
   | "INCOME"
   | "SUBSCRIPTION"

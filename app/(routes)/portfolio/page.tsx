@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { PortfolioAnalytics } from "@/components/PortfolioAnalytics";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { SummaryCardGrid } from "@/components/SummaryCardGrid";
+import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
 import {
@@ -32,9 +33,6 @@ import {
 import { SortState, sortRows, toggleSort } from "@/lib/utils/sort";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
-const DEPOSIT_STORAGE_KEY = "pf_deposit_krw_v1";
-const DEPOSIT_USD_STORAGE_KEY = "pf_deposit_usd_v1";
-const CASH_STORAGE_KEY = "pf_cash_krw_v1";
 const LAST_QUOTE_REFRESH_STORAGE_KEY = "pf_last_quote_refresh_at_v1";
 const LAST_QUOTE_FAIL_STORAGE_KEY = "pf_last_quote_fail_at_v1";
 const QUOTE_BLACKLIST_STORAGE_KEY = "pf_quote_blacklist_v1";
@@ -205,13 +203,18 @@ export default function PortfolioPage() {
     key: null,
     mode: null,
   });
+  const {
+    state: accountState,
+    loading: accountStateLoading,
+    loadedAt: accountStateLoadedAt,
+    setDepositKrwInt,
+    setDepositUsdCents,
+    setCashKrwInt,
+  } = usePortfolioAccountState();
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
   const [fxAsOf, setFxAsOf] = useState("");
-  const [depositKrw, setDepositKrw] = useState(0);
   const [depositKrwInput, setDepositKrwInput] = useState("");
-  const [depositUsdCents, setDepositUsdCents] = useState(0);
   const [depositUsdInput, setDepositUsdInput] = useState("");
-  const [cashKrw, setCashKrw] = useState(0);
   const [cashInput, setCashInput] = useState("");
   const [isRefreshingQuotes, setIsRefreshingQuotes] = useState(false);
   const [lastQuoteRefreshAt, setLastQuoteRefreshAt] = useState<number | null>(null);
@@ -225,6 +228,9 @@ export default function PortfolioPage() {
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
   const quoteRefreshInFlightRef = useRef(false);
   const isAuthed = isCloudMode;
+  const depositKrw = accountState.depositKrwInt;
+  const depositUsdCents = accountState.depositUsdCents;
+  const cashKrw = accountState.cashKrwInt;
 
   useEffect(() => {
     const savedFx = window.localStorage.getItem(FX_STORAGE_KEY);
@@ -249,73 +255,14 @@ export default function PortfolioPage() {
   }, []);
 
   useEffect(() => {
-    if (authLoading) {
+    if (authLoading || accountStateLoading) {
       return;
     }
 
-    if (!isAuthed) {
-      setDepositKrw(0);
-      setDepositKrwInput("");
-      setDepositUsdCents(0);
-      setDepositUsdInput("");
-      setCashKrw(0);
-      setCashInput("");
-      return;
-    }
-
-    const savedDeposit = window.localStorage.getItem(DEPOSIT_STORAGE_KEY);
-    const savedDepositUsd = window.localStorage.getItem(DEPOSIT_USD_STORAGE_KEY);
-    const savedCash = window.localStorage.getItem(CASH_STORAGE_KEY);
-
-    const migratedFromLegacyCash =
-      !savedDeposit && savedCash && /^\d+$/.test(savedCash);
-
-    if (migratedFromLegacyCash) {
-      // Backward compatibility: previous versions stored the single cash input as deposit.
-      const legacyDeposit = Number.parseInt(savedCash, 10);
-      setDepositKrw(legacyDeposit);
-      setDepositKrwInput(legacyDeposit === 0 ? "" : `${legacyDeposit}`);
-      setDepositUsdCents(0);
-      setDepositUsdInput("");
-      setCashKrw(0);
-      setCashInput("");
-      window.localStorage.setItem(DEPOSIT_STORAGE_KEY, `${legacyDeposit}`);
-      window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, "0");
-      window.localStorage.setItem(CASH_STORAGE_KEY, "0");
-      return;
-    }
-
-    if (savedDeposit && /^\d+$/.test(savedDeposit)) {
-      const parsedDeposit = Number.parseInt(savedDeposit, 10);
-      setDepositKrw(parsedDeposit);
-      setDepositKrwInput(parsedDeposit === 0 ? "" : `${parsedDeposit}`);
-    } else {
-      setDepositKrw(0);
-      setDepositKrwInput("");
-    }
-
-    if (savedDepositUsd && /^\d+$/.test(savedDepositUsd)) {
-      const parsedDepositUsdCents = Number.parseInt(savedDepositUsd, 10);
-      setDepositUsdCents(parsedDepositUsdCents);
-      setDepositUsdInput(
-        parsedDepositUsdCents === 0
-          ? ""
-          : (parsedDepositUsdCents / 100).toFixed(2),
-      );
-    } else {
-      setDepositUsdCents(0);
-      setDepositUsdInput("");
-    }
-
-    if (savedCash && /^\d+$/.test(savedCash)) {
-      const parsedCash = Number.parseInt(savedCash, 10);
-      setCashKrw(parsedCash);
-      setCashInput(parsedCash === 0 ? "" : `${parsedCash}`);
-    } else {
-      setCashKrw(0);
-      setCashInput("");
-    }
-  }, [authLoading, isAuthed]);
+    setDepositKrwInput(depositKrw === 0 ? "" : `${depositKrw}`);
+    setDepositUsdInput(depositUsdCents === 0 ? "" : (depositUsdCents / 100).toFixed(2));
+    setCashInput(cashKrw === 0 ? "" : `${cashKrw}`);
+  }, [accountStateLoadedAt, accountStateLoading, authLoading]);
 
   useEffect(() => {
     let mounted = true;
@@ -1005,15 +952,13 @@ export default function PortfolioPage() {
 
     if (!rawDigits) {
       setDepositKrwInput("");
-      setDepositKrw(0);
-      window.localStorage.setItem(DEPOSIT_STORAGE_KEY, "0");
+      setDepositKrwInt(0);
       return;
     }
 
     const amount = Number.parseInt(rawDigits, 10);
-    setDepositKrw(amount);
     setDepositKrwInput(rawDigits);
-    window.localStorage.setItem(DEPOSIT_STORAGE_KEY, `${amount}`);
+    setDepositKrwInt(amount);
   };
 
   const handleDepositUsdInputChange = (rawValue: string) => {
@@ -1025,7 +970,6 @@ export default function PortfolioPage() {
     if (!rawValue.trim()) {
       setDepositUsdInput("");
       setDepositUsdCents(0);
-      window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, "0");
       return;
     }
 
@@ -1037,7 +981,6 @@ export default function PortfolioPage() {
 
     setDepositUsdInput(rawValue);
     setDepositUsdCents(nextCents);
-    window.localStorage.setItem(DEPOSIT_USD_STORAGE_KEY, `${nextCents}`);
   };
 
   const handleCashInputChange = (rawDigits: string) => {
@@ -1048,15 +991,13 @@ export default function PortfolioPage() {
 
     if (!rawDigits) {
       setCashInput("");
-      setCashKrw(0);
-      window.localStorage.setItem(CASH_STORAGE_KEY, "0");
+      setCashKrwInt(0);
       return;
     }
 
     const amount = Number.parseInt(rawDigits, 10);
-    setCashKrw(amount);
     setCashInput(rawDigits);
-    window.localStorage.setItem(CASH_STORAGE_KEY, `${amount}`);
+    setCashKrwInt(amount);
   };
 
   const handleCreate = () => {

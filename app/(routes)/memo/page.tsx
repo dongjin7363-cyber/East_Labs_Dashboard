@@ -295,22 +295,21 @@ export default function MemoPage() {
           />
 
           <div className="memo-right-panel">
-            <MemoDayPanel
-              selectedDate={selectedDate}
-              entries={dayEntries}
-              selectedEntryId={selectedEntryId}
-              disabled={!isAuthenticated}
-              onNew={handleNew}
-              onSelectEntry={handleSelectEntry}
-            />
-
             <MemoEntryForm
               value={form}
               disabled={!isAuthenticated}
               isEditing={Boolean(selectedEntryId)}
+              onNew={handleNew}
               onChange={setForm}
               onSave={handleSave}
               onDelete={handleDelete}
+            />
+
+            <MemoDayPanel
+              selectedDate={selectedDate}
+              entries={dayEntries}
+              selectedEntryId={selectedEntryId}
+              onSelectEntry={handleSelectEntry}
             />
           </div>
         </div>

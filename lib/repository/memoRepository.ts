@@ -3,6 +3,7 @@ import { normalizeTickerCsv } from "@/lib/services/memoService";
 import { supabase } from "@/lib/supabaseClient";
 
 export const MEMO_ENTRIES_STORAGE_KEY = "pf_memo_entries_v1";
+export const MEMO_ENTRIES_SYNCED_FLAG_KEY = "pf_synced_memo_entries_v1";
 
 interface UpsertMemoOptions {
   isCreate?: boolean;
