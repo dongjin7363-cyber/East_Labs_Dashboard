@@ -1694,7 +1694,7 @@ table tfoot td {
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   align-items: stretch;
 }
 
@@ -1704,7 +1704,7 @@ table tfoot td {
   min-height: 0;
   height: calc(100vh - 180px);
   max-height: calc(100vh - 180px);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .market-list-outer {
@@ -1712,7 +1712,7 @@ table tfoot td {
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .market-list-panel {
@@ -1726,6 +1726,33 @@ table tfoot td {
   min-width: 0;
   height: 100%;
   max-height: none;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.market-list-left-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.market-section-select-left {
+  min-width: 0;
+}
+
+.market-list-info-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.market-list-scroll-area {
+  height: calc(100vh - 320px);
+  max-height: calc(100vh - 320px);
+  min-height: 220px;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -2299,6 +2326,18 @@ table tfoot td {
     flex: none;
     height: auto;
     max-height: 320px;
+    overflow: visible;
+  }
+
+  .market-list-left-header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .market-list-scroll-area {
+    height: calc(100dvh - 380px);
+    max-height: calc(100dvh - 380px);
+    min-height: 220px;
   }
 
   .market-detail-panel {

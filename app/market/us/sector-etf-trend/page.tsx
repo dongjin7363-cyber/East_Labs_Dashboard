@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/lib/supabaseClient";
@@ -152,6 +152,7 @@ export default function UsSectorEtfTrendPage() {
   const [selectedSection, setSelectedSection] = useState<string>(ALL_SECTIONS);
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  const leftScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -334,6 +335,19 @@ export default function UsSectorEtfTrendPage() {
     }));
   };
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+
+    if (viewMode !== "LIST") {
+      return;
+    }
+
+    const height = leftScrollAreaRef.current?.clientHeight ?? 0;
+    console.log("[market] leftScrollArea.clientHeight", height);
+  }, [viewMode, selectedSection, groupedSnapshots.length]);
+
   return (
     <>
       <PageHeader title="US Market ETF Screening" actions={headerActions} />
@@ -380,25 +394,29 @@ export default function UsSectorEtfTrendPage() {
         <section className={`panel ${viewMode === "LIST" ? "market-list-mode-panel" : ""}`}>
           <div className="market-toolbar-row">
             <div className="market-toolbar-left">
-              <label className="market-section-select">
-                Section
-                <select
-                  value={selectedSection}
-                  onChange={(event) => setSelectedSection(event.target.value)}
-                >
-                  <option value={ALL_SECTIONS}>All ({snapshots.length})</option>
-                  {sectionOptions.map((section) => {
-                    const count = snapshots.filter(
-                      (snapshot) => normalizeSectionKey(snapshot.section) === section,
-                    ).length;
-                    return (
-                      <option key={section} value={section}>
-                        {displaySectionLabel(section)} ({count})
-                      </option>
-                    );
-                  })}
-                </select>
-              </label>
+              {viewMode === "GRID" ? (
+                <label className="market-section-select">
+                  Section
+                  <select
+                    value={selectedSection}
+                    onChange={(event) => setSelectedSection(event.target.value)}
+                  >
+                    <option value={ALL_SECTIONS}>All ({snapshots.length})</option>
+                    {sectionOptions.map((section) => {
+                      const count = snapshots.filter(
+                        (snapshot) => normalizeSectionKey(snapshot.section) === section,
+                      ).length;
+                      return (
+                        <option key={section} value={section}>
+                          {displaySectionLabel(section)} ({count})
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+              ) : (
+                <span className="market-list-info-label">List View ({filteredSnapshots.length})</span>
+              )}
             </div>
 
             <div className="market-toolbar-right">
@@ -499,66 +517,93 @@ export default function UsSectorEtfTrendPage() {
             <div className="market-list-outer">
               <div className="market-list-layout">
                 <aside className="market-list-panel">
-                  {groupedSnapshots.map((group) => {
-                    const forceOpen = selectedSection !== ALL_SECTIONS;
-                    const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
+                  <div className="market-list-left-header">
+                    <label className="market-section-select market-section-select-left">
+                      Section
+                      <select
+                        value={selectedSection}
+                        onChange={(event) => setSelectedSection(event.target.value)}
+                      >
+                        <option value={ALL_SECTIONS}>All ({snapshots.length})</option>
+                        {sectionOptions.map((section) => {
+                          const count = snapshots.filter(
+                            (snapshot) => normalizeSectionKey(snapshot.section) === section,
+                          ).length;
+                          return (
+                            <option key={section} value={section}>
+                              {displaySectionLabel(section)} ({count})
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                    <span className="market-list-info-label">
+                      Rows {filteredSnapshots.length}
+                    </span>
+                  </div>
 
-                    return (
-                      <section key={group.section} className="market-section-group">
-                        <button
-                          type="button"
-                          className="market-section-header"
-                          onClick={() => {
-                            if (!forceOpen) {
-                              toggleSectionOpen(group.section);
-                            }
-                          }}
-                          aria-expanded={isOpen}
-                        >
-                          <strong>{displaySectionLabel(group.section)}</strong>
-                          <span>{group.rows.length}</span>
-                          <span
-                            className={`market-section-chevron ${isOpen ? "" : "is-collapsed"}`}
+                  <div className="market-list-scroll-area" ref={leftScrollAreaRef}>
+                    {groupedSnapshots.map((group) => {
+                      const forceOpen = selectedSection !== ALL_SECTIONS;
+                      const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
+
+                      return (
+                        <section key={group.section} className="market-section-group">
+                          <button
+                            type="button"
+                            className="market-section-header"
+                            onClick={() => {
+                              if (!forceOpen) {
+                                toggleSectionOpen(group.section);
+                              }
+                            }}
+                            aria-expanded={isOpen}
                           >
-                            ▾
-                          </span>
-                        </button>
+                            <strong>{displaySectionLabel(group.section)}</strong>
+                            <span>{group.rows.length}</span>
+                            <span
+                              className={`market-section-chevron ${isOpen ? "" : "is-collapsed"}`}
+                            >
+                              ▾
+                            </span>
+                          </button>
 
-                        {isOpen ? (
-                          <div className="market-section-rows">
-                            {group.rows.map((snapshot) => {
-                              const normalizedCategory = normalizeCategory(snapshot.category);
-                              const selected = selectedSnapshotKey === snapshot.snapshot_key;
+                          {isOpen ? (
+                            <div className="market-section-rows">
+                              {group.rows.map((snapshot) => {
+                                const normalizedCategory = normalizeCategory(snapshot.category);
+                                const selected = selectedSnapshotKey === snapshot.snapshot_key;
 
-                              return (
-                                <button
-                                  key={snapshot.snapshot_key}
-                                  type="button"
-                                  className={`market-list-row ${selected ? "is-selected" : ""}`}
-                                  onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
-                                >
-                                  <div className="market-list-row-head">
-                                    <strong>{snapshot.title}</strong>
-                                    <span
-                                      className={`market-tag market-category-badge ${categoryBadgeClass(
-                                        normalizedCategory,
-                                      )}`}
-                                    >
-                                      {normalizedCategory}
-                                    </span>
-                                  </div>
-                                  <div className="market-list-row-meta">
-                                    <span>{snapshot.symbol}</span>
-                                    <span>{snapshot.snapshot_key}</span>
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : null}
-                      </section>
-                    );
-                  })}
+                                return (
+                                  <button
+                                    key={snapshot.snapshot_key}
+                                    type="button"
+                                    className={`market-list-row ${selected ? "is-selected" : ""}`}
+                                    onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
+                                  >
+                                    <div className="market-list-row-head">
+                                      <strong>{snapshot.title}</strong>
+                                      <span
+                                        className={`market-tag market-category-badge ${categoryBadgeClass(
+                                          normalizedCategory,
+                                        )}`}
+                                      >
+                                        {normalizedCategory}
+                                      </span>
+                                    </div>
+                                    <div className="market-list-row-meta">
+                                      <span>{snapshot.symbol}</span>
+                                      <span>{snapshot.snapshot_key}</span>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </section>
+                      );
+                    })}
+                  </div>
                 </aside>
 
                 <article className="market-detail-panel">
