@@ -1481,6 +1481,91 @@ table tfoot td {
   line-height: 1.45;
 }
 
+.market-date-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d7e2ef;
+  border-radius: 999px;
+  background: #fff;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.market-date-picker input {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  padding: 0;
+  min-width: 130px;
+}
+
+.market-date-picker input:focus {
+  outline: none;
+}
+
+.market-run-meta .market-kv-row:last-child {
+  margin-bottom: 0;
+}
+
+.market-empty-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.market-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.market-snapshot-card {
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.market-snapshot-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.market-snapshot-title {
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.market-snapshot-image-button {
+  border: 1px solid #dde5ef;
+  border-radius: 10px;
+  background: #f6f9fe;
+  overflow: hidden;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.market-snapshot-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.market-snapshot-foot {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .market-news-list {
   display: grid;
   gap: 10px;
