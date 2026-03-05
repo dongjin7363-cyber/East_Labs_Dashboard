@@ -142,6 +142,85 @@ drop policy if exists market_posts_delete_own on public.market_posts;
 create policy market_posts_delete_own on public.market_posts
 for delete using (auth.uid() = user_id);
 
+create table if not exists public.market_runs (
+  id bigint generated always as identity primary key,
+  market_region text not null,
+  page_slug text not null,
+  run_date date not null,
+  status text not null check (status in ('success', 'partial', 'failed')),
+  success_count integer not null default 0,
+  fail_count integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (market_region, page_slug, run_date)
+);
+
+alter table public.market_runs add column if not exists market_region text;
+alter table public.market_runs add column if not exists page_slug text;
+alter table public.market_runs add column if not exists run_date date;
+alter table public.market_runs add column if not exists status text;
+alter table public.market_runs add column if not exists success_count integer not null default 0;
+alter table public.market_runs add column if not exists fail_count integer not null default 0;
+alter table public.market_runs add column if not exists created_at timestamptz not null default now();
+alter table public.market_runs add column if not exists updated_at timestamptz not null default now();
+
+alter table public.market_runs drop constraint if exists market_runs_status_check;
+alter table public.market_runs
+  add constraint market_runs_status_check
+  check (status in ('success', 'partial', 'failed'));
+
+alter table public.market_runs drop constraint if exists market_runs_market_region_page_slug_run_date_key;
+alter table public.market_runs
+  add constraint market_runs_market_region_page_slug_run_date_key
+  unique (market_region, page_slug, run_date);
+
+create index if not exists market_runs_lookup_idx
+on public.market_runs(market_region, page_slug, run_date desc);
+
+create table if not exists public.market_snapshots (
+  id bigint generated always as identity primary key,
+  market_region text not null,
+  page_slug text not null,
+  run_date date not null,
+  snapshot_key text not null,
+  title text not null,
+  symbol text not null,
+  source_url text not null,
+  image_path text not null,
+  image_url text not null,
+  category text not null default '',
+  sort_order integer not null default 1000,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (market_region, page_slug, run_date, snapshot_key)
+);
+
+alter table public.market_snapshots add column if not exists market_region text;
+alter table public.market_snapshots add column if not exists page_slug text;
+alter table public.market_snapshots add column if not exists run_date date;
+alter table public.market_snapshots add column if not exists snapshot_key text;
+alter table public.market_snapshots add column if not exists title text;
+alter table public.market_snapshots add column if not exists symbol text;
+alter table public.market_snapshots add column if not exists source_url text;
+alter table public.market_snapshots add column if not exists image_path text;
+alter table public.market_snapshots add column if not exists image_url text;
+alter table public.market_snapshots add column if not exists category text not null default '';
+alter table public.market_snapshots add column if not exists sort_order integer not null default 1000;
+alter table public.market_snapshots add column if not exists created_at timestamptz not null default now();
+alter table public.market_snapshots add column if not exists updated_at timestamptz not null default now();
+
+alter table public.market_snapshots drop constraint if exists market_snapshots_market_region_page_slug_run_date_snapshot_key_key;
+alter table public.market_snapshots
+  add constraint market_snapshots_market_region_page_slug_run_date_snapshot_key_key
+  unique (market_region, page_slug, run_date, snapshot_key);
+
+create index if not exists market_snapshots_lookup_idx
+on public.market_snapshots(market_region, page_slug, run_date desc, sort_order asc);
+
+insert into storage.buckets (id, name, public)
+values ('market-images', 'market-images', true)
+on conflict (id) do update set public = excluded.public;
+
 -- Membership
 create table if not exists public.membership_posts (
   id uuid primary key default gen_random_uuid(),

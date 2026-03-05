@@ -1,0 +1,42 @@
+[
+  {
+    "snapshot_key": "spy",
+    "title": "S&P 500 (SPY)",
+    "symbol": "SPY",
+    "source_url": "https://finviz.com/chart.ashx?t=SPY&ty=c&ta=1&p=d&s=l",
+    "category": "Index",
+    "sort_order": 10
+  },
+  {
+    "snapshot_key": "qqq",
+    "title": "Nasdaq 100 (QQQ)",
+    "symbol": "QQQ",
+    "source_url": "https://finviz.com/chart.ashx?t=QQQ&ty=c&ta=1&p=d&s=l",
+    "category": "Index",
+    "sort_order": 20
+  },
+  {
+    "snapshot_key": "xlf",
+    "title": "Financials (XLF)",
+    "symbol": "XLF",
+    "source_url": "https://finviz.com/chart.ashx?t=XLF&ty=c&ta=1&p=d&s=l",
+    "category": "Sector",
+    "sort_order": 30
+  },
+  {
+    "snapshot_key": "xlk",
+    "title": "Technology (XLK)",
+    "symbol": "XLK",
+    "source_url": "https://finviz.com/chart.ashx?t=XLK&ty=c&ta=1&p=d&s=l",
+    "category": "Sector",
+    "sort_order": 40
+  },
+  {
+    "snapshot_key": "xle",
+    "title": "Energy (XLE)",
+    "symbol": "XLE",
+    "source_url": "https://finviz.com/chart.ashx?t=XLE&ty=c&ta=1&p=d&s=l",
+    "category": "Sector",
+    "sort_order": 50
+  }
+]
