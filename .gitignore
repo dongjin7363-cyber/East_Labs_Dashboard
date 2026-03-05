@@ -26,3 +26,8 @@ pnpm-debug.log*
 
 # build artifacts
 .build/
+
+.venv/
+out/
+__pycache__/
+
