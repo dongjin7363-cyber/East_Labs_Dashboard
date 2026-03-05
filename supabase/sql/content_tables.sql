@@ -6,6 +6,7 @@ create table if not exists public.memo_entries (
   buy_tickers text not null default '',
   sell_tickers text not null default '',
   comment text not null default '',
+  image_paths jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -13,6 +14,7 @@ create table if not exists public.memo_entries (
 alter table public.memo_entries add column if not exists buy_tickers text not null default '';
 alter table public.memo_entries add column if not exists sell_tickers text not null default '';
 alter table public.memo_entries add column if not exists comment text not null default '';
+alter table public.memo_entries add column if not exists image_paths jsonb not null default '[]'::jsonb;
 
 do $$
 declare
@@ -72,6 +74,42 @@ for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 drop policy if exists memo_entries_delete_own on public.memo_entries;
 create policy memo_entries_delete_own on public.memo_entries
 for delete using (auth.uid() = user_id);
+
+-- Memo image storage (private bucket)
+insert into storage.buckets (id, name, public)
+values ('memo-images', 'memo-images', false)
+on conflict (id) do nothing;
+
+drop policy if exists memo_images_select_own on storage.objects;
+create policy memo_images_select_own on storage.objects
+for select using (
+  bucket_id = 'memo-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists memo_images_insert_own on storage.objects;
+create policy memo_images_insert_own on storage.objects
+for insert with check (
+  bucket_id = 'memo-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists memo_images_update_own on storage.objects;
+create policy memo_images_update_own on storage.objects
+for update using (
+  bucket_id = 'memo-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+) with check (
+  bucket_id = 'memo-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+drop policy if exists memo_images_delete_own on storage.objects;
+create policy memo_images_delete_own on storage.objects
+for delete using (
+  bucket_id = 'memo-images'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
 
 -- Market
 create table if not exists public.market_posts (
