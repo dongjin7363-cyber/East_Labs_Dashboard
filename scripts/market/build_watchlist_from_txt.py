@@ -20,6 +20,16 @@ DEFAULT_INPUT = Path(__file__).with_name("source") / "finviz_us_watchlist.txt"
 DEFAULT_OUTPUT = Path(__file__).with_name("watchlist_us_sector_etf_trend.json")
 DEFAULT_SECTION = "Uncategorized"
 BLOCKED_SYMBOLS = {"PHXE", "VTI", "IVV"}
+MAIN_WATCHLIST_BLOCKED_SYMBOLS = {
+    "KLAC",
+    "HPE",
+    "STX",
+    "PSTG",
+    "AMKR",
+    "ASX",
+    "BKR",
+    "SLB",
+}
 
 ITEM_RE = re.compile(r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\)\s*,?')
 SECTION_DASH_RE = re.compile(r"^-{2,}\s*(.+?)\s*(?:-{2,})?\s*$")
@@ -76,6 +86,16 @@ def _extract_symbol(source_url: str) -> str:
 def _is_blocked_symbol(symbol: str) -> bool:
     normalized = re.sub(r"[^A-Z0-9]", "", symbol.upper())
     return normalized in BLOCKED_SYMBOLS
+
+
+def _is_main_watchlist_section(section: str) -> bool:
+    compact = re.sub(r"[\s/_-]+", "", section.strip()).lower()
+    return compact in {"주요살피는종목군", "mainwatchlist"}
+
+
+def _is_main_watchlist_blocked_symbol(symbol: str) -> bool:
+    normalized = re.sub(r"[^A-Z0-9]", "", symbol.upper())
+    return normalized in MAIN_WATCHLIST_BLOCKED_SYMBOLS
 
 
 def _is_blocked_section(section: str) -> bool:
@@ -154,6 +174,9 @@ def build_watchlist(*, source_path: Path, output_path: Path, run_date: str = "")
             continue
 
         if _is_blocked_section(section):
+            continue
+
+        if _is_main_watchlist_section(section) and _is_main_watchlist_blocked_symbol(symbol):
             continue
 
         snapshot_key = _make_snapshot_key(symbol, seen_keys)

@@ -10,6 +10,16 @@ import { formatKST } from "@/lib/utils/time";
 const MARKET_REGION = "us";
 const PAGE_SLUG = "sector-etf-trend";
 const ALL_SECTIONS = "ALL";
+const MAIN_WATCHLIST_BLOCKED_SYMBOLS = new Set([
+  "KLAC",
+  "HPE",
+  "STX",
+  "PSTG",
+  "AMKR",
+  "ASX",
+  "BKR",
+  "SLB",
+]);
 
 type ViewMode = "GRID" | "LIST";
 
@@ -87,11 +97,29 @@ function normalizeSectionKey(section: string | null | undefined): string {
 }
 
 function displaySectionLabel(section: string): string {
-  if (section.replace(/\s+/g, "") === "주요살피는종목군") {
+  const compact = section.replace(/\s+/g, "").toLowerCase();
+
+  if (compact === "주요살피는종목군" || compact === "mainwatchlist") {
     return "Main Watchlist";
   }
 
   return section;
+}
+
+function isMainWatchlistSection(section: string | null | undefined): boolean {
+  return displaySectionLabel(normalizeSectionKey(section)) === "Main Watchlist";
+}
+
+function normalizeSymbol(symbol: string): string {
+  return symbol.trim().toUpperCase();
+}
+
+function shouldHideMainWatchlistSymbol(snapshot: MarketSnapshotRow): boolean {
+  if (!isMainWatchlistSection(snapshot.section)) {
+    return false;
+  }
+
+  return MAIN_WATCHLIST_BLOCKED_SYMBOLS.has(normalizeSymbol(snapshot.symbol));
 }
 
 function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolean {
@@ -123,7 +151,7 @@ export default function UsSectorEtfTrendPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSection, setSelectedSection] = useState<string>(ALL_SECTIONS);
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -173,7 +201,9 @@ export default function UsSectorEtfTrendPage() {
           return;
         }
 
-        const nextSnapshots = sortSnapshots((snapshotResult.data ?? []) as MarketSnapshotRow[]);
+        const nextSnapshots = sortSnapshots((snapshotResult.data ?? []) as MarketSnapshotRow[]).filter(
+          (snapshot) => !shouldHideMainWatchlistSymbol(snapshot),
+        );
         setSnapshots(nextSnapshots);
 
         const latestDate = latestResult.data?.[0]?.run_date;
@@ -240,11 +270,12 @@ export default function UsSectorEtfTrendPage() {
   }, [sectionOptions, selectedSection]);
 
   useEffect(() => {
-    setCollapsedSections((prev) => {
+    setOpenSections((prev) => {
       const next: Record<string, boolean> = {};
 
       for (const section of sectionOptions) {
-        next[section] = prev[section] ?? false;
+        const defaultOpen = isMainWatchlistSection(section);
+        next[section] = prev[section] ?? defaultOpen;
       }
 
       return next;
@@ -296,10 +327,10 @@ export default function UsSectorEtfTrendPage() {
     }
   }, [filteredSnapshots, selectedSnapshotKey]);
 
-  const toggleSectionCollapsed = (section: string) => {
-    setCollapsedSections((prev) => ({
+  const toggleSectionOpen = (section: string) => {
+    setOpenSections((prev) => ({
       ...prev,
-      [section]: !prev[section],
+      [section]: !Boolean(prev[section]),
     }));
   };
 
@@ -468,25 +499,31 @@ export default function UsSectorEtfTrendPage() {
             <div className="market-list-layout">
               <aside className="market-list-panel">
                 {groupedSnapshots.map((group) => {
-                  const collapsed = Boolean(collapsedSections[group.section]);
+                  const forceOpen = selectedSection !== ALL_SECTIONS;
+                  const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
 
                   return (
                     <section key={group.section} className="market-section-group">
                       <button
                         type="button"
                         className="market-section-header"
-                        onClick={() => toggleSectionCollapsed(group.section)}
+                        onClick={() => {
+                          if (!forceOpen) {
+                            toggleSectionOpen(group.section);
+                          }
+                        }}
+                        aria-expanded={isOpen}
                       >
                         <strong>{displaySectionLabel(group.section)}</strong>
                         <span>{group.rows.length}</span>
                         <span
-                          className={`market-section-chevron ${collapsed ? "is-collapsed" : ""}`}
+                          className={`market-section-chevron ${isOpen ? "" : "is-collapsed"}`}
                         >
                           ▾
                         </span>
                       </button>
 
-                      {!collapsed ? (
+                      {isOpen ? (
                         <div className="market-section-rows">
                           {group.rows.map((snapshot) => {
                             const normalizedCategory = normalizeCategory(snapshot.category);
