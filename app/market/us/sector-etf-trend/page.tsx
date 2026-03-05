@@ -377,7 +377,7 @@ export default function UsSectorEtfTrendPage() {
       ) : null}
 
       {hasSelectedDate && !loading && !error && snapshots.length > 0 ? (
-        <section className="panel">
+        <section className={`panel ${viewMode === "LIST" ? "market-list-mode-panel" : ""}`}>
           <div className="market-toolbar-row">
             <div className="market-toolbar-left">
               <label className="market-section-select">
@@ -496,119 +496,121 @@ export default function UsSectorEtfTrendPage() {
           ) : null}
 
           {filteredSnapshots.length > 0 && viewMode === "LIST" ? (
-            <div className="market-list-layout">
-              <aside className="market-list-panel">
-                {groupedSnapshots.map((group) => {
-                  const forceOpen = selectedSection !== ALL_SECTIONS;
-                  const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
+            <div className="market-list-outer">
+              <div className="market-list-layout">
+                <aside className="market-list-panel">
+                  {groupedSnapshots.map((group) => {
+                    const forceOpen = selectedSection !== ALL_SECTIONS;
+                    const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
 
-                  return (
-                    <section key={group.section} className="market-section-group">
+                    return (
+                      <section key={group.section} className="market-section-group">
+                        <button
+                          type="button"
+                          className="market-section-header"
+                          onClick={() => {
+                            if (!forceOpen) {
+                              toggleSectionOpen(group.section);
+                            }
+                          }}
+                          aria-expanded={isOpen}
+                        >
+                          <strong>{displaySectionLabel(group.section)}</strong>
+                          <span>{group.rows.length}</span>
+                          <span
+                            className={`market-section-chevron ${isOpen ? "" : "is-collapsed"}`}
+                          >
+                            ▾
+                          </span>
+                        </button>
+
+                        {isOpen ? (
+                          <div className="market-section-rows">
+                            {group.rows.map((snapshot) => {
+                              const normalizedCategory = normalizeCategory(snapshot.category);
+                              const selected = selectedSnapshotKey === snapshot.snapshot_key;
+
+                              return (
+                                <button
+                                  key={snapshot.snapshot_key}
+                                  type="button"
+                                  className={`market-list-row ${selected ? "is-selected" : ""}`}
+                                  onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
+                                >
+                                  <div className="market-list-row-head">
+                                    <strong>{snapshot.title}</strong>
+                                    <span
+                                      className={`market-tag market-category-badge ${categoryBadgeClass(
+                                        normalizedCategory,
+                                      )}`}
+                                    >
+                                      {normalizedCategory}
+                                    </span>
+                                  </div>
+                                  <div className="market-list-row-meta">
+                                    <span>{snapshot.symbol}</span>
+                                    <span>{snapshot.snapshot_key}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
+                </aside>
+
+                <article className="market-detail-panel">
+                  {selectedSnapshot ? (
+                    <>
                       <button
                         type="button"
-                        className="market-section-header"
-                        onClick={() => {
-                          if (!forceOpen) {
-                            toggleSectionOpen(group.section);
-                          }
-                        }}
-                        aria-expanded={isOpen}
+                        className="market-snapshot-image-button market-detail-image-button"
+                        onClick={() =>
+                          setZoom({
+                            title: selectedSnapshot.title,
+                            imageUrl: selectedSnapshot.image_url,
+                          })
+                        }
                       >
-                        <strong>{displaySectionLabel(group.section)}</strong>
-                        <span>{group.rows.length}</span>
-                        <span
-                          className={`market-section-chevron ${isOpen ? "" : "is-collapsed"}`}
-                        >
-                          ▾
-                        </span>
+                        <img
+                          src={selectedSnapshot.image_url}
+                          alt={selectedSnapshot.title}
+                          className="market-snapshot-image"
+                        />
                       </button>
 
-                      {isOpen ? (
-                        <div className="market-section-rows">
-                          {group.rows.map((snapshot) => {
-                            const normalizedCategory = normalizeCategory(snapshot.category);
-                            const selected = selectedSnapshotKey === snapshot.snapshot_key;
-
-                            return (
-                              <button
-                                key={snapshot.snapshot_key}
-                                type="button"
-                                className={`market-list-row ${selected ? "is-selected" : ""}`}
-                                onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
-                              >
-                                <div className="market-list-row-head">
-                                  <strong>{snapshot.title}</strong>
-                                  <span
-                                    className={`market-tag market-category-badge ${categoryBadgeClass(
-                                      normalizedCategory,
-                                    )}`}
-                                  >
-                                    {normalizedCategory}
-                                  </span>
-                                </div>
-                                <div className="market-list-row-meta">
-                                  <span>{snapshot.symbol}</span>
-                                  <span>{snapshot.snapshot_key}</span>
-                                </div>
-                              </button>
-                            );
-                          })}
+                      <div className="market-detail-meta-grid">
+                        <div className="market-kv-row">
+                          <span>Title</span>
+                          <strong>{selectedSnapshot.title}</strong>
                         </div>
-                      ) : null}
-                    </section>
-                  );
-                })}
-              </aside>
-
-              <article className="market-detail-panel">
-                {selectedSnapshot ? (
-                  <>
-                    <button
-                      type="button"
-                      className="market-snapshot-image-button market-detail-image-button"
-                      onClick={() =>
-                        setZoom({
-                          title: selectedSnapshot.title,
-                          imageUrl: selectedSnapshot.image_url,
-                        })
-                      }
-                    >
-                      <img
-                        src={selectedSnapshot.image_url}
-                        alt={selectedSnapshot.title}
-                        className="market-snapshot-image"
-                      />
-                    </button>
-
-                    <div className="market-detail-meta-grid">
-                      <div className="market-kv-row">
-                        <span>Title</span>
-                        <strong>{selectedSnapshot.title}</strong>
+                        <div className="market-kv-row">
+                          <span>Symbol</span>
+                          <strong>{selectedSnapshot.symbol}</strong>
+                        </div>
+                        <div className="market-kv-row">
+                          <span>Category</span>
+                          <strong>{normalizeCategory(selectedSnapshot.category)}</strong>
+                        </div>
+                        <div className="market-kv-row">
+                          <span>Section</span>
+                          <strong>{displaySectionLabel(normalizeSectionKey(selectedSnapshot.section))}</strong>
+                        </div>
+                        <div className="market-kv-row">
+                          <span>Updated At</span>
+                          <strong>
+                            {selectedSnapshot.updated_at ? formatKST(selectedSnapshot.updated_at) : "-"}
+                          </strong>
+                        </div>
                       </div>
-                      <div className="market-kv-row">
-                        <span>Symbol</span>
-                        <strong>{selectedSnapshot.symbol}</strong>
-                      </div>
-                      <div className="market-kv-row">
-                        <span>Category</span>
-                        <strong>{normalizeCategory(selectedSnapshot.category)}</strong>
-                      </div>
-                      <div className="market-kv-row">
-                        <span>Section</span>
-                        <strong>{displaySectionLabel(normalizeSectionKey(selectedSnapshot.section))}</strong>
-                      </div>
-                      <div className="market-kv-row">
-                        <span>Updated At</span>
-                        <strong>
-                          {selectedSnapshot.updated_at ? formatKST(selectedSnapshot.updated_at) : "-"}
-                        </strong>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="empty-state">선택된 항목이 없습니다.</div>
-                )}
-              </article>
+                    </>
+                  ) : (
+                    <div className="empty-state">선택된 항목이 없습니다.</div>
+                  )}
+                </article>
+              </div>
             </div>
           ) : null}
         </section>

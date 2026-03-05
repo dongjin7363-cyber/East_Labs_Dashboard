@@ -1689,25 +1689,46 @@ table tfoot td {
 }
 
 .market-list-layout {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  display: flex;
   gap: 12px;
-  height: calc(100vh - 280px);
-  min-height: 480px;
-  max-height: calc(100vh - 280px);
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   overflow: hidden;
   align-items: stretch;
 }
 
+.market-list-mode-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: calc(100vh - 180px);
+  max-height: calc(100vh - 180px);
+  overflow: hidden;
+}
+
+.market-list-outer {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .market-list-panel {
+  flex: 0 0 clamp(360px, 34vw, 420px);
+  width: clamp(360px, 34vw, 420px);
   border: 1px solid #e3e9f1;
   border-radius: 12px;
   background: #fbfdff;
   padding: 8px;
+  min-height: 0;
+  min-width: 0;
   height: 100%;
   max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   display: grid;
   gap: 8px;
@@ -1757,6 +1778,8 @@ table tfoot td {
 }
 
 .market-section-rows {
+  height: auto;
+  overflow: visible;
   display: grid;
   gap: 8px;
   padding: 8px;
@@ -1799,12 +1822,17 @@ table tfoot td {
 }
 
 .market-detail-panel {
+  flex: 1 1 auto;
+  min-width: 0;
   border: 1px solid #e3e9f1;
   border-radius: 12px;
   background: #fbfdff;
   padding: 10px;
+  min-height: 0;
   height: 100%;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: grid;
   gap: 10px;
 }
@@ -2247,6 +2275,7 @@ table tfoot td {
   }
 
   .market-list-layout {
+    display: grid;
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
@@ -2254,7 +2283,20 @@ table tfoot td {
     overflow: visible;
   }
 
+  .market-list-mode-panel {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .market-list-outer {
+    display: block;
+    overflow: visible;
+  }
+
   .market-list-panel {
+    width: 100%;
+    flex: none;
     height: auto;
     max-height: 320px;
   }
