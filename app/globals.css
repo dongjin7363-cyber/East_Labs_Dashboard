@@ -1552,12 +1552,45 @@ table tfoot td {
   margin-bottom: 10px;
 }
 
+.market-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .market-toolbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
   margin-left: auto;
+}
+
+.market-section-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d8e2f1;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.market-section-select select {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  min-width: 210px;
+  padding: 0;
+}
+
+.market-section-select select:focus {
+  outline: none;
 }
 
 .market-search-box {
@@ -1645,6 +1678,14 @@ table tfoot td {
   white-space: nowrap;
 }
 
+.market-snapshot-section {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .market-list-layout {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
@@ -1660,6 +1701,55 @@ table tfoot td {
   overflow: auto;
   display: grid;
   gap: 8px;
+}
+
+.market-section-group {
+  border: 1px solid #e4eaf2;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.market-section-header {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #edf2f7;
+  background: #f8fbff;
+  color: var(--text);
+  text-align: left;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.market-section-header strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.market-section-header span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.market-section-chevron {
+  transition: transform 0.15s ease;
+}
+
+.market-section-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.market-section-rows {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
 }
 
 .market-list-row {
@@ -2111,6 +2201,19 @@ table tfoot td {
   .market-toolbar-right {
     margin-left: 0;
     width: 100%;
+  }
+
+  .market-toolbar-left {
+    width: 100%;
+  }
+
+  .market-section-select {
+    width: 100%;
+  }
+
+  .market-section-select select {
+    width: 100%;
+    min-width: 0;
   }
 
   .market-search-box {

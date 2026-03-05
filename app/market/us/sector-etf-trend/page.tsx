@@ -9,10 +9,8 @@ import { formatKST } from "@/lib/utils/time";
 
 const MARKET_REGION = "us";
 const PAGE_SLUG = "sector-etf-trend";
-const CATEGORY_TABS = ["Index", "Sector", "Stock"] as const;
+const ALL_SECTIONS = "ALL";
 
-type CategoryTab = (typeof CATEGORY_TABS)[number];
-type ActiveCategory = "ALL" | CategoryTab;
 type ViewMode = "GRID" | "LIST";
 
 interface MarketSnapshotRow {
@@ -20,6 +18,7 @@ interface MarketSnapshotRow {
   title: string;
   symbol: string;
   category: string | null;
+  section: string | null;
   sort_order: number | null;
   image_url: string;
   source_url: string | null;
@@ -38,6 +37,11 @@ interface ZoomState {
   imageUrl: string;
 }
 
+interface SectionGroup {
+  section: string;
+  rows: MarketSnapshotRow[];
+}
+
 function sortSnapshots(rows: MarketSnapshotRow[]): MarketSnapshotRow[] {
   return [...rows].sort((a, b) => {
     const orderA = typeof a.sort_order === "number" ? a.sort_order : Number.MAX_SAFE_INTEGER;
@@ -51,7 +55,7 @@ function sortSnapshots(rows: MarketSnapshotRow[]): MarketSnapshotRow[] {
   });
 }
 
-function normalizeCategory(value: string | null | undefined): CategoryTab | "Other" {
+function normalizeCategory(value: string | null | undefined): "Index" | "Sector" | "Stock" | "Other" {
   const normalized = (value ?? "").trim().toLowerCase();
 
   if (normalized === "index") {
@@ -69,7 +73,7 @@ function normalizeCategory(value: string | null | undefined): CategoryTab | "Oth
   return "Other";
 }
 
-function categoryBadgeClass(category: CategoryTab | "Other"): string {
+function categoryBadgeClass(category: "Index" | "Sector" | "Stock" | "Other"): string {
   if (category === "Index") {
     return "is-index";
   }
@@ -85,6 +89,11 @@ function categoryBadgeClass(category: CategoryTab | "Other"): string {
   return "is-other";
 }
 
+function sectionName(snapshot: MarketSnapshotRow): string {
+  const value = (snapshot.section ?? "").trim();
+  return value || "Uncategorized";
+}
+
 function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolean {
   const query = keyword.trim().toLowerCase();
 
@@ -92,10 +101,13 @@ function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolea
     return true;
   }
 
+  const section = sectionName(snapshot).toLowerCase();
+
   return (
     snapshot.title.toLowerCase().includes(query) ||
     snapshot.symbol.toLowerCase().includes(query) ||
-    snapshot.snapshot_key.toLowerCase().includes(query)
+    snapshot.snapshot_key.toLowerCase().includes(query) ||
+    section.includes(query)
   );
 }
 
@@ -108,10 +120,11 @@ export default function UsSectorEtfTrendPage() {
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
   const [brokenImageMap, setBrokenImageMap] = useState<Record<string, boolean>>({});
-  const [activeCategory, setActiveCategory] = useState<ActiveCategory>("ALL");
   const [viewMode, setViewMode] = useState<ViewMode>("GRID");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSection, setSelectedSection] = useState<string>(ALL_SECTIONS);
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -132,7 +145,7 @@ export default function UsSectorEtfTrendPage() {
       try {
         const snapshotQuery = supabase
           .from("market_snapshots")
-          .select("snapshot_key,title,symbol,category,sort_order,image_url,source_url,updated_at")
+          .select("snapshot_key,title,symbol,category,section,sort_order,image_url,source_url,updated_at")
           .eq("market_region", MARKET_REGION)
           .eq("page_slug", PAGE_SLUG)
           .eq("run_date", selectedDate)
@@ -226,45 +239,71 @@ export default function UsSectorEtfTrendPage() {
     [selectedDate],
   );
 
-  const categoryCounts = useMemo(() => {
-    return snapshots.reduce<Record<CategoryTab, number>>(
-      (acc, snapshot) => {
-        const category = normalizeCategory(snapshot.category);
+  const sectionOptions = useMemo(() => {
+    const sections: string[] = [];
+    const seen = new Set<string>();
 
-        if (category !== "Other") {
-          acc[category] += 1;
-        }
+    for (const snapshot of snapshots) {
+      const section = sectionName(snapshot);
 
-        return acc;
-      },
-      { Index: 0, Sector: 0, Stock: 0 },
-    );
+      if (!seen.has(section)) {
+        seen.add(section);
+        sections.push(section);
+      }
+    }
+
+    return sections;
   }, [snapshots]);
 
-  const visibleTabs = useMemo(() => {
-    return CATEGORY_TABS.filter((tab) => categoryCounts[tab] > 0);
-  }, [categoryCounts]);
+  useEffect(() => {
+    if (selectedSection !== ALL_SECTIONS && !sectionOptions.includes(selectedSection)) {
+      setSelectedSection(ALL_SECTIONS);
+    }
+  }, [sectionOptions, selectedSection]);
+
+  useEffect(() => {
+    setCollapsedSections((prev) => {
+      const next: Record<string, boolean> = {};
+
+      for (const section of sectionOptions) {
+        next[section] = prev[section] ?? false;
+      }
+
+      return next;
+    });
+  }, [sectionOptions]);
 
   const filteredSnapshots = useMemo(() => {
-    const byCategory =
-      activeCategory === "ALL"
-        ? snapshots
-        : snapshots.filter(
-            (snapshot) => normalizeCategory(snapshot.category) === activeCategory,
-          );
+    return snapshots
+      .filter((snapshot) => {
+        if (selectedSection === ALL_SECTIONS) {
+          return true;
+        }
 
-    return byCategory.filter((snapshot) => isSnapshotMatched(snapshot, searchQuery));
-  }, [activeCategory, searchQuery, snapshots]);
+        return sectionName(snapshot) === selectedSection;
+      })
+      .filter((snapshot) => isSnapshotMatched(snapshot, searchQuery));
+  }, [searchQuery, selectedSection, snapshots]);
+
+  const groupedSnapshots = useMemo<SectionGroup[]>(() => {
+    const grouped = new Map<string, MarketSnapshotRow[]>();
+
+    for (const snapshot of filteredSnapshots) {
+      const section = sectionName(snapshot);
+
+      if (!grouped.has(section)) {
+        grouped.set(section, []);
+      }
+
+      grouped.get(section)?.push(snapshot);
+    }
+
+    return Array.from(grouped.entries()).map(([section, rows]) => ({ section, rows }));
+  }, [filteredSnapshots]);
 
   const selectedSnapshot = useMemo(() => {
     return filteredSnapshots.find((snapshot) => snapshot.snapshot_key === selectedSnapshotKey) ?? null;
   }, [filteredSnapshots, selectedSnapshotKey]);
-
-  useEffect(() => {
-    if (activeCategory !== "ALL" && categoryCounts[activeCategory] === 0) {
-      setActiveCategory("ALL");
-    }
-  }, [activeCategory, categoryCounts]);
 
   useEffect(() => {
     if (filteredSnapshots.length === 0) {
@@ -278,6 +317,13 @@ export default function UsSectorEtfTrendPage() {
       setSelectedSnapshotKey(filteredSnapshots[0].snapshot_key);
     }
   }, [filteredSnapshots, selectedSnapshotKey]);
+
+  const toggleSectionCollapsed = (section: string) => {
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   return (
     <>
@@ -341,25 +387,24 @@ export default function UsSectorEtfTrendPage() {
       {hasSelectedDate && !loading && !error && snapshots.length > 0 ? (
         <section className="panel">
           <div className="market-toolbar-row">
-            <div className="market-category-tabs">
-              <button
-                type="button"
-                className={`market-category-tab ${activeCategory === "ALL" ? "is-active" : ""}`}
-                onClick={() => setActiveCategory("ALL")}
-              >
-                All({snapshots.length})
-              </button>
-
-              {visibleTabs.map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className={`market-category-tab ${activeCategory === tab ? "is-active" : ""}`}
-                  onClick={() => setActiveCategory(tab)}
+            <div className="market-toolbar-left">
+              <label className="market-section-select">
+                Section
+                <select
+                  value={selectedSection}
+                  onChange={(event) => setSelectedSection(event.target.value)}
                 >
-                  {tab}({categoryCounts[tab]})
-                </button>
-              ))}
+                  <option value={ALL_SECTIONS}>All ({snapshots.length})</option>
+                  {sectionOptions.map((section) => {
+                    const count = snapshots.filter((snapshot) => sectionName(snapshot) === section).length;
+                    return (
+                      <option key={section} value={section}>
+                        {section} ({count})
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
             </div>
 
             <div className="market-toolbar-right">
@@ -368,7 +413,7 @@ export default function UsSectorEtfTrendPage() {
                 <input
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="title / symbol / snapshot_key"
+                  placeholder="title / symbol / snapshot_key / section"
                 />
               </label>
 
@@ -392,7 +437,7 @@ export default function UsSectorEtfTrendPage() {
           </div>
 
           {filteredSnapshots.length === 0 ? (
-            <div className="empty-state">검색/카테고리 조건에 맞는 항목이 없습니다.</div>
+            <div className="empty-state">검색/섹션 조건에 맞는 항목이 없습니다.</div>
           ) : null}
 
           {filteredSnapshots.length > 0 && viewMode === "GRID" ? (
@@ -447,6 +492,7 @@ export default function UsSectorEtfTrendPage() {
                       <span>{snapshot.symbol}</span>
                       <span>{snapshot.snapshot_key}</span>
                     </div>
+                    <div className="market-snapshot-section">{sectionName(snapshot)}</div>
                   </article>
                 );
               })}
@@ -456,32 +502,58 @@ export default function UsSectorEtfTrendPage() {
           {filteredSnapshots.length > 0 && viewMode === "LIST" ? (
             <div className="market-list-layout">
               <aside className="market-list-panel">
-                {filteredSnapshots.map((snapshot) => {
-                  const normalizedCategory = normalizeCategory(snapshot.category);
-                  const selected = selectedSnapshotKey === snapshot.snapshot_key;
+                {groupedSnapshots.map((group) => {
+                  const collapsed = Boolean(collapsedSections[group.section]);
 
                   return (
-                    <button
-                      key={snapshot.snapshot_key}
-                      type="button"
-                      className={`market-list-row ${selected ? "is-selected" : ""}`}
-                      onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
-                    >
-                      <div className="market-list-row-head">
-                        <strong>{snapshot.title}</strong>
+                    <section key={group.section} className="market-section-group">
+                      <button
+                        type="button"
+                        className="market-section-header"
+                        onClick={() => toggleSectionCollapsed(group.section)}
+                      >
+                        <strong>{group.section}</strong>
+                        <span>{group.rows.length}</span>
                         <span
-                          className={`market-tag market-category-badge ${categoryBadgeClass(
-                            normalizedCategory,
-                          )}`}
+                          className={`market-section-chevron ${collapsed ? "is-collapsed" : ""}`}
                         >
-                          {normalizedCategory}
+                          ▾
                         </span>
-                      </div>
-                      <div className="market-list-row-meta">
-                        <span>{snapshot.symbol}</span>
-                        <span>{snapshot.snapshot_key}</span>
-                      </div>
-                    </button>
+                      </button>
+
+                      {!collapsed ? (
+                        <div className="market-section-rows">
+                          {group.rows.map((snapshot) => {
+                            const normalizedCategory = normalizeCategory(snapshot.category);
+                            const selected = selectedSnapshotKey === snapshot.snapshot_key;
+
+                            return (
+                              <button
+                                key={snapshot.snapshot_key}
+                                type="button"
+                                className={`market-list-row ${selected ? "is-selected" : ""}`}
+                                onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
+                              >
+                                <div className="market-list-row-head">
+                                  <strong>{snapshot.title}</strong>
+                                  <span
+                                    className={`market-tag market-category-badge ${categoryBadgeClass(
+                                      normalizedCategory,
+                                    )}`}
+                                  >
+                                    {normalizedCategory}
+                                  </span>
+                                </div>
+                                <div className="market-list-row-meta">
+                                  <span>{snapshot.symbol}</span>
+                                  <span>{snapshot.snapshot_key}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </section>
                   );
                 })}
               </aside>
@@ -520,6 +592,10 @@ export default function UsSectorEtfTrendPage() {
                         <strong>{normalizeCategory(selectedSnapshot.category)}</strong>
                       </div>
                       <div className="market-kv-row">
+                        <span>Section</span>
+                        <strong>{sectionName(selectedSnapshot)}</strong>
+                      </div>
+                      <div className="market-kv-row">
                         <span>Snapshot Key</span>
                         <strong>{selectedSnapshot.snapshot_key}</strong>
                       </div>
@@ -541,9 +617,7 @@ export default function UsSectorEtfTrendPage() {
                       <div className="market-kv-row">
                         <span>Updated At</span>
                         <strong>
-                          {selectedSnapshot.updated_at
-                            ? formatKST(selectedSnapshot.updated_at)
-                            : "-"}
+                          {selectedSnapshot.updated_at ? formatKST(selectedSnapshot.updated_at) : "-"}
                         </strong>
                       </div>
                     </div>
@@ -564,9 +638,7 @@ export default function UsSectorEtfTrendPage() {
         cardClassName="market-zoom-modal-card"
       >
         <div className="market-zoom-image-wrap">
-          {zoom ? (
-            <img src={zoom.imageUrl} alt={zoom.title} className="market-zoom-image" />
-          ) : null}
+          {zoom ? <img src={zoom.imageUrl} alt={zoom.title} className="market-zoom-image" /> : null}
         </div>
       </Modal>
     </>

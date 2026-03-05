@@ -28,6 +28,7 @@ class SnapshotPublishItem:
     symbol: str
     source_url: str
     category: str
+    section: str
     sort_order: int
     local_path: str
     image_path: str | None = None
@@ -205,6 +206,7 @@ def publish_market_run(
                 "image_path": item.image_path,
                 "image_url": item.image_url,
                 "category": item.category,
+                "section": item.section,
                 "sort_order": item.sort_order,
                 "updated_at": now_iso,
             }

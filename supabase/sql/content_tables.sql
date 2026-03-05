@@ -189,6 +189,7 @@ create table if not exists public.market_snapshots (
   image_path text not null,
   image_url text not null,
   category text not null default '',
+  section text not null default '',
   sort_order integer not null default 1000,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -205,6 +206,7 @@ alter table public.market_snapshots add column if not exists source_url text;
 alter table public.market_snapshots add column if not exists image_path text;
 alter table public.market_snapshots add column if not exists image_url text;
 alter table public.market_snapshots add column if not exists category text not null default '';
+alter table public.market_snapshots add column if not exists section text not null default '';
 alter table public.market_snapshots add column if not exists sort_order integer not null default 1000;
 alter table public.market_snapshots add column if not exists created_at timestamptz not null default now();
 alter table public.market_snapshots add column if not exists updated_at timestamptz not null default now();
