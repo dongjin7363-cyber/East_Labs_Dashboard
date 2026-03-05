@@ -9,6 +9,10 @@ import { formatKST } from "@/lib/utils/time";
 
 const MARKET_REGION = "us";
 const PAGE_SLUG = "sector-etf-trend";
+const CATEGORY_TABS = ["Index", "Sector", "Stock"] as const;
+
+type CategoryTab = (typeof CATEGORY_TABS)[number];
+type ActiveCategory = "ALL" | CategoryTab;
 
 interface MarketSnapshotRow {
   snapshot_key: string;
@@ -44,6 +48,40 @@ function sortSnapshots(rows: MarketSnapshotRow[]): MarketSnapshotRow[] {
   });
 }
 
+function normalizeCategory(value: string | null | undefined): CategoryTab | "Other" {
+  const normalized = (value ?? "").trim().toLowerCase();
+
+  if (normalized === "index") {
+    return "Index";
+  }
+
+  if (normalized === "sector") {
+    return "Sector";
+  }
+
+  if (normalized === "stock") {
+    return "Stock";
+  }
+
+  return "Other";
+}
+
+function categoryBadgeClass(category: CategoryTab | "Other"): string {
+  if (category === "Index") {
+    return "is-index";
+  }
+
+  if (category === "Sector") {
+    return "is-sector";
+  }
+
+  if (category === "Stock") {
+    return "is-stock";
+  }
+
+  return "is-other";
+}
+
 export default function UsSectorEtfTrendPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [latestAvailableDate, setLatestAvailableDate] = useState<string | null>(null);
@@ -53,6 +91,7 @@ export default function UsSectorEtfTrendPage() {
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
   const [brokenImageMap, setBrokenImageMap] = useState<Record<string, boolean>>({});
+  const [activeCategory, setActiveCategory] = useState<ActiveCategory>("ALL");
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -167,11 +206,45 @@ export default function UsSectorEtfTrendPage() {
     [selectedDate],
   );
 
+  const categoryCounts = useMemo(() => {
+    return snapshots.reduce<Record<CategoryTab, number>>(
+      (acc, snapshot) => {
+        const category = normalizeCategory(snapshot.category);
+
+        if (category !== "Other") {
+          acc[category] += 1;
+        }
+
+        return acc;
+      },
+      { Index: 0, Sector: 0, Stock: 0 },
+    );
+  }, [snapshots]);
+
+  const visibleTabs = useMemo(() => {
+    return CATEGORY_TABS.filter((tab) => categoryCounts[tab] > 0);
+  }, [categoryCounts]);
+
+  const filteredSnapshots = useMemo(() => {
+    if (activeCategory === "ALL") {
+      return snapshots;
+    }
+
+    return snapshots.filter(
+      (snapshot) => normalizeCategory(snapshot.category) === activeCategory,
+    );
+  }, [activeCategory, snapshots]);
+
+  useEffect(() => {
+    if (activeCategory !== "ALL" && categoryCounts[activeCategory] === 0) {
+      setActiveCategory("ALL");
+    }
+  }, [activeCategory, categoryCounts]);
+
   return (
     <>
       <PageHeader
         title="US Market ETF Screening"
-        description="미국 ETF/섹터/지수 차트를 일별 스냅샷으로 확인합니다."
         actions={headerActions}
       />
 
@@ -232,16 +305,44 @@ export default function UsSectorEtfTrendPage() {
 
       {hasSelectedDate && !loading && !error && snapshots.length > 0 ? (
         <section className="panel">
+          <div className="market-category-tabs">
+            <button
+              type="button"
+              className={`market-category-tab ${activeCategory === "ALL" ? "is-active" : ""}`}
+              onClick={() => setActiveCategory("ALL")}
+            >
+              All({snapshots.length})
+            </button>
+
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                className={`market-category-tab ${activeCategory === tab ? "is-active" : ""}`}
+                onClick={() => setActiveCategory(tab)}
+              >
+                {tab}({categoryCounts[tab]})
+              </button>
+            ))}
+          </div>
+
           <div className="market-snapshot-grid">
-            {snapshots.map((snapshot) => {
+            {filteredSnapshots.map((snapshot) => {
               const key = snapshot.snapshot_key;
               const broken = brokenImageMap[key];
+              const normalizedCategory = normalizeCategory(snapshot.category);
 
               return (
                 <article key={key} className="market-snapshot-card">
                   <div className="market-snapshot-head">
                     <strong className="market-snapshot-title">{snapshot.title}</strong>
-                    <span className="market-tag">{snapshot.category || "Other"}</span>
+                    <span
+                      className={`market-tag market-category-badge ${categoryBadgeClass(
+                        normalizedCategory,
+                      )}`}
+                    >
+                      {normalizedCategory}
+                    </span>
                   </div>
 
                   <button

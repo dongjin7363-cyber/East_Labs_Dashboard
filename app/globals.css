@@ -1517,6 +1517,32 @@ table tfoot td {
   justify-content: center;
 }
 
+.market-category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.market-category-tab {
+  border: 1px solid #d8e2f1;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.market-category-tab.is-active,
+.market-category-tab:hover {
+  border-color: #bcd0e7;
+  background: #eef4fb;
+  color: var(--brand);
+}
+
 .market-snapshot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -1564,6 +1590,30 @@ table tfoot td {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+.market-category-badge.is-index {
+  background: #ebf2ff;
+  border-color: #cddcf5;
+  color: #1d4fa3;
+}
+
+.market-category-badge.is-sector {
+  background: #f3f0ff;
+  border-color: #d7d0f5;
+  color: #5c4e99;
+}
+
+.market-category-badge.is-stock {
+  background: #eaf8ef;
+  border-color: #c8e8d3;
+  color: #0f7a3d;
+}
+
+.market-category-badge.is-other {
+  background: #f3f4f6;
+  border-color: #d5d9df;
+  color: #4b5563;
 }
 
 .market-news-list {
