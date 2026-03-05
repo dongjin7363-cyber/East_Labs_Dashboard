@@ -31,3 +31,8 @@ pnpm-debug.log*
 out/
 __pycache__/
 
+
+.venv/
+out/
+__pycache__/
+
