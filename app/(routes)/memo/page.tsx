@@ -38,6 +38,11 @@ interface MemoFormValue {
   comment: string;
 }
 
+interface MemoImageItem {
+  path: string;
+  url: string | null;
+}
+
 const EMPTY_FORM: MemoFormValue = {
   buyTickers: "",
   sellTickers: "",
@@ -59,6 +64,7 @@ export default function MemoPage() {
   const [search, setSearch] = useState("");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
   const [form, setForm] = useState<MemoFormValue>(EMPTY_FORM);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
 
@@ -146,6 +152,16 @@ export default function MemoPage() {
     () => monthEntries.find((entry) => entry.id === selectedEntryId),
     [monthEntries, selectedEntryId],
   );
+  const selectedEntryImages = useMemo<MemoImageItem[]>(() => {
+    if (!selectedEntry) {
+      return [];
+    }
+
+    return (selectedEntry.imagePaths ?? []).map((path) => ({
+      path,
+      url: selectedEntry.imageSignedUrls?.[path] ?? null,
+    }));
+  }, [selectedEntry]);
 
   useEffect(() => {
     if (selectedEntry && selectedEntry.date !== selectedDate) {
@@ -159,10 +175,12 @@ export default function MemoPage() {
         sellTickers: selectedEntry.sellTickers,
         comment: selectedEntry.comment,
       });
+      setAttachmentFiles([]);
       return;
     }
 
     setForm(EMPTY_FORM);
+    setAttachmentFiles([]);
   }, [selectedDate, selectedEntry]);
 
   useEffect(() => {
@@ -175,6 +193,7 @@ export default function MemoPage() {
     if (!exists) {
       setSelectedEntryId(null);
       setForm(EMPTY_FORM);
+      setAttachmentFiles([]);
     }
   }, [monthEntries, selectedEntryId]);
 
@@ -188,6 +207,7 @@ export default function MemoPage() {
     if (!visible) {
       setSelectedEntryId(null);
       setForm(EMPTY_FORM);
+      setAttachmentFiles([]);
     }
   }, [searchedMonthEntries, selectedEntryId]);
 
@@ -195,6 +215,7 @@ export default function MemoPage() {
     setSelectedDate(date);
     setSelectedEntryId(null);
     setForm(EMPTY_FORM);
+    setAttachmentFiles([]);
   };
 
   const handleSelectEntry = (entry: MemoEntry) => {
@@ -205,6 +226,7 @@ export default function MemoPage() {
   const handleNew = () => {
     setSelectedEntryId(null);
     setForm(EMPTY_FORM);
+    setAttachmentFiles([]);
   };
 
   const handleSave = () => {
@@ -221,12 +243,18 @@ export default function MemoPage() {
     };
 
     if (selectedEntryId) {
-      updateEntry(selectedEntryId, payload);
+      updateEntry(
+        selectedEntryId,
+        payload,
+        attachmentFiles.length > 0 ? { attachmentFiles } : undefined,
+      );
+      setAttachmentFiles([]);
       return;
     }
 
-    createEntry(payload);
+    createEntry(payload, attachmentFiles.length > 0 ? { attachmentFiles } : undefined);
     setForm(EMPTY_FORM);
+    setAttachmentFiles([]);
   };
 
   const handleDelete = () => {
@@ -246,6 +274,7 @@ export default function MemoPage() {
     deleteEntry(selectedEntryId);
     setSelectedEntryId(null);
     setForm(EMPTY_FORM);
+    setAttachmentFiles([]);
   };
 
   return (
@@ -299,8 +328,11 @@ export default function MemoPage() {
               value={form}
               disabled={!isAuthenticated}
               isEditing={Boolean(selectedEntryId)}
+              existingImages={selectedEntryImages}
+              pendingFiles={attachmentFiles}
               onNew={handleNew}
               onChange={setForm}
+              onPendingFilesChange={setAttachmentFiles}
               onSave={handleSave}
               onDelete={handleDelete}
             />

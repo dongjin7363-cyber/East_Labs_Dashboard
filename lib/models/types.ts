@@ -142,6 +142,8 @@ export interface MemoEntry {
   buyTickers: string;
   sellTickers: string;
   comment: string;
+  imagePaths: string[];
+  imageSignedUrls?: Record<string, string | null>;
   createdAt: string;
   updatedAt: string;
 }

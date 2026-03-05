@@ -142,6 +142,56 @@ textarea {
   gap: 4px;
 }
 
+.nav-subgroup {
+  position: relative;
+}
+
+.nav-subgroup-trigger {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--muted);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.nav-subgroup-trigger:hover,
+.nav-subgroup-trigger.is-active {
+  background: #eef4fb;
+  color: var(--brand);
+}
+
+.nav-subgroup-arrow {
+  color: #7a8796;
+  font-size: 11px;
+}
+
+.nav-submenu {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 8px);
+  display: none;
+  min-width: 210px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+  z-index: 50;
+}
+
+.nav-subgroup:hover .nav-submenu,
+.nav-subgroup:focus-within .nav-submenu,
+.nav-subgroup.is-open .nav-submenu {
+  display: grid;
+  gap: 4px;
+}
+
 .nav-dropdown-link {
   display: block;
   border-radius: 8px;
@@ -1589,6 +1639,24 @@ table tfoot td {
     position: static;
     margin-top: 6px;
     width: 100%;
+  }
+
+  .nav-submenu {
+    position: static;
+    margin-top: 6px;
+    margin-left: 10px;
+    width: calc(100% - 10px);
+    box-shadow: none;
+    border-color: #e6edf6;
+  }
+
+  .nav-subgroup:hover .nav-submenu,
+  .nav-subgroup:focus-within .nav-submenu {
+    display: none;
+  }
+
+  .nav-subgroup.is-open .nav-submenu {
+    display: grid;
   }
 
   .nav-group:hover .nav-dropdown,

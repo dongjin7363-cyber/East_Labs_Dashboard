@@ -22,6 +22,7 @@ interface MemoRow {
   buy_tickers: string;
   sell_tickers: string;
   comment: string;
+  image_paths: string[];
   created_at: string;
   updated_at: string;
 }
@@ -53,6 +54,41 @@ function toText(value: unknown): string {
   }
 
   return "";
+}
+
+function parseImagePaths(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim())
+          .filter(Boolean);
+      }
+    } catch {
+      return trimmed
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
 }
 
 function parseLegacyTags(value: unknown): string[] {
@@ -107,6 +143,7 @@ function normalizeEntry(raw: unknown, index: number): MemoEntry | null {
     buyTickers: normalizeTickerCsv(buyTickersRaw),
     sellTickers: normalizeTickerCsv(sellTickersRaw),
     comment: commentRaw,
+    imagePaths: parseImagePaths(input.imagePaths ?? input.image_paths),
     createdAt:
       typeof input.createdAt === "string" && input.createdAt.trim() !== ""
         ? input.createdAt
@@ -190,6 +227,7 @@ function normalizeEntryForDb(
     buy_tickers: normalizeTickerCsv(entry.buyTickers),
     sell_tickers: normalizeTickerCsv(entry.sellTickers),
     comment: entry.comment,
+    image_paths: parseImagePaths(entry.imagePaths),
     created_at: entry.createdAt || new Date().toISOString(),
     updated_at: entry.updatedAt || new Date().toISOString(),
   };
@@ -233,7 +271,9 @@ export class SupabaseMemoRepository implements MemoRepository {
   async getEntries(): Promise<MemoEntry[]> {
     const { data, error } = await supabase
       .from("memo_entries")
-      .select("id,user_id,date,buy_tickers,sell_tickers,comment,created_at,updated_at")
+      .select(
+        "id,user_id,date,buy_tickers,sell_tickers,comment,image_paths,created_at,updated_at",
+      )
       .eq("user_id", this.userId)
       .order("date", { ascending: false })
       .order("updated_at", { ascending: false });
