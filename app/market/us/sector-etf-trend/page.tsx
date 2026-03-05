@@ -13,6 +13,7 @@ const CATEGORY_TABS = ["Index", "Sector", "Stock"] as const;
 
 type CategoryTab = (typeof CATEGORY_TABS)[number];
 type ActiveCategory = "ALL" | CategoryTab;
+type ViewMode = "GRID" | "LIST";
 
 interface MarketSnapshotRow {
   snapshot_key: string;
@@ -21,6 +22,8 @@ interface MarketSnapshotRow {
   category: string | null;
   sort_order: number | null;
   image_url: string;
+  source_url: string | null;
+  updated_at: string | null;
 }
 
 interface MarketRunRow {
@@ -82,6 +85,20 @@ function categoryBadgeClass(category: CategoryTab | "Other"): string {
   return "is-other";
 }
 
+function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolean {
+  const query = keyword.trim().toLowerCase();
+
+  if (!query) {
+    return true;
+  }
+
+  return (
+    snapshot.title.toLowerCase().includes(query) ||
+    snapshot.symbol.toLowerCase().includes(query) ||
+    snapshot.snapshot_key.toLowerCase().includes(query)
+  );
+}
+
 export default function UsSectorEtfTrendPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [latestAvailableDate, setLatestAvailableDate] = useState<string | null>(null);
@@ -92,6 +109,9 @@ export default function UsSectorEtfTrendPage() {
   const [zoom, setZoom] = useState<ZoomState | null>(null);
   const [brokenImageMap, setBrokenImageMap] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<ActiveCategory>("ALL");
+  const [viewMode, setViewMode] = useState<ViewMode>("GRID");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -112,7 +132,7 @@ export default function UsSectorEtfTrendPage() {
       try {
         const snapshotQuery = supabase
           .from("market_snapshots")
-          .select("snapshot_key,title,symbol,category,sort_order,image_url")
+          .select("snapshot_key,title,symbol,category,sort_order,image_url,source_url,updated_at")
           .eq("market_region", MARKET_REGION)
           .eq("page_slug", PAGE_SLUG)
           .eq("run_date", selectedDate)
@@ -226,14 +246,19 @@ export default function UsSectorEtfTrendPage() {
   }, [categoryCounts]);
 
   const filteredSnapshots = useMemo(() => {
-    if (activeCategory === "ALL") {
-      return snapshots;
-    }
+    const byCategory =
+      activeCategory === "ALL"
+        ? snapshots
+        : snapshots.filter(
+            (snapshot) => normalizeCategory(snapshot.category) === activeCategory,
+          );
 
-    return snapshots.filter(
-      (snapshot) => normalizeCategory(snapshot.category) === activeCategory,
-    );
-  }, [activeCategory, snapshots]);
+    return byCategory.filter((snapshot) => isSnapshotMatched(snapshot, searchQuery));
+  }, [activeCategory, searchQuery, snapshots]);
+
+  const selectedSnapshot = useMemo(() => {
+    return filteredSnapshots.find((snapshot) => snapshot.snapshot_key === selectedSnapshotKey) ?? null;
+  }, [filteredSnapshots, selectedSnapshotKey]);
 
   useEffect(() => {
     if (activeCategory !== "ALL" && categoryCounts[activeCategory] === 0) {
@@ -241,12 +266,22 @@ export default function UsSectorEtfTrendPage() {
     }
   }, [activeCategory, categoryCounts]);
 
+  useEffect(() => {
+    if (filteredSnapshots.length === 0) {
+      setSelectedSnapshotKey(null);
+      return;
+    }
+
+    const exists = filteredSnapshots.some((item) => item.snapshot_key === selectedSnapshotKey);
+
+    if (!exists) {
+      setSelectedSnapshotKey(filteredSnapshots[0].snapshot_key);
+    }
+  }, [filteredSnapshots, selectedSnapshotKey]);
+
   return (
     <>
-      <PageHeader
-        title="US Market ETF Screening"
-        actions={headerActions}
-      />
+      <PageHeader title="US Market ETF Screening" actions={headerActions} />
 
       <section className="panel market-run-meta">
         <div className="market-kv-row">
@@ -305,79 +340,220 @@ export default function UsSectorEtfTrendPage() {
 
       {hasSelectedDate && !loading && !error && snapshots.length > 0 ? (
         <section className="panel">
-          <div className="market-category-tabs">
-            <button
-              type="button"
-              className={`market-category-tab ${activeCategory === "ALL" ? "is-active" : ""}`}
-              onClick={() => setActiveCategory("ALL")}
-            >
-              All({snapshots.length})
-            </button>
-
-            {visibleTabs.map((tab) => (
+          <div className="market-toolbar-row">
+            <div className="market-category-tabs">
               <button
-                key={tab}
                 type="button"
-                className={`market-category-tab ${activeCategory === tab ? "is-active" : ""}`}
-                onClick={() => setActiveCategory(tab)}
+                className={`market-category-tab ${activeCategory === "ALL" ? "is-active" : ""}`}
+                onClick={() => setActiveCategory("ALL")}
               >
-                {tab}({categoryCounts[tab]})
+                All({snapshots.length})
               </button>
-            ))}
+
+              {visibleTabs.map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`market-category-tab ${activeCategory === tab ? "is-active" : ""}`}
+                  onClick={() => setActiveCategory(tab)}
+                >
+                  {tab}({categoryCounts[tab]})
+                </button>
+              ))}
+            </div>
+
+            <div className="market-toolbar-right">
+              <label className="market-search-box">
+                Search
+                <input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="title / symbol / snapshot_key"
+                />
+              </label>
+
+              <div className="market-view-toggle">
+                <button
+                  type="button"
+                  className={`market-category-tab ${viewMode === "GRID" ? "is-active" : ""}`}
+                  onClick={() => setViewMode("GRID")}
+                >
+                  Grid
+                </button>
+                <button
+                  type="button"
+                  className={`market-category-tab ${viewMode === "LIST" ? "is-active" : ""}`}
+                  onClick={() => setViewMode("LIST")}
+                >
+                  List
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="market-snapshot-grid">
-            {filteredSnapshots.map((snapshot) => {
-              const key = snapshot.snapshot_key;
-              const broken = brokenImageMap[key];
-              const normalizedCategory = normalizeCategory(snapshot.category);
+          {filteredSnapshots.length === 0 ? (
+            <div className="empty-state">검색/카테고리 조건에 맞는 항목이 없습니다.</div>
+          ) : null}
 
-              return (
-                <article key={key} className="market-snapshot-card">
-                  <div className="market-snapshot-head">
-                    <strong className="market-snapshot-title">{snapshot.title}</strong>
-                    <span
-                      className={`market-tag market-category-badge ${categoryBadgeClass(
-                        normalizedCategory,
-                      )}`}
+          {filteredSnapshots.length > 0 && viewMode === "GRID" ? (
+            <div className="market-snapshot-grid">
+              {filteredSnapshots.map((snapshot) => {
+                const key = snapshot.snapshot_key;
+                const broken = brokenImageMap[key];
+                const normalizedCategory = normalizeCategory(snapshot.category);
+
+                return (
+                  <article key={key} className="market-snapshot-card">
+                    <div className="market-snapshot-head">
+                      <strong className="market-snapshot-title">{snapshot.title}</strong>
+                      <span
+                        className={`market-tag market-category-badge ${categoryBadgeClass(
+                          normalizedCategory,
+                        )}`}
+                      >
+                        {normalizedCategory}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="market-snapshot-image-button"
+                      onClick={() =>
+                        setZoom({
+                          title: snapshot.title,
+                          imageUrl: snapshot.image_url,
+                        })
+                      }
+                      disabled={broken}
                     >
-                      {normalizedCategory}
-                    </span>
-                  </div>
+                      {broken ? (
+                        <div className="market-etf-empty-state">Image unavailable</div>
+                      ) : (
+                        <img
+                          src={snapshot.image_url}
+                          alt={snapshot.title}
+                          className="market-snapshot-image"
+                          onError={() =>
+                            setBrokenImageMap((prev) => ({
+                              ...prev,
+                              [key]: true,
+                            }))
+                          }
+                        />
+                      )}
+                    </button>
 
-                  <button
-                    type="button"
-                    className="market-snapshot-image-button"
-                    onClick={() =>
-                      setZoom({
-                        title: snapshot.title,
-                        imageUrl: snapshot.image_url,
-                      })
-                    }
-                    disabled={broken}
-                  >
-                    {broken ? (
-                      <div className="market-etf-empty-state">Image unavailable</div>
-                    ) : (
+                    <div className="market-snapshot-foot">
+                      <span>{snapshot.symbol}</span>
+                      <span>{snapshot.snapshot_key}</span>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {filteredSnapshots.length > 0 && viewMode === "LIST" ? (
+            <div className="market-list-layout">
+              <aside className="market-list-panel">
+                {filteredSnapshots.map((snapshot) => {
+                  const normalizedCategory = normalizeCategory(snapshot.category);
+                  const selected = selectedSnapshotKey === snapshot.snapshot_key;
+
+                  return (
+                    <button
+                      key={snapshot.snapshot_key}
+                      type="button"
+                      className={`market-list-row ${selected ? "is-selected" : ""}`}
+                      onClick={() => setSelectedSnapshotKey(snapshot.snapshot_key)}
+                    >
+                      <div className="market-list-row-head">
+                        <strong>{snapshot.title}</strong>
+                        <span
+                          className={`market-tag market-category-badge ${categoryBadgeClass(
+                            normalizedCategory,
+                          )}`}
+                        >
+                          {normalizedCategory}
+                        </span>
+                      </div>
+                      <div className="market-list-row-meta">
+                        <span>{snapshot.symbol}</span>
+                        <span>{snapshot.snapshot_key}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </aside>
+
+              <article className="market-detail-panel">
+                {selectedSnapshot ? (
+                  <>
+                    <button
+                      type="button"
+                      className="market-snapshot-image-button market-detail-image-button"
+                      onClick={() =>
+                        setZoom({
+                          title: selectedSnapshot.title,
+                          imageUrl: selectedSnapshot.image_url,
+                        })
+                      }
+                    >
                       <img
-                        src={snapshot.image_url}
-                        alt={snapshot.title}
+                        src={selectedSnapshot.image_url}
+                        alt={selectedSnapshot.title}
                         className="market-snapshot-image"
-                        onError={() =>
-                          setBrokenImageMap((prev) => ({
-                            ...prev,
-                            [key]: true,
-                          }))
-                        }
                       />
-                    )}
-                  </button>
+                    </button>
 
-                  <div className="market-snapshot-foot">{snapshot.symbol}</div>
-                </article>
-              );
-            })}
-          </div>
+                    <div className="market-detail-meta-grid">
+                      <div className="market-kv-row">
+                        <span>Title</span>
+                        <strong>{selectedSnapshot.title}</strong>
+                      </div>
+                      <div className="market-kv-row">
+                        <span>Symbol</span>
+                        <strong>{selectedSnapshot.symbol}</strong>
+                      </div>
+                      <div className="market-kv-row">
+                        <span>Category</span>
+                        <strong>{normalizeCategory(selectedSnapshot.category)}</strong>
+                      </div>
+                      <div className="market-kv-row">
+                        <span>Snapshot Key</span>
+                        <strong>{selectedSnapshot.snapshot_key}</strong>
+                      </div>
+                      <div className="market-kv-row">
+                        <span>Source URL</span>
+                        {selectedSnapshot.source_url ? (
+                          <a
+                            href={selectedSnapshot.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="market-link"
+                          >
+                            Open Source
+                          </a>
+                        ) : (
+                          <strong>-</strong>
+                        )}
+                      </div>
+                      <div className="market-kv-row">
+                        <span>Updated At</span>
+                        <strong>
+                          {selectedSnapshot.updated_at
+                            ? formatKST(selectedSnapshot.updated_at)
+                            : "-"}
+                        </strong>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="empty-state">선택된 항목이 없습니다.</div>
+                )}
+              </article>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
