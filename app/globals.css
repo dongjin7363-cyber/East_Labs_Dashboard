@@ -1315,6 +1315,236 @@ table tfoot td {
   font-weight: 700;
 }
 
+.market-news-actions,
+.market-etf-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.market-meta-badge,
+.market-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #d7e2ef;
+  background: #f1f6ff;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+}
+
+.market-status-badge {
+  background: #eaf8ef;
+  border-color: #caecd8;
+  color: #0f7a3d;
+}
+
+.market-summary-panel h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.market-summary-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.market-news-list {
+  display: grid;
+  gap: 10px;
+}
+
+.market-news-card {
+  border: 1px solid #e5ebf2;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.market-news-card h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.market-news-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.42;
+}
+
+.market-news-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.market-etf-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(280px, 3fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.market-etf-main {
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.market-etf-image-wrap {
+  border: 1px solid #dde5ef;
+  border-radius: 10px;
+  background: #f6f9fe;
+  min-height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.market-etf-image {
+  width: 100%;
+  height: 100%;
+  max-height: 680px;
+  object-fit: contain;
+  cursor: zoom-in;
+}
+
+.market-etf-image-fallback {
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.5;
+  padding: 20px;
+}
+
+.market-etf-image-fallback code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  color: var(--brand);
+}
+
+.market-etf-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.market-etf-side {
+  display: grid;
+  gap: 10px;
+}
+
+.market-etf-info-card {
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.market-etf-info-card h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.market-etf-info-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.market-kv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.market-kv-row span {
+  color: var(--muted);
+}
+
+.market-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.market-tag {
+  border-radius: 999px;
+  border: 1px solid #d8e2f1;
+  background: #f1f6ff;
+  color: var(--brand);
+  font-size: 12px;
+  padding: 4px 9px;
+}
+
+.market-recent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.market-recent-card {
+  border: 1px solid #e3e9f1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.market-recent-thumb-wrap {
+  border-bottom: 1px solid #e6ebf2;
+  background: #f4f7fb;
+  aspect-ratio: 16 / 9;
+}
+
+.market-recent-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.market-recent-body {
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.market-recent-body strong {
+  font-size: 14px;
+}
+
+.market-recent-body span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.market-zoom-modal-card {
+  width: min(1200px, 96vw);
+  max-height: 95vh;
+}
+
+.market-zoom-image-wrap {
+  max-height: calc(95vh - 90px);
+  overflow: auto;
+}
+
+.market-zoom-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 @media (max-width: 860px) {
   .brand-east {
     font-size: 25px;
@@ -1435,5 +1665,17 @@ table tfoot td {
   .expense-modal-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .market-etf-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .market-etf-image-wrap {
+    min-height: 360px;
+  }
+
+  .market-recent-grid {
+    grid-template-columns: 1fr;
   }
 }

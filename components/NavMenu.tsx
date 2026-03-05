@@ -33,7 +33,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Market",
-    items: [{ label: "Market", href: "/market" }],
+    items: [
+      { label: "News", href: "/market/news" },
+      { label: "US Market ETF Screening", href: "/market/us-etf-screening" },
+    ],
   },
   {
     label: "Membership",
