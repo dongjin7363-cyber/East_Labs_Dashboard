@@ -1557,6 +1557,7 @@ table tfoot td {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .market-toolbar-right {
@@ -1568,25 +1569,26 @@ table tfoot td {
 }
 
 .market-section-select {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid #d8e2f1;
-  border-radius: 999px;
-  background: #fff;
+  display: grid;
+  gap: 4px;
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  padding: 5px 10px;
+  min-width: 240px;
+  position: relative;
+  z-index: 10;
 }
 
 .market-section-select select {
-  border: 0;
-  background: transparent;
+  border: 1px solid #d8e2f1;
+  border-radius: 10px;
+  background: #fff;
   color: var(--text);
   font-size: 12px;
-  min-width: 210px;
-  padding: 0;
+  width: 100%;
+  min-width: 240px;
+  padding: 7px 10px;
+  line-height: 1.2;
 }
 
 .market-section-select select:focus {
@@ -1690,6 +1692,7 @@ table tfoot td {
   display: grid;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   gap: 12px;
+  min-height: 0;
 }
 
 .market-list-panel {
@@ -1697,8 +1700,11 @@ table tfoot td {
   border-radius: 12px;
   background: #fbfdff;
   padding: 8px;
-  max-height: 760px;
-  overflow: auto;
+  height: calc(100vh - 260px);
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
   display: grid;
   gap: 8px;
 }
@@ -2209,6 +2215,7 @@ table tfoot td {
 
   .market-section-select {
     width: 100%;
+    min-width: 0;
   }
 
   .market-section-select select {
@@ -2238,6 +2245,7 @@ table tfoot td {
   }
 
   .market-list-panel {
+    height: auto;
     max-height: 320px;
   }
 }

@@ -21,15 +21,7 @@ interface MarketSnapshotRow {
   section: string | null;
   sort_order: number | null;
   image_url: string;
-  source_url: string | null;
   updated_at: string | null;
-}
-
-interface MarketRunRow {
-  updated_at: string;
-  status: "success" | "partial" | "failed";
-  success_count: number;
-  fail_count: number;
 }
 
 interface ZoomState {
@@ -89,9 +81,17 @@ function categoryBadgeClass(category: "Index" | "Sector" | "Stock" | "Other"): s
   return "is-other";
 }
 
-function sectionName(snapshot: MarketSnapshotRow): string {
-  const value = (snapshot.section ?? "").trim();
+function normalizeSectionKey(section: string | null | undefined): string {
+  const value = (section ?? "").trim();
   return value || "Uncategorized";
+}
+
+function displaySectionLabel(section: string): string {
+  if (section.replace(/\s+/g, "") === "주요살피는종목군") {
+    return "Main Watchlist";
+  }
+
+  return section;
 }
 
 function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolean {
@@ -101,7 +101,7 @@ function isSnapshotMatched(snapshot: MarketSnapshotRow, keyword: string): boolea
     return true;
   }
 
-  const section = sectionName(snapshot).toLowerCase();
+  const section = normalizeSectionKey(snapshot.section).toLowerCase();
 
   return (
     snapshot.title.toLowerCase().includes(query) ||
@@ -115,7 +115,6 @@ export default function UsSectorEtfTrendPage() {
   const [selectedDate, setSelectedDate] = useState("");
   const [latestAvailableDate, setLatestAvailableDate] = useState<string | null>(null);
   const [snapshots, setSnapshots] = useState<MarketSnapshotRow[]>([]);
-  const [runInfo, setRunInfo] = useState<MarketRunRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState<ZoomState | null>(null);
@@ -145,7 +144,7 @@ export default function UsSectorEtfTrendPage() {
       try {
         const snapshotQuery = supabase
           .from("market_snapshots")
-          .select("snapshot_key,title,symbol,category,section,sort_order,image_url,source_url,updated_at")
+          .select("snapshot_key,title,symbol,category,section,sort_order,image_url,updated_at")
           .eq("market_region", MARKET_REGION)
           .eq("page_slug", PAGE_SLUG)
           .eq("run_date", selectedDate)
@@ -160,19 +159,7 @@ export default function UsSectorEtfTrendPage() {
           .order("run_date", { ascending: false })
           .limit(1);
 
-        const runQuery = supabase
-          .from("market_runs")
-          .select("updated_at,status,success_count,fail_count")
-          .eq("market_region", MARKET_REGION)
-          .eq("page_slug", PAGE_SLUG)
-          .eq("run_date", selectedDate)
-          .maybeSingle();
-
-        const [snapshotResult, latestResult, runResult] = await Promise.all([
-          snapshotQuery,
-          latestQuery,
-          runQuery,
-        ]);
+        const [snapshotResult, latestResult] = await Promise.all([snapshotQuery, latestQuery]);
 
         if (snapshotResult.error) {
           throw snapshotResult.error;
@@ -180,10 +167,6 @@ export default function UsSectorEtfTrendPage() {
 
         if (latestResult.error) {
           throw latestResult.error;
-        }
-
-        if (runResult.error) {
-          throw runResult.error;
         }
 
         if (cancelled) {
@@ -195,8 +178,6 @@ export default function UsSectorEtfTrendPage() {
 
         const latestDate = latestResult.data?.[0]?.run_date;
         setLatestAvailableDate(typeof latestDate === "string" ? latestDate : null);
-
-        setRunInfo(runResult.data ? (runResult.data as MarketRunRow) : null);
       } catch (fetchError) {
         if (!cancelled) {
           const message =
@@ -205,7 +186,6 @@ export default function UsSectorEtfTrendPage() {
               : "Failed to load snapshots";
           setError(message);
           setSnapshots([]);
-          setRunInfo(null);
         }
       } finally {
         if (!cancelled) {
@@ -232,8 +212,6 @@ export default function UsSectorEtfTrendPage() {
             onChange={(event) => setSelectedDate(event.target.value)}
           />
         </label>
-        <span className="market-meta-badge">{selectedDate || "-"}</span>
-        <span className="market-status-badge">Daily Snapshot</span>
       </div>
     ),
     [selectedDate],
@@ -244,7 +222,7 @@ export default function UsSectorEtfTrendPage() {
     const seen = new Set<string>();
 
     for (const snapshot of snapshots) {
-      const section = sectionName(snapshot);
+      const section = normalizeSectionKey(snapshot.section);
 
       if (!seen.has(section)) {
         seen.add(section);
@@ -280,7 +258,7 @@ export default function UsSectorEtfTrendPage() {
           return true;
         }
 
-        return sectionName(snapshot) === selectedSection;
+        return normalizeSectionKey(snapshot.section) === selectedSection;
       })
       .filter((snapshot) => isSnapshotMatched(snapshot, searchQuery));
   }, [searchQuery, selectedSection, snapshots]);
@@ -289,7 +267,7 @@ export default function UsSectorEtfTrendPage() {
     const grouped = new Map<string, MarketSnapshotRow[]>();
 
     for (const snapshot of filteredSnapshots) {
-      const section = sectionName(snapshot);
+      const section = normalizeSectionKey(snapshot.section);
 
       if (!grouped.has(section)) {
         grouped.set(section, []);
@@ -328,23 +306,6 @@ export default function UsSectorEtfTrendPage() {
   return (
     <>
       <PageHeader title="US Market ETF Screening" actions={headerActions} />
-
-      <section className="panel market-run-meta">
-        <div className="market-kv-row">
-          <span>Last updated</span>
-          <strong>{runInfo?.updated_at ? formatKST(runInfo.updated_at) : "-"}</strong>
-        </div>
-        <div className="market-kv-row">
-          <span>Status</span>
-          <strong>
-            {runInfo
-              ? `${runInfo.status} (${runInfo.success_count}/${
-                  runInfo.success_count + runInfo.fail_count
-                })`
-              : "-"}
-          </strong>
-        </div>
-      </section>
 
       {!hasSelectedDate ? (
         <section className="panel">
@@ -396,10 +357,12 @@ export default function UsSectorEtfTrendPage() {
                 >
                   <option value={ALL_SECTIONS}>All ({snapshots.length})</option>
                   {sectionOptions.map((section) => {
-                    const count = snapshots.filter((snapshot) => sectionName(snapshot) === section).length;
+                    const count = snapshots.filter(
+                      (snapshot) => normalizeSectionKey(snapshot.section) === section,
+                    ).length;
                     return (
                       <option key={section} value={section}>
-                        {section} ({count})
+                        {displaySectionLabel(section)} ({count})
                       </option>
                     );
                   })}
@@ -492,7 +455,9 @@ export default function UsSectorEtfTrendPage() {
                       <span>{snapshot.symbol}</span>
                       <span>{snapshot.snapshot_key}</span>
                     </div>
-                    <div className="market-snapshot-section">{sectionName(snapshot)}</div>
+                    <div className="market-snapshot-section">
+                      {displaySectionLabel(normalizeSectionKey(snapshot.section))}
+                    </div>
                   </article>
                 );
               })}
@@ -512,7 +477,7 @@ export default function UsSectorEtfTrendPage() {
                         className="market-section-header"
                         onClick={() => toggleSectionCollapsed(group.section)}
                       >
-                        <strong>{group.section}</strong>
+                        <strong>{displaySectionLabel(group.section)}</strong>
                         <span>{group.rows.length}</span>
                         <span
                           className={`market-section-chevron ${collapsed ? "is-collapsed" : ""}`}
@@ -593,26 +558,7 @@ export default function UsSectorEtfTrendPage() {
                       </div>
                       <div className="market-kv-row">
                         <span>Section</span>
-                        <strong>{sectionName(selectedSnapshot)}</strong>
-                      </div>
-                      <div className="market-kv-row">
-                        <span>Snapshot Key</span>
-                        <strong>{selectedSnapshot.snapshot_key}</strong>
-                      </div>
-                      <div className="market-kv-row">
-                        <span>Source URL</span>
-                        {selectedSnapshot.source_url ? (
-                          <a
-                            href={selectedSnapshot.source_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="market-link"
-                          >
-                            Open Source
-                          </a>
-                        ) : (
-                          <strong>-</strong>
-                        )}
+                        <strong>{displaySectionLabel(normalizeSectionKey(selectedSnapshot.section))}</strong>
                       </div>
                       <div className="market-kv-row">
                         <span>Updated At</span>
