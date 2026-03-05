@@ -1689,22 +1689,21 @@ table tfoot td {
 }
 
 .market-list-layout {
-  display: flex;
-  gap: 12px;
-  flex: 1;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 16px;
+  height: 100%;
   min-height: 0;
   min-width: 0;
-  overflow: visible;
-  align-items: stretch;
 }
 
 .market-list-mode-panel {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  height: calc(100vh - 180px);
-  max-height: calc(100vh - 180px);
-  overflow: visible;
+  height: calc(100vh - 72px - 24px);
+  max-height: calc(100vh - 72px - 24px);
+  overflow: hidden;
 }
 
 .market-list-outer {
@@ -1712,23 +1711,21 @@ table tfoot td {
   flex: 1;
   min-height: 0;
   min-width: 0;
-  overflow: visible;
+  height: 100%;
+  overflow: hidden;
 }
 
-.market-list-panel {
-  flex: 0 0 clamp(360px, 34vw, 420px);
-  width: clamp(360px, 34vw, 420px);
+.market-list-left-pane {
   border: 1px solid #e3e9f1;
   border-radius: 12px;
   background: #fbfdff;
   padding: 8px;
-  min-height: 0;
-  min-width: 0;
-  height: 100%;
-  max-height: none;
-  overflow: visible;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   gap: 8px;
 }
 
@@ -1737,6 +1734,7 @@ table tfoot td {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
   gap: 8px;
+  flex: 0 0 auto;
 }
 
 .market-section-select-left {
@@ -1750,15 +1748,19 @@ table tfoot td {
 }
 
 .market-list-scroll-area {
-  height: calc(100vh - 320px);
-  max-height: calc(100vh - 320px);
-  min-height: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: calc(100vh - 72px - 24px - 220px);
+  max-height: calc(100vh - 72px - 24px - 220px);
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  display: grid;
-  gap: 8px;
+  padding-right: 6px;
+}
+
+.market-list-scroll-area > * + * {
+  margin-top: 8px;
 }
 
 .market-section-group {
@@ -2302,7 +2304,6 @@ table tfoot td {
   }
 
   .market-list-layout {
-    display: grid;
     grid-template-columns: 1fr;
     height: auto;
     min-height: 0;
@@ -2317,15 +2318,12 @@ table tfoot td {
   }
 
   .market-list-outer {
-    display: block;
+    height: auto;
     overflow: visible;
   }
 
-  .market-list-panel {
-    width: 100%;
-    flex: none;
+  .market-list-left-pane {
     height: auto;
-    max-height: 320px;
     overflow: visible;
   }
 
@@ -2335,9 +2333,10 @@ table tfoot td {
   }
 
   .market-list-scroll-area {
-    height: calc(100dvh - 380px);
-    max-height: calc(100dvh - 380px);
-    min-height: 220px;
+    flex: none;
+    height: auto;
+    max-height: 60vh;
+    min-height: 0;
   }
 
   .market-detail-panel {

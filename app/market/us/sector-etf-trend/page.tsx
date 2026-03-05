@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
 import { supabase } from "@/lib/supabaseClient";
@@ -152,7 +152,6 @@ export default function UsSectorEtfTrendPage() {
   const [selectedSection, setSelectedSection] = useState<string>(ALL_SECTIONS);
   const [selectedSnapshotKey, setSelectedSnapshotKey] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-  const leftScrollAreaRef = useRef<HTMLDivElement | null>(null);
   const hasSelectedDate = selectedDate !== "";
 
   useEffect(() => {
@@ -335,19 +334,6 @@ export default function UsSectorEtfTrendPage() {
     }));
   };
 
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development") {
-      return;
-    }
-
-    if (viewMode !== "LIST") {
-      return;
-    }
-
-    const height = leftScrollAreaRef.current?.clientHeight ?? 0;
-    console.log("[market] leftScrollArea.clientHeight", height);
-  }, [viewMode, selectedSection, groupedSnapshots.length]);
-
   return (
     <>
       <PageHeader title="US Market ETF Screening" actions={headerActions} />
@@ -516,7 +502,7 @@ export default function UsSectorEtfTrendPage() {
           {filteredSnapshots.length > 0 && viewMode === "LIST" ? (
             <div className="market-list-outer">
               <div className="market-list-layout">
-                <aside className="market-list-panel">
+                <aside className="market-list-left-pane">
                   <div className="market-list-left-header">
                     <label className="market-section-select market-section-select-left">
                       Section
@@ -542,7 +528,7 @@ export default function UsSectorEtfTrendPage() {
                     </span>
                   </div>
 
-                  <div className="market-list-scroll-area" ref={leftScrollAreaRef}>
+                  <div className="market-list-scroll-area">
                     {groupedSnapshots.map((group) => {
                       const forceOpen = selectedSection !== ALL_SECTIONS;
                       const isOpen = forceOpen ? true : Boolean(openSections[group.section]);
