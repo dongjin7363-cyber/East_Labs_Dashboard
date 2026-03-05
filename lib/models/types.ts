@@ -20,6 +20,10 @@ export interface PortfolioHolding {
   market: Market;
   currency: Currency;
   ticker: string;
+  displayName?: string;
+  comment?: string;
+  tickerCode?: string;
+  logoUrl?: string;
   krCode?: string;
   quoteDisabled?: boolean;
   sector: PortfolioSector;

@@ -12,7 +12,9 @@ import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
 import { PortfolioAnalytics } from "@/components/PortfolioAnalytics";
+import { PortfolioAllocationDonut } from "@/components/portfolio/PortfolioAllocationDonut";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
+import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
 import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
@@ -22,6 +24,7 @@ import {
   calculatePortfolioTotalAsset,
   filterHoldings,
   HoldingQuoteUpdate,
+  PortfolioInput,
 } from "@/lib/services/portfolioService";
 import {
   moneyFormatParts,
@@ -87,16 +90,19 @@ type QuoteFetchResult =
 
 type PortfolioSortKey =
   | "ticker"
-  | "qty"
+  | "dailyChangeRate"
   | "avgPrice"
   | "currentPrice"
+  | "qty"
   | "marketValue"
   | "pnl"
-  | "pnlRate";
+  | "pnlRate"
+  | "comment";
 
 interface PortfolioTableRow {
   holding: PortfolioHolding;
   computed: ReturnType<typeof calcHoldingComputed>;
+  dailyChangeRate: number | null;
   defaultIndex: number;
 }
 
@@ -226,6 +232,7 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const quoteRefreshInFlightRef = useRef(false);
   const isAuthed = isCloudMode;
   const depositKrw = accountState.depositKrwInt;
@@ -314,6 +321,31 @@ export default function PortfolioPage() {
     setManualKrTicker(null);
     setManualKrCodeInput("");
   }, [authLoading, isAuthed]);
+
+  useEffect(() => {
+    setCommentDrafts((prev) => {
+      const next: Record<string, string> = {};
+      let changed = false;
+
+      holdings.forEach((holding) => {
+        const fallbackValue = holding.comment ?? "";
+        const existingValue = prev[holding.id];
+        next[holding.id] = existingValue ?? fallbackValue;
+
+        if (existingValue === undefined) {
+          changed = true;
+        }
+      });
+
+      Object.keys(prev).forEach((id) => {
+        if (!(id in next)) {
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [holdings]);
 
   const filtered = useMemo(() => {
     return filterHoldings(holdings, {
@@ -752,6 +784,7 @@ export default function PortfolioPage() {
       filtered.map((holding, index) => ({
         holding,
         computed: calcHoldingComputed(holding),
+        dailyChangeRate: null,
         defaultIndex: index,
       })),
     [filtered],
@@ -763,7 +796,11 @@ export default function PortfolioPage() {
         sortState,
         (row, key) => {
           if (key === "ticker") {
-            return row.holding.ticker;
+            return row.holding.displayName ?? row.holding.ticker;
+          }
+
+          if (key === "dailyChangeRate") {
+            return row.dailyChangeRate ?? Number.NEGATIVE_INFINITY;
           }
 
           if (key === "qty") {
@@ -784,6 +821,10 @@ export default function PortfolioPage() {
 
           if (key === "pnl") {
             return row.computed.pnl;
+          }
+
+          if (key === "comment") {
+            return row.holding.comment ?? "";
           }
 
           return row.computed.pnlRate;
@@ -1024,6 +1065,56 @@ export default function PortfolioPage() {
     return true;
   };
 
+  const holdingToInput = useCallback(
+    (holding: PortfolioHolding): PortfolioInput => ({
+      market: holding.market,
+      currency: holding.currency,
+      ticker: holding.ticker,
+      displayName: holding.displayName,
+      comment: holding.comment,
+      tickerCode: holding.tickerCode,
+      logoUrl: holding.logoUrl,
+      krCode: holding.krCode,
+      quoteDisabled: holding.quoteDisabled,
+      sector: holding.sector,
+      qty: holding.qty,
+      avgPrice: holding.avgPrice,
+      currentPrice: holding.currentPrice,
+    }),
+    [],
+  );
+
+  const handleCommentDraftChange = (holdingId: string, value: string) => {
+    setCommentDrafts((prev) => ({
+      ...prev,
+      [holdingId]: value,
+    }));
+  };
+
+  const commitComment = (holding: PortfolioHolding) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
+    const nextComment = (commentDrafts[holding.id] ?? "").trim();
+    const currentComment = (holding.comment ?? "").trim();
+
+    if (nextComment === currentComment) {
+      return;
+    }
+
+    setCommentDrafts((prev) => ({
+      ...prev,
+      [holding.id]: nextComment,
+    }));
+
+    update(holding.id, {
+      ...holdingToInput(holding),
+      comment: nextComment,
+    });
+  };
+
   const handleSortClick = (key: PortfolioSortKey) => {
     setSortState((prev) => toggleSort(prev, key));
   };
@@ -1093,15 +1184,9 @@ export default function PortfolioPage() {
     }
 
     update(target.id, {
-      market: target.market,
-      currency: target.currency,
-      ticker: target.ticker,
+      ...holdingToInput(target),
       krCode: normalizedCode,
-      quoteDisabled: target.quoteDisabled,
-      sector: target.sector,
-      qty: target.qty,
-      avgPrice: target.avgPrice,
-      currentPrice: target.currentPrice,
+      tickerCode: normalizedCode,
     });
 
     setQuoteBlacklist((prev) => {
@@ -1177,11 +1262,16 @@ export default function PortfolioPage() {
 
   const sortIndicator = (key: PortfolioSortKey): string => {
     if (sortState.key !== key || !sortState.mode) {
-      return "";
+      return "↑↓";
     }
 
     return sortState.mode === "DESC" ? "▼" : "▲";
   };
+
+  const sortIndicatorClassName = (key: PortfolioSortKey): string =>
+    `sort-indicator${sortState.key === key && sortState.mode ? " is-active" : " is-hint"}`;
+  const sortButtonClassName = (key: PortfolioSortKey): string =>
+    `table-sort-button${sortState.key === key && sortState.mode ? " is-active" : ""}`;
 
   return (
     <>
@@ -1319,6 +1409,13 @@ export default function PortfolioPage() {
       </section>
 
       <SummaryCardGrid cards={cards} />
+      <PortfolioAllocationDonut
+        holdings={holdings}
+        fxRate={fxRate}
+        totalAssetKrw={totalAssetKrw}
+        accountPnlKrw={accountPnlKrw}
+        totalPnlPct={totalPnlPct}
+      />
 
       <section className="panel">
         <div className="filter-row">
@@ -1360,78 +1457,115 @@ export default function PortfolioPage() {
         </div>
 
         <div className="table-wrap">
-          <table>
+          <table className="portfolio-holdings-table">
             <thead>
               <tr>
                 <th>
                   <button
                     type="button"
-                    className="table-sort-button"
+                    className={sortButtonClassName("ticker")}
                     onClick={() => handleSortClick("ticker")}
                   >
-                    Ticker
-                    <span className="sort-indicator">{sortIndicator("ticker")}</span>
+                    종목
+                    <span className={sortIndicatorClassName("ticker")}>
+                      {sortIndicator("ticker")}
+                    </span>
                   </button>
                 </th>
-                <th>Sector</th>
                 <th>
                   <button
                     type="button"
-                    className="table-sort-button"
+                    className={sortButtonClassName("dailyChangeRate")}
+                    onClick={() => handleSortClick("dailyChangeRate")}
+                  >
+                    1일 등락률
+                    <span className={sortIndicatorClassName("dailyChangeRate")}>
+                      {sortIndicator("dailyChangeRate")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("avgPrice")}
+                    onClick={() => handleSortClick("avgPrice")}
+                  >
+                    Avg Price
+                    <span className={sortIndicatorClassName("avgPrice")}>
+                      {sortIndicator("avgPrice")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("currentPrice")}
+                    onClick={() => handleSortClick("currentPrice")}
+                  >
+                    Current Price
+                    <span className={sortIndicatorClassName("currentPrice")}>
+                      {sortIndicator("currentPrice")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("qty")}
                     onClick={() => handleSortClick("qty")}
                   >
                     Qty
-                    <span className="sort-indicator">{sortIndicator("qty")}</span>
+                    <span className={sortIndicatorClassName("qty")}>
+                      {sortIndicator("qty")}
+                    </span>
                   </button>
                 </th>
                 <th>
                   <button
                     type="button"
-                    className="table-sort-button"
-                    onClick={() => handleSortClick("avgPrice")}
-                  >
-                    AvgPrice
-                    <span className="sort-indicator">{sortIndicator("avgPrice")}</span>
-                  </button>
-                </th>
-                <th>
-                  <button
-                    type="button"
-                    className="table-sort-button"
-                    onClick={() => handleSortClick("currentPrice")}
-                  >
-                    CurrentPrice
-                    <span className="sort-indicator">{sortIndicator("currentPrice")}</span>
-                  </button>
-                </th>
-                <th>
-                  <button
-                    type="button"
-                    className="table-sort-button"
+                    className={sortButtonClassName("marketValue")}
                     onClick={() => handleSortClick("marketValue")}
                   >
-                    MarketValue
-                    <span className="sort-indicator">{sortIndicator("marketValue")}</span>
+                    Market Value
+                    <span className={sortIndicatorClassName("marketValue")}>
+                      {sortIndicator("marketValue")}
+                    </span>
                   </button>
                 </th>
                 <th>
                   <button
                     type="button"
-                    className="table-sort-button"
+                    className={sortButtonClassName("pnl")}
                     onClick={() => handleSortClick("pnl")}
                   >
                     PnL
-                    <span className="sort-indicator">{sortIndicator("pnl")}</span>
+                    <span className={sortIndicatorClassName("pnl")}>
+                      {sortIndicator("pnl")}
+                    </span>
                   </button>
                 </th>
                 <th>
                   <button
                     type="button"
-                    className="table-sort-button"
+                    className={sortButtonClassName("pnlRate")}
                     onClick={() => handleSortClick("pnlRate")}
                   >
                     PnL%
-                    <span className="sort-indicator">{sortIndicator("pnlRate")}</span>
+                    <span className={sortIndicatorClassName("pnlRate")}>
+                      {sortIndicator("pnlRate")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("comment")}
+                    onClick={() => handleSortClick("comment")}
+                  >
+                    Comment
+                    <span className={sortIndicatorClassName("comment")}>
+                      {sortIndicator("comment")}
+                    </span>
                   </button>
                 </th>
               </tr>
@@ -1439,11 +1573,11 @@ export default function PortfolioPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8}>로딩 중...</td>
+                  <td colSpan={9}>로딩 중...</td>
                 </tr>
               ) : sortedTableRows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="empty-state">
+                  <td colSpan={9} className="empty-state">
                     데이터가 없습니다.
                   </td>
                 </tr>
@@ -1464,11 +1598,30 @@ export default function PortfolioPage() {
                       }}
                       tabIndex={0}
                     >
-                      <td>{holding.ticker}</td>
-                      <td>{holding.sector}</td>
-                      <td>{holding.qty}</td>
+                      <td>
+                        <div className="holding-info-cell">
+                          <HoldingAvatar
+                            market={holding.market}
+                            logoUrl={holding.logoUrl}
+                            label={holding.displayName ?? holding.ticker}
+                          />
+                          <div className="holding-info-text">
+                            <strong className="holding-display-name">
+                              {holding.displayName?.trim() || holding.ticker}
+                            </strong>
+                            <span className="holding-ticker-meta">
+                              {holding.ticker}
+                              {holding.tickerCode ? ` · ${holding.tickerCode}` : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="muted-placeholder">—</span>
+                      </td>
                       <td>{renderMoney(holding.currency, holding.avgPrice, "table")}</td>
                       <td>{renderMoney(holding.currency, holding.currentPrice, "table")}</td>
+                      <td>{holding.qty}</td>
                       <td>{renderMoney(holding.currency, computed.marketValue, "table")}</td>
                       <td
                         style={{
@@ -1486,6 +1639,30 @@ export default function PortfolioPage() {
                         }}
                       >
                         {percentFormat(computed.pnlRate)}
+                      </td>
+                      <td
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          className="portfolio-comment-input"
+                          value={commentDrafts[holding.id] ?? holding.comment ?? ""}
+                          placeholder="메모"
+                          onChange={(event) =>
+                            handleCommentDraftChange(holding.id, event.target.value)
+                          }
+                          onBlur={() => commitComment(holding)}
+                          onKeyDown={(event) => {
+                            event.stopPropagation();
+
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitComment(holding);
+                              event.currentTarget.blur();
+                            }
+                          }}
+                          disabled={!isAuthed}
+                        />
                       </td>
                     </tr>
                   );

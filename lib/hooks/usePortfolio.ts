@@ -93,6 +93,30 @@ function resolveKrCodeValue(
   return resolveKrCodeFromTicker(ticker);
 }
 
+function normalizeOptionalText(value?: string): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeTickerCode(value?: string): string | undefined {
+  const normalized = normalizeOptionalText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.toUpperCase();
+}
+
 export function usePortfolio() {
   const { userId, isAuthenticated, loading: authLoading } = useAuth();
   const repository = useMemo(() => createPortfolioRepository(userId), [userId]);
@@ -169,12 +193,23 @@ export function usePortfolio() {
       void (async () => {
         try {
           const nowIso = new Date().toISOString();
+          const normalizedTicker = input.ticker.trim();
+          const normalizedKrCode = resolveKrCodeValue(
+            input.market,
+            normalizedTicker,
+            input.krCode,
+          );
           const next: PortfolioHolding = {
             id: createId(),
             market: input.market,
             currency: resolveCurrency(input.market, input.currency),
-            ticker: input.ticker.trim(),
-            krCode: resolveKrCodeValue(input.market, input.ticker, input.krCode),
+            ticker: normalizedTicker,
+            displayName: normalizeOptionalText(input.displayName),
+            comment: normalizeOptionalText(input.comment),
+            tickerCode:
+              normalizeTickerCode(input.tickerCode) ?? normalizedKrCode,
+            logoUrl: normalizeOptionalText(input.logoUrl),
+            krCode: normalizedKrCode,
             quoteDisabled: input.quoteDisabled ? true : undefined,
             sector: resolveSector(input.sector),
             qty: input.qty,
@@ -213,19 +248,28 @@ export function usePortfolio() {
           }
 
           const nowIso = new Date().toISOString();
+          const normalizedTicker = input.ticker.trim();
+          const normalizedKrCode =
+            input.market === "KR"
+              ? resolveKrCodeValue(input.market, normalizedTicker, input.krCode) ??
+                (target.market === "KR" &&
+                target.ticker.trim() === normalizedTicker
+                  ? target.krCode
+                  : undefined)
+              : undefined;
           const next: PortfolioHolding = {
             id: target.id,
             market: input.market,
             currency: resolveCurrency(input.market, input.currency),
-            ticker: input.ticker.trim(),
-            krCode:
-              input.market === "KR"
-                ? resolveKrCodeValue(input.market, input.ticker, input.krCode) ??
-                  (target.market === "KR" &&
-                  target.ticker.trim() === input.ticker.trim()
-                    ? target.krCode
-                    : undefined)
-                : undefined,
+            ticker: normalizedTicker,
+            displayName: normalizeOptionalText(input.displayName),
+            comment: normalizeOptionalText(input.comment),
+            tickerCode:
+              normalizeTickerCode(input.tickerCode) ??
+              normalizedKrCode ??
+              normalizeTickerCode(target.tickerCode),
+            logoUrl: normalizeOptionalText(input.logoUrl),
+            krCode: normalizedKrCode,
             quoteDisabled: input.quoteDisabled ? true : undefined,
             sector: resolveSector(input.sector),
             qty: input.qty,
@@ -295,6 +339,11 @@ export function usePortfolio() {
                 holding.market === "KR"
                   ? quote.krCode ?? holding.krCode
                   : undefined,
+              tickerCode:
+                holding.market === "KR"
+                  ? normalizeTickerCode(quote.krCode) ??
+                    normalizeTickerCode(holding.tickerCode ?? holding.krCode)
+                  : holding.tickerCode,
               priceUpdatedAt: quote.asOf ?? refreshedAt,
               updatedAt: refreshedAt,
             };

@@ -15,6 +15,10 @@ export interface PortfolioInput {
   market: Market;
   currency?: Currency;
   ticker: string;
+  displayName?: string;
+  comment?: string;
+  tickerCode?: string;
+  logoUrl?: string;
   krCode?: string;
   quoteDisabled?: boolean;
   sector?: PortfolioSector;
@@ -121,14 +125,48 @@ function resolveKrCodeValue(
   return resolveKrCodeFromTicker(ticker);
 }
 
+function normalizeOptionalText(value?: string): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeTickerCode(value?: string): string | undefined {
+  const normalized = normalizeOptionalText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.toUpperCase();
+}
+
 export function addHolding(input: PortfolioInput): PortfolioHolding[] {
   const nowIso = new Date().toISOString();
+  const normalizedTicker = input.ticker.trim();
+  const normalizedKrCode = resolveKrCodeValue(
+    input.market,
+    normalizedTicker,
+    input.krCode,
+  );
   const next: PortfolioHolding = {
     id: createId(),
     market: input.market,
     currency: resolveCurrency(input.market, input.currency),
-    ticker: input.ticker.trim(),
-    krCode: resolveKrCodeValue(input.market, input.ticker, input.krCode),
+    ticker: normalizedTicker,
+    displayName: normalizeOptionalText(input.displayName),
+    comment: normalizeOptionalText(input.comment),
+    tickerCode: normalizeTickerCode(input.tickerCode) ?? normalizedKrCode,
+    logoUrl: normalizeOptionalText(input.logoUrl),
+    krCode: normalizedKrCode,
     quoteDisabled: input.quoteDisabled ? true : undefined,
     sector: resolveSector(input.sector),
     qty: input.qty,
@@ -151,6 +189,7 @@ export function updateHolding(
 ): PortfolioHolding[] {
   const holdings = listHoldings();
   const nowIso = new Date().toISOString();
+  const normalizedTicker = input.ticker.trim();
 
   const updated = sortHoldings(
     holdings.map((item) => {
@@ -158,18 +197,27 @@ export function updateHolding(
         return item;
       }
 
+      const normalizedKrCode =
+        input.market === "KR"
+          ? resolveKrCodeValue(input.market, normalizedTicker, input.krCode) ??
+            (item.market === "KR" && item.ticker.trim() === normalizedTicker
+              ? item.krCode
+              : undefined)
+          : undefined;
+
       return {
         id: item.id,
         market: input.market,
         currency: resolveCurrency(input.market, input.currency),
-        ticker: input.ticker.trim(),
-        krCode:
-          input.market === "KR"
-            ? resolveKrCodeValue(input.market, input.ticker, input.krCode) ??
-              (item.market === "KR" && item.ticker.trim() === input.ticker.trim()
-                ? item.krCode
-                : undefined)
-            : undefined,
+        ticker: normalizedTicker,
+        displayName: normalizeOptionalText(input.displayName),
+        comment: normalizeOptionalText(input.comment),
+        tickerCode:
+          normalizeTickerCode(input.tickerCode) ??
+          normalizedKrCode ??
+          (item.tickerCode ? normalizeTickerCode(item.tickerCode) : undefined),
+        logoUrl: normalizeOptionalText(input.logoUrl),
+        krCode: normalizedKrCode,
         quoteDisabled: input.quoteDisabled ? true : undefined,
         sector: resolveSector(input.sector),
         qty: input.qty,
@@ -217,6 +265,11 @@ export function updateHoldingQuotes(
           holding.market === "KR"
             ? quote.krCode ?? holding.krCode
             : undefined,
+        tickerCode:
+          holding.market === "KR"
+            ? normalizeTickerCode(quote.krCode) ??
+              normalizeTickerCode(holding.tickerCode ?? holding.krCode)
+            : holding.tickerCode,
         priceUpdatedAt: quote.asOf ?? refreshedAt,
         updatedAt: refreshedAt,
       };
@@ -275,9 +328,7 @@ export function filterHoldings(
       return true;
     }
 
-    return (
-      holding.ticker.toLowerCase().includes(keyword)
-    );
+    return holding.ticker.toLowerCase().includes(keyword);
   });
 }
 

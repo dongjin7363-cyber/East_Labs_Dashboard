@@ -29,6 +29,10 @@ interface PortfolioFormModalProps {
 interface PortfolioFormState {
   market: Market;
   ticker: string;
+  displayName: string;
+  tickerCode: string;
+  logoUrl: string;
+  comment: string;
   quoteDisabled: boolean;
   sector: PortfolioSector;
   qty: string;
@@ -39,6 +43,10 @@ interface PortfolioFormState {
 const EMPTY_FORM: PortfolioFormState = {
   market: "KR",
   ticker: "",
+  displayName: "",
+  tickerCode: "",
+  logoUrl: "",
+  comment: "",
   quoteDisabled: false,
   sector: "Other",
   qty: "",
@@ -73,6 +81,10 @@ export function PortfolioFormModal({
       setForm({
         market: holding.market,
         ticker: holding.ticker,
+        displayName: holding.displayName ?? "",
+        tickerCode: holding.tickerCode ?? holding.krCode ?? "",
+        logoUrl: holding.logoUrl ?? "",
+        comment: holding.comment ?? "",
         quoteDisabled: holding.quoteDisabled ?? false,
         sector: holding.sector ?? "Other",
         qty: `${holding.qty}`,
@@ -139,6 +151,10 @@ export function PortfolioFormModal({
       market: form.market,
       currency,
       ticker: form.ticker,
+      displayName: form.displayName,
+      tickerCode: form.tickerCode,
+      logoUrl: form.logoUrl,
+      comment: form.comment,
       quoteDisabled: form.quoteDisabled,
       sector: form.sector,
       qty,
@@ -182,6 +198,39 @@ export function PortfolioFormModal({
                 setForm((prev) => ({ ...prev, ticker: event.target.value }))
               }
               placeholder="005930 / AAPL"
+            />
+          </label>
+
+          <label>
+            Display Name
+            <input
+              value={form.displayName}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, displayName: event.target.value }))
+              }
+              placeholder="Microsoft Corp / 삼성전자"
+            />
+          </label>
+
+          <label>
+            Ticker Code
+            <input
+              value={form.tickerCode}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, tickerCode: event.target.value }))
+              }
+              placeholder="005930 / 0126Z0"
+            />
+          </label>
+
+          <label>
+            Logo URL
+            <input
+              value={form.logoUrl}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, logoUrl: event.target.value }))
+              }
+              placeholder="https://..."
             />
           </label>
 
@@ -254,6 +303,17 @@ export function PortfolioFormModal({
                 setForm((prev) => ({ ...prev, currentPrice: rawValue }))
               }
               placeholder={priceInputPlaceholder(currency)}
+            />
+          </label>
+
+          <label className="full">
+            Comment
+            <input
+              value={form.comment}
+              onChange={(event) =>
+                setForm((prev) => ({ ...prev, comment: event.target.value }))
+              }
+              placeholder="한 줄 메모"
             />
           </label>
         </div>

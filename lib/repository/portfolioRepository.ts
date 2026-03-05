@@ -24,6 +24,10 @@ interface PortfolioHoldingRow {
   current_price_int: number;
   sector: string | null;
   kr_code: string | null;
+  display_name?: string | null;
+  comment?: string | null;
+  ticker_code?: string | null;
+  logo_url?: string | null;
   updated_at: string;
 }
 
@@ -97,6 +101,50 @@ function normalizeKrCode(value: unknown): string | undefined {
   return normalized;
 }
 
+function normalizeOptionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeTickerCode(value: unknown): string | undefined {
+  const normalized = normalizeOptionalText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.toUpperCase();
+}
+
+function isMissingColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const message = String((error as { message?: unknown }).message ?? "").toLowerCase();
+  const details = String((error as { details?: unknown }).details ?? "").toLowerCase();
+  const hint = String((error as { hint?: unknown }).hint ?? "").toLowerCase();
+  const joined = `${message} ${details} ${hint}`;
+  const hasExtendedFieldRef =
+    joined.includes("display_name") ||
+    joined.includes("ticker_code") ||
+    joined.includes("logo_url") ||
+    joined.includes("comment");
+  const hasSchemaFailureHint =
+    joined.includes("column") || joined.includes("schema cache");
+
+  return hasExtendedFieldRef && hasSchemaFailureHint;
+}
+
 function parseHoldingFromUnknown(raw: unknown, index: number): PortfolioHolding | null {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -134,13 +182,30 @@ function parseHoldingFromUnknown(raw: unknown, index: number): PortfolioHolding 
       : typeof input.price_updated_at === "string" && input.price_updated_at.trim() !== ""
         ? input.price_updated_at
         : undefined;
+  const normalizedKrCode =
+    market === "KR"
+      ? normalizeKrCode(input.krCode ?? input.kr_code ?? input.ticker_code)
+      : undefined;
+  const displayName =
+    normalizeOptionalText(input.displayName) ??
+    normalizeOptionalText(input.display_name) ??
+    (typeof input.name === "string" ? normalizeOptionalText(input.name) : undefined);
+  const comment = normalizeOptionalText(input.comment);
+  const tickerCode = normalizeTickerCode(input.tickerCode ?? input.ticker_code) ?? normalizedKrCode;
+  const logoUrl =
+    normalizeOptionalText(input.logoUrl) ??
+    normalizeOptionalText(input.logo_url);
 
   return {
     id,
     market,
     currency: normalizeCurrency(input.currency, market),
     ticker,
-    krCode: market === "KR" ? normalizeKrCode(input.krCode ?? input.kr_code) : undefined,
+    displayName,
+    comment,
+    tickerCode,
+    logoUrl,
+    krCode: normalizedKrCode,
     quoteDisabled:
       input.quoteDisabled === true || input.quote_disabled === true ? true : undefined,
     sector: normalizeSector(input.sector),
@@ -161,6 +226,7 @@ function parseHoldingFromUnknown(raw: unknown, index: number): PortfolioHolding 
 function normalizeHoldingForDb(
   holding: PortfolioHolding,
   userId: string,
+  includeExtendedColumns: boolean,
   options?: UpsertHoldingOptions,
 ): PortfolioHoldingRow {
   const ticker = holding.ticker.trim();
@@ -175,6 +241,13 @@ function normalizeHoldingForDb(
     kr_code: holding.krCode ?? null,
     updated_at: holding.updatedAt,
   };
+
+  if (includeExtendedColumns) {
+    row.display_name = normalizeOptionalText(holding.displayName) ?? null;
+    row.comment = normalizeOptionalText(holding.comment) ?? null;
+    row.ticker_code = normalizeTickerCode(holding.tickerCode ?? holding.krCode) ?? null;
+    row.logo_url = normalizeOptionalText(holding.logoUrl) ?? null;
+  }
 
   if (!options?.isCreate && holding.id.trim() && isValidUuid(holding.id.trim())) {
     row.id = holding.id.trim();
@@ -202,17 +275,49 @@ export class LocalPortfolioRepository implements PortfolioRepository {
 }
 
 export class SupabasePortfolioRepository implements PortfolioRepository {
+  private supportsExtendedColumns: boolean | null = null;
+
   constructor(private readonly userId: string) {}
 
+  private async detectExtendedColumnsSupport(): Promise<boolean> {
+    if (this.supportsExtendedColumns !== null) {
+      return this.supportsExtendedColumns;
+    }
+
+    const { error } = await supabase
+      .from("portfolio_holdings")
+      .select("display_name", { head: true, count: "exact" })
+      .limit(1);
+
+    if (!error) {
+      this.supportsExtendedColumns = true;
+      return true;
+    }
+
+    if (isMissingColumnError(error)) {
+      this.supportsExtendedColumns = false;
+      return false;
+    }
+
+    throw error;
+  }
+
   async getHoldings(): Promise<PortfolioHolding[]> {
+    const supportsExtendedColumns = await this.detectExtendedColumnsSupport();
+    const selectColumns = supportsExtendedColumns
+      ? "id,user_id,market,ticker,qty,avg_price_int,current_price_int,sector,kr_code,display_name,comment,ticker_code,logo_url,updated_at"
+      : "id,user_id,market,ticker,qty,avg_price_int,current_price_int,sector,kr_code,updated_at";
     const { data, error } = await supabase
       .from("portfolio_holdings")
-      .select(
-        "id,user_id,market,ticker,qty,avg_price_int,current_price_int,sector,kr_code,updated_at",
-      )
+      .select(selectColumns)
       .eq("user_id", this.userId);
 
     if (error) {
+      if (supportsExtendedColumns && isMissingColumnError(error)) {
+        this.supportsExtendedColumns = false;
+        return this.getHoldings();
+      }
+
       throw error;
     }
 
@@ -227,10 +332,30 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
     holding: PortfolioHolding,
     options?: UpsertHoldingOptions,
   ): Promise<void> {
-    const payload = normalizeHoldingForDb(holding, this.userId, options);
-    const { error } = await supabase
+    const supportsExtendedColumns = await this.detectExtendedColumnsSupport();
+    const payload = normalizeHoldingForDb(
+      holding,
+      this.userId,
+      supportsExtendedColumns,
+      options,
+    );
+    let { error } = await supabase
       .from("portfolio_holdings")
       .upsert([payload], { onConflict: "id" });
+
+    if (error && supportsExtendedColumns && isMissingColumnError(error)) {
+      this.supportsExtendedColumns = false;
+      const fallbackPayload = normalizeHoldingForDb(
+        holding,
+        this.userId,
+        false,
+        options,
+      );
+      const fallbackResult = await supabase
+        .from("portfolio_holdings")
+        .upsert([fallbackPayload], { onConflict: "id" });
+      error = fallbackResult.error;
+    }
 
     if (error) {
       throw error;

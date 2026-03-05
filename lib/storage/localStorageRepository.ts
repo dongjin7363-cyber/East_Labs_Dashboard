@@ -78,6 +78,30 @@ function normalizeKrCode(value: unknown): string | undefined {
   return undefined;
 }
 
+function normalizeOptionalText(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function normalizeTickerCode(value: unknown): string | undefined {
+  const normalized = normalizeOptionalText(value);
+
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.toUpperCase();
+}
+
 function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHolding | null {
   if (!raw || typeof raw !== "object") {
     return null;
@@ -101,8 +125,24 @@ function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHoldin
 
   const krCode =
     market === "KR"
-      ? normalizeKrCode(input.krCode) ?? normalizeKrCode(ticker)
+      ? normalizeKrCode(input.krCode) ??
+        normalizeKrCode(input.kr_code) ??
+        normalizeKrCode(input.tickerCode) ??
+        normalizeKrCode(input.ticker_code) ??
+        normalizeKrCode(ticker)
       : undefined;
+  const displayName =
+    normalizeOptionalText(input.displayName) ??
+    normalizeOptionalText(input.display_name) ??
+    (typeof input.name === "string" ? normalizeOptionalText(input.name) : undefined);
+  const tickerCode =
+    normalizeTickerCode(input.tickerCode) ??
+    normalizeTickerCode(input.ticker_code) ??
+    krCode;
+  const logoUrl =
+    normalizeOptionalText(input.logoUrl) ??
+    normalizeOptionalText(input.logo_url);
+  const comment = normalizeOptionalText(input.comment);
 
   const id =
     typeof input.id === "string" && input.id.trim() !== ""
@@ -122,6 +162,10 @@ function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHoldin
     market,
     currency: normalizeCurrency(input.currency, market),
     ticker,
+    displayName,
+    comment,
+    tickerCode,
+    logoUrl,
     krCode,
     quoteDisabled:
       input.quoteDisabled === true || input.isCustom === true ? true : undefined,
