@@ -447,7 +447,6 @@ items = [
 ("https://finviz.com/chart.ashx?t=DHC&ty=c&ta=1&p=d&s=l", "Diversified Healthcare Trust – 헬스케어 리츠"),
 ("https://finviz.com/chart.ashx?t=XRN-B&ty=c&ta=1&p=d&s=l", "XRN-B – 우선주/신종(티커 성격 재확인)"),
 ("https://finviz.com/chart.ashx?t=WPAC.UN&ty=c&ta=1&p=d&s=l", "WPAC.UN – 유닛/트러스트(티커 성격 재확인)"),
-("https://finviz.com/chart.ashx?t=PHXE-&ty=c&ta=1&p=d&s=l", "PHXE- – 우선주/신종(티커 성격 재확인)"),
 
 # ======================
 # 유틸리티 / 가스
