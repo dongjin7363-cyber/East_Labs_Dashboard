@@ -206,16 +206,22 @@ def _delete_storage_paths(
 
 
 def cleanup_weekly() -> dict[str, Any]:
+    today = _kst_today()
+    current_week_monday = today - timedelta(days=today.weekday())
+    prev_monday = current_week_monday - timedelta(days=7)
+    prev_friday = current_week_monday - timedelta(days=3)
+
+    print(f"[cleanup] today_kst={today.isoformat()}")
+    print(f"[cleanup] weekday_kst={today.weekday()} (Monday=0)")
+    print(f"[cleanup] delete_from={prev_monday.isoformat()}")
+    print(f"[cleanup] delete_to={prev_friday.isoformat()}")
+
     supabase_url = _required_env("SUPABASE_URL").rstrip("/")
     service_role_key = _required_env("SUPABASE_SERVICE_ROLE_KEY")
 
-    today = _kst_today()
-    last_monday = today - timedelta(days=6)
-    last_friday = today - timedelta(days=2)
-
     results: list[CleanupDayResult] = []
 
-    for day in _date_range(last_monday, last_friday):
+    for day in _date_range(prev_monday, prev_friday):
         run_date = day.isoformat()
 
         deleted_snapshots = _delete_rows(
@@ -255,6 +261,14 @@ def cleanup_weekly() -> dict[str, Any]:
             )
         )
 
+        print(
+            "[cleanup] "
+            f"run_date={run_date} "
+            f"deleted_market_snapshots={deleted_snapshots} "
+            f"deleted_market_runs={deleted_runs} "
+            f"deleted_storage_files={deleted_storage_files}"
+        )
+
     total_deleted_snapshots = sum(result.deleted_snapshots for result in results)
     total_deleted_runs = sum(result.deleted_runs for result in results)
     total_deleted_storage_files = sum(result.deleted_storage_files for result in results)
@@ -266,8 +280,8 @@ def cleanup_weekly() -> dict[str, Any]:
             "market_region": MARKET_REGION,
             "page_slug": PAGE_SLUG,
             "bucket": BUCKET,
-            "from": last_monday.isoformat(),
-            "to": last_friday.isoformat(),
+            "from": prev_monday.isoformat(),
+            "to": prev_friday.isoformat(),
         },
         "days": [
             {
