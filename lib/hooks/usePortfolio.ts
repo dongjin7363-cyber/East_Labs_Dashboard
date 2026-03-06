@@ -410,10 +410,10 @@ export function usePortfolio() {
                     ? quote.krCode ?? holding.krCode
                     : undefined,
                 tickerCode:
-                  holding.market === "KR"
-                    ? normalizeTickerCode(quote.tickerCode ?? quote.krCode) ??
-                      normalizeTickerCode(holding.tickerCode ?? holding.krCode)
-                    : holding.tickerCode,
+                  normalizeTickerCode(quote.tickerCode ?? quote.krCode) ??
+                  (holding.market === "KR"
+                    ? normalizeTickerCode(holding.tickerCode ?? holding.krCode)
+                    : normalizeTickerCode(holding.tickerCode)),
                 priceUpdatedAt: quote.asOf ?? refreshedAt,
                 updatedAt: refreshedAt,
               };

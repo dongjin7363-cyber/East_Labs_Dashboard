@@ -45,6 +45,9 @@ type CacheEntry = {
 };
 
 const quoteCache = new Map<string, CacheEntry>();
+const US_DISPLAY_NAME_FALLBACK: Record<string, string> = {
+  RKLB: "Rocket Lab",
+};
 let krxCompanyCache:
   | {
       expiresAt: number;
@@ -100,11 +103,30 @@ function toPriceIntUsd(price: number): number {
   return Math.round(price * 100);
 }
 
+function debugQuoteRaw(
+  scope: string,
+  payload: Record<string, unknown>,
+  keys: string[],
+): void {
+  if (process.env.NODE_ENV !== "development") {
+    return;
+  }
+
+  const snapshot: Record<string, unknown> = {};
+
+  keys.forEach((key) => {
+    snapshot[key] = payload[key];
+  });
+
+  console.debug(`[quote][raw:${scope}]`, snapshot);
+}
+
 async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   price: number;
   asOf: string;
   prevClose?: number;
   dayChangePct?: number;
+  displayName?: string;
 }> {
   const apiKey = process.env.FINNHUB_API_KEY;
 
@@ -140,6 +162,17 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   }
 
   const quoteData = data as Record<string, unknown>;
+  debugQuoteRaw("US_FINNHUB", quoteData, [
+    "c",
+    "pc",
+    "dp",
+    "changePercent",
+    "regularMarketChangePercent",
+    "previousClose",
+    "regularMarketPreviousClose",
+    "name",
+    "companyName",
+  ]);
   const priceCandidates = [
     quoteData.c,
     quoteData.currentPrice,
@@ -156,6 +189,12 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
     quoteData.changePercent,
     quoteData.regularMarketChangePercent,
   ];
+  const displayNameCandidates = [
+    quoteData.name,
+    quoteData.companyName,
+    quoteData.displayName,
+    quoteData.shortName,
+  ];
   const priceMaybe = priceCandidates
     .map((item) => Number(item))
     .find((item) => Number.isFinite(item) && item > 0);
@@ -165,6 +204,9 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   const dayChangePct = dayChangeCandidates
     .map((item) => Number(item))
     .find((item) => Number.isFinite(item));
+  const displayName = displayNameCandidates
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .find((item) => item.length > 0);
   const asOf = toIsoOrNow((data as { t?: unknown }).t);
 
   if (typeof priceMaybe !== "number") {
@@ -197,7 +239,44 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
     asOf,
     prevClose: safePrevClose,
     dayChangePct: safeDayChangePct,
+    displayName,
   };
+}
+
+async function fetchUsPrevCloseFromStooqHistory(
+  ticker: string,
+): Promise<number | undefined> {
+  const stooqSymbol = `${ticker.toLowerCase().replace(/\.us$/i, "")}.us`;
+  const response = await fetch(
+    `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`,
+    { cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    return undefined;
+  }
+
+  const csvText = await response.text();
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 3) {
+    return undefined;
+  }
+
+  const closes = lines
+    .slice(1)
+    .map((line) => line.split(","))
+    .map((cols) => Number(cols[4]))
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  if (closes.length < 2) {
+    return undefined;
+  }
+
+  return closes[closes.length - 2];
 }
 
 async function fetchUsQuoteFromStooq(ticker: string): Promise<{
@@ -205,6 +284,7 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
   asOf: string;
   prevClose?: number;
   dayChangePct?: number;
+  displayName?: string;
 }> {
   const stooqSymbol = `${ticker.toLowerCase().replace(/\.us$/i, "")}.us`;
 
@@ -239,6 +319,13 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
 
   const headers = lines[0].split(",").map((field) => field.replaceAll('"', "").trim());
   const values = lines[1].split(",").map((field) => field.replaceAll('"', "").trim());
+  if (process.env.NODE_ENV === "development") {
+    console.debug("[quote][raw:US_STOOQ]", {
+      symbol: stooqSymbol,
+      headers,
+      row: values,
+    });
+  }
 
   if (values.length < 2) {
     throw new QuoteLookupError("BAD_RESPONSE", "Stooq quote row is invalid");
@@ -268,11 +355,18 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
     }
   }
 
+  const prevClose = await fetchUsPrevCloseFromStooqHistory(ticker);
+  const dayChangePct =
+    typeof prevClose === "number" && Number.isFinite(prevClose) && prevClose > 0
+      ? ((closePrice - prevClose) / prevClose) * 100
+      : undefined;
+
   return {
     price: closePriceInt / 100,
     asOf,
-    prevClose: undefined,
-    dayChangePct: undefined,
+    prevClose,
+    dayChangePct,
+    displayName: undefined,
   };
 }
 
@@ -281,9 +375,32 @@ async function fetchUsQuote(ticker: string): Promise<{
   asOf: string;
   prevClose?: number;
   dayChangePct?: number;
+  displayName?: string;
 }> {
   try {
-    return await fetchUsQuoteFromFinnhub(ticker);
+    const finnhubQuote = await fetchUsQuoteFromFinnhub(ticker);
+
+    if (
+      finnhubQuote.prevClose === undefined &&
+      finnhubQuote.dayChangePct === undefined
+    ) {
+      const historyPrevClose = await fetchUsPrevCloseFromStooqHistory(ticker);
+
+      if (typeof historyPrevClose === "number" && Number.isFinite(historyPrevClose)) {
+        const safeDayChangePct =
+          historyPrevClose > 0
+            ? ((finnhubQuote.price - historyPrevClose) / historyPrevClose) * 100
+            : undefined;
+
+        return {
+          ...finnhubQuote,
+          prevClose: historyPrevClose,
+          dayChangePct: finnhubQuote.dayChangePct ?? safeDayChangePct,
+        };
+      }
+    }
+
+    return finnhubQuote;
   } catch (finnhubError) {
     try {
       return await fetchUsQuoteFromStooq(ticker);
@@ -536,6 +653,7 @@ async function fetchKrBasicQuoteByCode(code: string): Promise<{
   dayChangePct?: number;
   resolvedName: string;
   resolvedCode: string;
+  logoUrl?: string;
   asOf: string;
 }> {
   const response = await fetch(`https://m.stock.naver.com/api/stock/${code}/basic`, {
@@ -564,30 +682,160 @@ async function fetchKrBasicQuoteByCode(code: string): Promise<{
   }
 
   const row = payload as Record<string, unknown>;
+  debugQuoteRaw("KR_BASIC", row, [
+    "closePrice",
+    "nv",
+    "prevClosePrice",
+    "previousClosePrice",
+    "pc",
+    "compareToPreviousClosePriceRate",
+    "compareToPreviousPriceRate",
+    "fluctuationRate",
+    "changeRate",
+    "rf",
+    "fr",
+    "stockName",
+    "itemCode",
+  ]);
   const priceInt = parseKrwPriceInt(row.closePrice ?? row.nv);
 
   if (!priceInt || priceInt <= 0) {
     throw new QuoteLookupError("BAD_RESPONSE", "Naver basic quote price is invalid");
   }
 
-  return {
-    priceInt,
-    prevCloseInt: parsePrevCloseIntFromRecord(row, [
+  const comparePayload =
+    row.compareToPreviousPrice && typeof row.compareToPreviousPrice === "object"
+      ? (row.compareToPreviousPrice as Record<string, unknown>)
+      : null;
+  const compareCode = comparePayload ? toText(comparePayload.code) : "";
+  const diffSignedRaw = parsePercentValue(row.compareToPreviousClosePrice);
+  const diffAbs =
+    typeof diffSignedRaw === "number" && Number.isFinite(diffSignedRaw)
+      ? Math.abs(Math.round(diffSignedRaw))
+      : undefined;
+  let derivedPrevCloseInt: number | undefined;
+
+  if (typeof diffSignedRaw === "number" && Number.isFinite(diffSignedRaw) && diffSignedRaw < 0) {
+    derivedPrevCloseInt = priceInt - Math.round(diffSignedRaw);
+  } else if (typeof diffAbs === "number") {
+    if (compareCode === "2") {
+      derivedPrevCloseInt = priceInt - diffAbs;
+    } else if (compareCode === "5" || compareCode === "4") {
+      derivedPrevCloseInt = priceInt + diffAbs;
+    } else if (compareCode === "3") {
+      derivedPrevCloseInt = priceInt;
+    }
+  }
+
+  const parsedPrevCloseInt =
+    parsePrevCloseIntFromRecord(row, [
       "prevClosePrice",
       "previousClosePrice",
       "pc",
-    ]),
-    dayChangePct: parseDayChangePctFromRecord(row, [
+      "regularMarketPreviousClose",
+      "previousClose",
+    ]) ??
+    (typeof derivedPrevCloseInt === "number" && derivedPrevCloseInt > 0
+      ? derivedPrevCloseInt
+      : undefined);
+  const parsedDayChangePct =
+    parseDayChangePctFromRecord(row, [
       "compareToPreviousClosePriceRate",
       "compareToPreviousPriceRate",
+      "fluctuationsRatio",
+      "fluctuationsRate",
       "fluctuationRate",
       "changeRate",
       "rf",
       "fr",
-    ]),
+    ]) ??
+    (parsedPrevCloseInt && parsedPrevCloseInt > 0
+      ? ((priceInt - parsedPrevCloseInt) / parsedPrevCloseInt) * 100
+      : undefined);
+
+  return {
+    priceInt,
+    prevCloseInt: parsedPrevCloseInt,
+    dayChangePct: parsedDayChangePct,
     resolvedName: toText(row.stockName) || toText(row.itemName) || code,
     resolvedCode: normalizeKrCode(row.itemCode) ?? code,
+    logoUrl: toText(row.itemLogoPngUrl) || toText(row.itemLogoUrl) || undefined,
     asOf: toIsoFromDateText(row.localTradedAt),
+  };
+}
+
+async function ensureKrQuoteMetrics(input: {
+  priceInt: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
+  resolvedName: string;
+  resolvedCode: string;
+  logoUrl?: string;
+  asOf: string;
+}): Promise<{
+  priceInt: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
+  resolvedName: string;
+  resolvedCode: string;
+  logoUrl?: string;
+  asOf: string;
+}> {
+  let nextPrevCloseInt = input.prevCloseInt;
+  let nextDayChangePct = input.dayChangePct;
+  let nextAsOf = input.asOf;
+  let nextResolvedName = input.resolvedName;
+  let nextResolvedCode = input.resolvedCode;
+  let nextLogoUrl = input.logoUrl;
+
+  if (
+    nextPrevCloseInt !== undefined &&
+    nextPrevCloseInt > 0 &&
+    nextDayChangePct === undefined
+  ) {
+    nextDayChangePct = ((input.priceInt - nextPrevCloseInt) / nextPrevCloseInt) * 100;
+  }
+
+  if (nextPrevCloseInt !== undefined && nextDayChangePct !== undefined) {
+    return {
+      priceInt: input.priceInt,
+      prevCloseInt: nextPrevCloseInt,
+      dayChangePct: nextDayChangePct,
+      resolvedName: nextResolvedName,
+      resolvedCode: nextResolvedCode,
+      logoUrl: nextLogoUrl,
+      asOf: nextAsOf,
+    };
+  }
+
+  try {
+    const basicQuote = await fetchKrBasicQuoteByCode(input.resolvedCode);
+    nextPrevCloseInt = nextPrevCloseInt ?? basicQuote.prevCloseInt;
+    nextDayChangePct = nextDayChangePct ?? basicQuote.dayChangePct;
+    nextAsOf = input.asOf || basicQuote.asOf;
+    nextResolvedName = input.resolvedName || basicQuote.resolvedName;
+    nextResolvedCode = input.resolvedCode || basicQuote.resolvedCode;
+    nextLogoUrl = input.logoUrl || basicQuote.logoUrl;
+  } catch {
+    // Keep best-effort values from initial sources.
+  }
+
+  if (
+    nextPrevCloseInt !== undefined &&
+    nextPrevCloseInt > 0 &&
+    nextDayChangePct === undefined
+  ) {
+    nextDayChangePct = ((input.priceInt - nextPrevCloseInt) / nextPrevCloseInt) * 100;
+  }
+
+  return {
+    priceInt: input.priceInt,
+    prevCloseInt: nextPrevCloseInt,
+    dayChangePct: nextDayChangePct,
+    resolvedName: nextResolvedName,
+    resolvedCode: nextResolvedCode,
+    logoUrl: nextLogoUrl,
+    asOf: nextAsOf,
   };
 }
 
@@ -736,6 +984,7 @@ async function fetchKrQuote(
   dayChangePct?: number;
   resolvedName: string;
   resolvedCode: string;
+  logoUrl?: string;
   asOf: string;
 }> {
   const trimmedInput = tickerInput.trim();
@@ -752,12 +1001,24 @@ async function fetchKrQuote(
       const codeMatched = resolveBestKrRow(codeRows, directCode);
 
       if (codeMatched) {
+        debugQuoteRaw("KR_SEARCH_CODE", codeMatched, [
+          "nm",
+          "cd",
+          "nv",
+          "pc",
+          "prevClose",
+          "previousClose",
+          "rf",
+          "fr",
+          "changeRate",
+          "fluctuationRate",
+        ]);
         const resolvedName = toText(codeMatched.nm) || directCode;
         const resolvedCode = normalizeKrCode(codeMatched.cd) ?? directCode;
         const priceInt = parseKrwPriceInt(codeMatched.nv);
 
         if (priceInt && priceInt > 0) {
-          return {
+          return ensureKrQuoteMetrics({
             priceInt,
             prevCloseInt: parsePrevCloseIntFromRecord(codeMatched, [
               "pc",
@@ -774,8 +1035,9 @@ async function fetchKrQuote(
             ]),
             resolvedName,
             resolvedCode,
+            logoUrl: undefined,
             asOf: new Date().toISOString(),
-          };
+          });
         }
 
         return fetchKrBasicQuoteByCode(resolvedCode);
@@ -812,6 +1074,18 @@ async function fetchKrQuote(
   }
 
   if (matched) {
+    debugQuoteRaw("KR_SEARCH_NAME", matched, [
+      "nm",
+      "cd",
+      "nv",
+      "pc",
+      "prevClose",
+      "previousClose",
+      "rf",
+      "fr",
+      "changeRate",
+      "fluctuationRate",
+    ]);
     const resolvedName = toText(matched.nm) || trimmedInput;
     const resolvedCode = normalizeKrCode(matched.cd);
     const priceInt = parseKrwPriceInt(matched.nv);
@@ -840,20 +1114,21 @@ async function fetchKrQuote(
           parsedDayChangePct = ((priceInt - parsedPrevCloseInt) / parsedPrevCloseInt) * 100;
         }
 
-        return {
+        return ensureKrQuoteMetrics({
           priceInt,
           prevCloseInt: parsedPrevCloseInt,
           dayChangePct: parsedDayChangePct,
           resolvedName,
           resolvedCode,
+          logoUrl: undefined,
           asOf: new Date().toISOString(),
-        };
+        });
       }
 
       const mappedCode = await resolveKrCodeByName(resolvedName);
 
       if (mappedCode) {
-        return {
+        return ensureKrQuoteMetrics({
           priceInt,
           prevCloseInt: parsePrevCloseIntFromRecord(matched, [
             "pc",
@@ -870,8 +1145,9 @@ async function fetchKrQuote(
           ]),
           resolvedName,
           resolvedCode: mappedCode.code,
+          logoUrl: undefined,
           asOf: new Date().toISOString(),
-        };
+        });
       }
     }
 
@@ -950,7 +1226,7 @@ export async function GET(request: NextRequest) {
       const quote = await fetchKrQuote(tickerInput);
       const payload: QuoteSuccessResponse = {
         ok: true,
-        ticker: quote.resolvedName,
+        ticker: quote.resolvedCode ?? tickerInput,
         tickerInput,
         market: "KR",
         currency: "KRW",
@@ -964,7 +1240,7 @@ export async function GET(request: NextRequest) {
               : null,
         displayName: quote.resolvedName ?? null,
         tickerCode: quote.resolvedCode ?? null,
-        logoUrl: null,
+        logoUrl: quote.logoUrl ?? null,
         price: quote.priceInt,
         priceInt: quote.priceInt,
         prevClose: quote.prevCloseInt ?? null,
@@ -1006,6 +1282,10 @@ export async function GET(request: NextRequest) {
             safePrevClose > 0
           ? ((quote.price - safePrevClose) / safePrevClose) * 100
           : null;
+    const safeDisplayName =
+      (typeof quote.displayName === "string" && quote.displayName.trim()) ||
+      US_DISPLAY_NAME_FALLBACK[ticker] ||
+      ticker;
 
     const payload: QuoteSuccessResponse = {
       ok: true,
@@ -1016,8 +1296,8 @@ export async function GET(request: NextRequest) {
       currentPriceInt: priceInt,
       prevCloseInt: safePrevCloseInt,
       dayChangePct: safeDayChangePct,
-      displayName: null,
-      tickerCode: null,
+      displayName: safeDisplayName,
+      tickerCode: ticker,
       logoUrl: null,
       price: quote.price,
       priceInt,
