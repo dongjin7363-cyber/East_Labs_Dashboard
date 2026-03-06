@@ -1190,7 +1190,7 @@ th {
 
 .portfolio-holdings-table th,
 .portfolio-holdings-table td {
-  padding: 8px 8px;
+  padding: 7px 8px;
 }
 
 .portfolio-col-holding {
@@ -1224,16 +1224,16 @@ th {
 .holding-info-cell {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .holding-avatar {
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
   border: 1px solid #d8e2ef;
-  background: #eff4fb;
+  background: #eef2f7;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1248,7 +1248,7 @@ th {
 }
 
 .holding-avatar-fallback {
-  font-size: 15px;
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -1296,6 +1296,35 @@ th {
 
 .muted-placeholder {
   color: var(--muted);
+}
+
+.daily-change-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.daily-change-pill.is-positive {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.daily-change-pill.is-negative {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.daily-change-pill.is-neutral,
+.daily-change-pill.is-muted {
+  color: #64748b;
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .portfolio-donut-panel {
@@ -2526,6 +2555,19 @@ table tfoot td {
 
   .portfolio-donut-layout {
     grid-template-columns: 1fr;
+  }
+
+  .holding-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .holding-avatar-fallback {
+    font-size: 16px;
+  }
+
+  .holding-info-cell {
+    gap: 5px;
   }
 
   .portfolio-donut-summary-box {

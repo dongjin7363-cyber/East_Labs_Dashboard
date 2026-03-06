@@ -19,12 +19,22 @@ export function HoldingAvatar({
 
   if (src) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={label ? `${label} logo` : alt} className="holding-avatar-image" />;
+    return (
+      <span className="holding-avatar">
+        <img
+          src={src}
+          alt={label ? `${label} logo` : alt}
+          className="holding-avatar-image"
+        />
+      </span>
+    );
   }
 
   return (
-    <span className="holding-avatar-fallback" aria-label={`${market} fallback`}>
-      {market === "KR" ? "🇰🇷" : "🇺🇸"}
+    <span className="holding-avatar" aria-label={`${market} fallback`}>
+      <span className="holding-avatar-fallback">
+        {market === "KR" ? "🇰🇷" : "🇺🇸"}
+      </span>
     </span>
   );
 }

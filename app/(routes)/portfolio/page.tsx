@@ -172,6 +172,18 @@ function formatKstTime(timestampMs: number): string {
   return `${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
+function formatDailyChangeLabel(rate: number): string {
+  if (rate > 0) {
+    return `↑ ${percentFormat(rate)}`;
+  }
+
+  if (rate < 0) {
+    return `↓ ${percentFormat(rate)}`;
+  }
+
+  return percentFormat(rate);
+}
+
 function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
   if (
     typeof holding.dayChangePct === "number" &&
@@ -1826,19 +1838,18 @@ export default function PortfolioPage() {
                       </td>
                       <td>
                         {row.dailyChangeRate === null ? (
-                          <span className="muted-placeholder">—</span>
+                          <span className="daily-change-pill is-muted">—</span>
                         ) : (
                           <span
-                            style={{
-                              color:
-                                row.dailyChangeRate > 0
-                                  ? "var(--positive)"
-                                  : row.dailyChangeRate < 0
-                                    ? "var(--negative)"
-                                    : "var(--text)",
-                            }}
+                            className={`daily-change-pill ${
+                              row.dailyChangeRate > 0
+                                ? "is-positive"
+                                : row.dailyChangeRate < 0
+                                  ? "is-negative"
+                                  : "is-neutral"
+                            }`}
                           >
-                            {percentFormat(row.dailyChangeRate)}
+                            {formatDailyChangeLabel(row.dailyChangeRate)}
                           </span>
                         )}
                       </td>
