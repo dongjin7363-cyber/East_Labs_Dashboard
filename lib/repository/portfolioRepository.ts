@@ -211,7 +211,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
   constructor(private readonly userId: string) {}
 
   async getHoldings(): Promise<PortfolioHolding[]> {
-    const { data, error } = await supabase
+    const { data: primaryData, error: primaryError } = await supabase
       .from("portfolio_holdings")
       .select(`
         id,
@@ -231,16 +231,54 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
       `)
       .eq("user_id", this.userId);
 
-    if (error) {
-      console.error("portfolio_holdings load error", error);
-      throw error;
+    if (!primaryError) {
+      const parsedPrimary = (primaryData ?? [])
+        .map((row, index) => normalizeHolding(row, index))
+        .filter((holding): holding is PortfolioHolding => Boolean(holding));
+
+      return sortByUpdatedAtDesc(parsedPrimary);
     }
 
-    const parsed = (data ?? [])
-      .map((row, index) => normalizeHolding(row, index))
+    console.error("portfolio holdings primary load failed", primaryError);
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from("portfolio_holdings")
+      .select(`
+        id,
+        market,
+        ticker,
+        qty,
+        avg_price_int,
+        current_price_int,
+        sector,
+        updated_at
+      `)
+      .eq("user_id", this.userId);
+
+    if (fallbackError) {
+      console.error("portfolio holdings fallback load failed", fallbackError);
+      throw fallbackError;
+    }
+
+    const parsedFallback = (fallbackData ?? [])
+      .map((row, index) =>
+        normalizeHolding(
+          {
+            ...(row as Record<string, unknown>),
+            display_name:
+              normalizeOptionalText((row as { ticker?: unknown })?.ticker) ?? "",
+            ticker_code: "",
+            comment: "",
+            logo_url: null,
+            prev_close_int: null,
+            day_change_pct: null,
+          },
+          index,
+        ),
+      )
       .filter((holding): holding is PortfolioHolding => Boolean(holding));
 
-    return sortByUpdatedAtDesc(parsed);
+    return sortByUpdatedAtDesc(parsedFallback);
   }
 
   async upsertHolding(

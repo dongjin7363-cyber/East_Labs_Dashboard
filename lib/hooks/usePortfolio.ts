@@ -155,6 +155,12 @@ export function usePortfolio() {
         const localHoldings = await localRepository.getHoldings();
 
         if (localHoldings.length > 0) {
+          console.info(
+            "[portfolio] local fallback used (cloud rows are empty)",
+            {
+              localCount: localHoldings.length,
+            },
+          );
           next = localHoldings;
 
           const alreadySynced =
@@ -191,6 +197,9 @@ export function usePortfolio() {
       console.error("portfolio_holdings load error", error);
       const localRepository = new LocalPortfolioRepository();
       const fallback = await localRepository.getHoldings();
+      console.info("[portfolio] local fallback used (cloud load failed)", {
+        localCount: fallback.length,
+      });
 
       if (requestSeq === requestSeqRef.current) {
         setHoldings(sortHoldings(fallback));
