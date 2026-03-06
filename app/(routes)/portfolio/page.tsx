@@ -11,7 +11,6 @@ import {
 import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
-import { PortfolioAnalytics } from "@/components/PortfolioAnalytics";
 import { PortfolioAllocationDonut } from "@/components/portfolio/PortfolioAllocationDonut";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
@@ -1121,14 +1120,14 @@ export default function PortfolioPage() {
     setSortState((prev) => toggleSort(prev, key));
   };
 
-  const handleManualQuoteRefresh = () => {
+  const handleManualQuoteRefresh = async () => {
     if (!isAuthed) {
       window.alert("로그인 후 사용 가능합니다.");
       return;
     }
 
     console.log("[quote-refresh] manual refresh clicked");
-    void refreshQuotesForVisible({ staleOnly: false, force: true });
+    await refreshQuotesForVisible({ staleOnly: false, force: true });
   };
 
   const unmatchedKrDisplayTickers = useMemo(() => {
@@ -1315,7 +1314,9 @@ export default function PortfolioPage() {
             <button
               type="button"
               className="secondary-button"
-              onClick={handleManualQuoteRefresh}
+              onClick={() => {
+                void handleManualQuoteRefresh();
+              }}
               disabled={!isAuthed || isRefreshingQuotes}
             >
               {isRefreshingQuotes ? "현재가 갱신 중..." : "현재가 갱신"}
@@ -1413,9 +1414,6 @@ export default function PortfolioPage() {
       <PortfolioAllocationDonut
         holdings={holdings}
         fxRate={fxRate}
-        totalAssetKrw={totalAssetKrw}
-        accountPnlKrw={accountPnlKrw}
-        totalPnlPct={totalPnlPct}
         krNavKrw={totalAsset.krHoldingsMarketValueKrw}
         krPnlPct={krPnlPct}
         krAccountPnlKrw={krHoldingsPnlKrw}
@@ -1698,13 +1696,6 @@ export default function PortfolioPage() {
           </table>
         </div>
       </section>
-
-      <PortfolioAnalytics
-        holdings={holdings}
-        depositKrw={depositKrw}
-        cashKrw={cashKrw}
-        fxRate={fxRate}
-      />
 
       <Modal
         open={Boolean(manualKrTicker)}

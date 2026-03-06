@@ -1314,60 +1314,56 @@ th {
   gap: 12px;
 }
 
-.portfolio-donut-summary {
+.portfolio-donut-summary-column {
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-donut-summary-box {
   border: 1px solid #e5eaf1;
   border-radius: 12px;
   padding: 12px;
   background: #fbfdff;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: 12px;
 }
 
-.portfolio-donut-summary-expanded {
-  gap: 7px;
+.portfolio-donut-mini-block {
+  display: grid;
+  gap: 4px;
 }
 
-.portfolio-donut-summary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.portfolio-donut-summary-row strong {
-  color: var(--text);
+.portfolio-donut-mini-block h4 {
+  margin: 0;
   font-size: 14px;
-}
-
-.portfolio-donut-summary-row.is-major {
-  font-size: 14px;
-}
-
-.portfolio-donut-summary-row.is-major strong {
-  font-size: 16px;
   font-weight: 700;
 }
 
-.portfolio-donut-summary-row.is-minor {
+.portfolio-donut-mini-nav {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.portfolio-donut-mini-pnl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
   font-size: 12px;
 }
 
-.portfolio-donut-summary-row.is-minor strong {
+.portfolio-donut-mini-pnl strong {
   font-size: 13px;
 }
 
-.portfolio-donut-summary-gap {
-  height: 8px;
-}
-
-.portfolio-donut-summary-row strong.is-positive {
+.portfolio-donut-mini-pnl strong.is-positive,
+.portfolio-donut-mini-pnl span.is-positive {
   color: var(--positive);
 }
 
-.portfolio-donut-summary-row strong.is-negative {
+.portfolio-donut-mini-pnl strong.is-negative,
+.portfolio-donut-mini-pnl span.is-negative {
   color: var(--negative);
 }
 
@@ -2516,7 +2512,7 @@ table tfoot td {
     grid-template-columns: 1fr;
   }
 
-  .portfolio-donut-summary {
+  .portfolio-donut-summary-box {
     padding: 10px;
   }
 

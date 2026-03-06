@@ -4,9 +4,14 @@ import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { PortfolioHolding } from "@/lib/models/types";
 import { calcHoldingComputed } from "@/lib/services/portfolioService";
-import { moneyFormat, percentFormat, usdCentsToUsdFloat, usdToKrw } from "@/lib/utils/money";
+import {
+  moneyFormat,
+  percentFormat,
+  usdCentsToUsdFloat,
+  usdToKrw,
+} from "@/lib/utils/money";
 
-type DonutMode = "SECTOR" | "TICKER" | "COUNTRY";
+type DonutMode = "TICKER" | "SECTOR" | "COUNTRY";
 
 interface SliceRow {
   key: string;
@@ -18,9 +23,6 @@ interface SliceRow {
 interface PortfolioAllocationDonutProps {
   holdings: PortfolioHolding[];
   fxRate: number;
-  totalAssetKrw: number;
-  accountPnlKrw: number;
-  totalPnlPct: number | null;
   krNavKrw: number;
   krPnlPct: number | null;
   krAccountPnlKrw: number;
@@ -31,7 +33,7 @@ interface PortfolioAllocationDonutProps {
   cashKrw: number;
 }
 
-const COLORS = [
+const BASE_COLORS = [
   "#0d3b66",
   "#1f9d69",
   "#f59e0b",
@@ -39,7 +41,32 @@ const COLORS = [
   "#0ea5e9",
   "#ef4444",
   "#475569",
+  "#db2777",
+  "#0284c7",
+  "#65a30d",
 ];
+
+const DEPOSIT_COLOR = "#6b7280";
+const CASH_COLOR = "#9ca3af";
+
+const SECTOR_COLOR_MAP: Record<string, string> = {
+  Index: "#6b7280",
+  Biotech: "#16a34a",
+  Space: "#eab308",
+  Robotics: "#ec4899",
+  AI: "#ef4444",
+  "Small-Cap": "#111827",
+  Deposit: DEPOSIT_COLOR,
+  Cash: CASH_COLOR,
+  Other: "#cbd5e1",
+};
+
+const COUNTRY_COLOR_MAP: Record<string, string> = {
+  KR: "#0d3b66",
+  US: "#1f9d69",
+  Deposit: DEPOSIT_COLOR,
+  Cash: CASH_COLOR,
+};
 
 function toAmountKrw(holding: PortfolioHolding, fxRate: number): number {
   const marketValue = calcHoldingComputed(holding).marketValue;
@@ -51,50 +78,109 @@ function toAmountKrw(holding: PortfolioHolding, fxRate: number): number {
   return marketValue;
 }
 
+function getSliceColor(mode: DonutMode, label: string, index: number): string {
+  if (label === "Deposit") {
+    return DEPOSIT_COLOR;
+  }
+
+  if (label === "Cash") {
+    return CASH_COLOR;
+  }
+
+  if (mode === "SECTOR") {
+    return SECTOR_COLOR_MAP[label] ?? BASE_COLORS[index % BASE_COLORS.length];
+  }
+
+  if (mode === "COUNTRY") {
+    return COUNTRY_COLOR_MAP[label] ?? BASE_COLORS[index % BASE_COLORS.length];
+  }
+
+  return BASE_COLORS[index % BASE_COLORS.length];
+}
+
 function buildSlices(
   holdings: PortfolioHolding[],
   fxRate: number,
   mode: DonutMode,
+  depositTotalKrw: number,
+  cashKrw: number,
 ): SliceRow[] {
   const grouped = new Map<string, number>();
 
-  holdings.forEach((holding) => {
-    const amountKrw = toAmountKrw(holding, fxRate);
+  if (mode === "COUNTRY") {
+    let krTotal = 0;
+    let usTotal = 0;
 
-    if (!Number.isFinite(amountKrw) || amountKrw <= 0) {
-      return;
+    holdings.forEach((holding) => {
+      const amountKrw = toAmountKrw(holding, fxRate);
+
+      if (!Number.isFinite(amountKrw) || amountKrw <= 0) {
+        return;
+      }
+
+      if (holding.market === "US") {
+        usTotal += amountKrw;
+      } else {
+        krTotal += amountKrw;
+      }
+    });
+
+    if (krTotal > 0) {
+      grouped.set("KR", krTotal);
     }
 
-    const key =
-      mode === "SECTOR"
-        ? holding.sector ?? "Other"
-        : mode === "COUNTRY"
-          ? holding.market
-          : holding.ticker;
-    grouped.set(key, (grouped.get(key) ?? 0) + amountKrw);
-  });
+    if (usTotal > 0) {
+      grouped.set("US", usTotal);
+    }
+  } else {
+    holdings.forEach((holding) => {
+      const amountKrw = toAmountKrw(holding, fxRate);
+
+      if (!Number.isFinite(amountKrw) || amountKrw <= 0) {
+        return;
+      }
+
+      const key =
+        mode === "SECTOR" ? (holding.sector ?? "Other") : holding.ticker.toUpperCase();
+      grouped.set(key, (grouped.get(key) ?? 0) + amountKrw);
+    });
+  }
+
+  if (depositTotalKrw > 0) {
+    grouped.set("Deposit", (grouped.get("Deposit") ?? 0) + depositTotalKrw);
+  }
+
+  if (cashKrw > 0) {
+    grouped.set("Cash", (grouped.get("Cash") ?? 0) + cashKrw);
+  }
 
   return Array.from(grouped.entries())
     .map(([key, amountKrw], index) => ({
       key,
       label: key,
       amountKrw,
-      color:
-        mode === "COUNTRY"
-          ? key === "KR"
-            ? "#0d3b66"
-            : "#1f9d69"
-          : COLORS[index % COLORS.length],
+      color: getSliceColor(mode, key, index),
     }))
     .sort((a, b) => b.amountKrw - a.amountKrw);
+}
+
+function PnlText({ amount, pct, currency }: { amount: number; pct: number | null; currency: "KRW" | "USD" }) {
+  return (
+    <div className="portfolio-donut-mini-pnl">
+      <span>계좌 손익</span>
+      <strong className={amount >= 0 ? "is-positive" : "is-negative"}>
+        {moneyFormat(currency, amount)}
+      </strong>
+      <span className={pct === null ? "" : pct >= 0 ? "is-positive" : "is-negative"}>
+        ({pct === null ? "—" : percentFormat(pct)})
+      </span>
+    </div>
+  );
 }
 
 export function PortfolioAllocationDonut({
   holdings,
   fxRate,
-  totalAssetKrw,
-  accountPnlKrw,
-  totalPnlPct,
   krNavKrw,
   krPnlPct,
   krAccountPnlKrw,
@@ -104,8 +190,11 @@ export function PortfolioAllocationDonut({
   depositTotalKrw,
   cashKrw,
 }: PortfolioAllocationDonutProps) {
-  const [mode, setMode] = useState<DonutMode>("SECTOR");
-  const data = useMemo(() => buildSlices(holdings, fxRate, mode), [holdings, fxRate, mode]);
+  const [mode, setMode] = useState<DonutMode>("TICKER");
+  const data = useMemo(
+    () => buildSlices(holdings, fxRate, mode, depositTotalKrw, cashKrw),
+    [holdings, fxRate, mode, depositTotalKrw, cashKrw],
+  );
   const total = useMemo(() => data.reduce((sum, row) => sum + row.amountKrw, 0), [data]);
 
   return (
@@ -115,17 +204,17 @@ export function PortfolioAllocationDonut({
         <div className="portfolio-donut-toggle">
           <button
             type="button"
-            className={mode === "SECTOR" ? "primary-button" : "secondary-button"}
-            onClick={() => setMode("SECTOR")}
-          >
-            섹터별
-          </button>
-          <button
-            type="button"
             className={mode === "TICKER" ? "primary-button" : "secondary-button"}
             onClick={() => setMode("TICKER")}
           >
             종목별
+          </button>
+          <button
+            type="button"
+            className={mode === "SECTOR" ? "primary-button" : "secondary-button"}
+            onClick={() => setMode("SECTOR")}
+          >
+            섹터별
           </button>
           <button
             type="button"
@@ -138,71 +227,29 @@ export function PortfolioAllocationDonut({
       </div>
 
       <div className="portfolio-donut-layout">
-        <div className="portfolio-donut-summary portfolio-donut-summary-expanded">
-          <div className="portfolio-donut-summary-row is-major">
-            <span>총 자산</span>
-            <strong>{moneyFormat("KRW", totalAssetKrw)}</strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-major">
-            <span>총 PnL%</span>
-            <strong
-              className={
-                totalPnlPct === null ? "" : totalPnlPct >= 0 ? "is-positive" : "is-negative"
-              }
-            >
-              {totalPnlPct === null ? "—" : percentFormat(totalPnlPct)}
-            </strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-major">
-            <span>총 계좌 손익</span>
-            <strong className={accountPnlKrw >= 0 ? "is-positive" : "is-negative"}>
-              {moneyFormat("KRW", accountPnlKrw)}
-            </strong>
+        <div className="portfolio-donut-summary-column">
+          <div className="portfolio-donut-summary-box">
+            <div className="portfolio-donut-mini-block">
+              <h4>KR NAV</h4>
+              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", krNavKrw)}</div>
+              <PnlText amount={krAccountPnlKrw} pct={krPnlPct} currency="KRW" />
+            </div>
+            <div className="portfolio-donut-mini-block">
+              <h4>US NAV</h4>
+              <div className="portfolio-donut-mini-nav">{moneyFormat("USD", usNavCents)}</div>
+              <PnlText amount={usAccountPnlCents} pct={usPnlPct} currency="USD" />
+            </div>
           </div>
 
-          <div className="portfolio-donut-summary-gap" />
-
-          <div className="portfolio-donut-summary-row">
-            <span>KR NAV</span>
-            <strong>{moneyFormat("KRW", krNavKrw)}</strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-minor">
-            <span>PnL%</span>
-            <strong className={krPnlPct === null ? "" : krPnlPct >= 0 ? "is-positive" : "is-negative"}>
-              {krPnlPct === null ? "—" : percentFormat(krPnlPct)}
-            </strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-minor">
-            <span>계좌 손익</span>
-            <strong className={krAccountPnlKrw >= 0 ? "is-positive" : "is-negative"}>
-              {moneyFormat("KRW", krAccountPnlKrw)}
-            </strong>
-          </div>
-
-          <div className="portfolio-donut-summary-row">
-            <span>US NAV</span>
-            <strong>{moneyFormat("USD", usNavCents)}</strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-minor">
-            <span>PnL%</span>
-            <strong className={usPnlPct === null ? "" : usPnlPct >= 0 ? "is-positive" : "is-negative"}>
-              {usPnlPct === null ? "—" : percentFormat(usPnlPct)}
-            </strong>
-          </div>
-          <div className="portfolio-donut-summary-row is-minor">
-            <span>계좌 손익</span>
-            <strong className={usAccountPnlCents >= 0 ? "is-positive" : "is-negative"}>
-              {moneyFormat("USD", usAccountPnlCents)}
-            </strong>
-          </div>
-
-          <div className="portfolio-donut-summary-row">
-            <span>예수금</span>
-            <strong>{moneyFormat("KRW", depositTotalKrw)}</strong>
-          </div>
-          <div className="portfolio-donut-summary-row">
-            <span>현금</span>
-            <strong>{moneyFormat("KRW", cashKrw)}</strong>
+          <div className="portfolio-donut-summary-box">
+            <div className="portfolio-donut-mini-block">
+              <h4>예수금</h4>
+              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", depositTotalKrw)}</div>
+            </div>
+            <div className="portfolio-donut-mini-block">
+              <h4>현금</h4>
+              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", cashKrw)}</div>
+            </div>
           </div>
         </div>
 
@@ -230,10 +277,7 @@ export function PortfolioAllocationDonut({
                     <Tooltip
                       formatter={(value: number, _name, payload) => {
                         const amount = Number(value);
-                        const ratio =
-                          total > 0
-                            ? `${((amount / total) * 100).toFixed(2)}%`
-                            : "0.00%";
+                        const ratio = total > 0 ? `${((amount / total) * 100).toFixed(2)}%` : "0.00%";
                         return [
                           `${moneyFormat("KRW", amount)} (${ratio})`,
                           payload?.payload?.label ?? "비중",
@@ -251,9 +295,7 @@ export function PortfolioAllocationDonut({
                       style={{ backgroundColor: row.color }}
                     />
                     <span className="portfolio-donut-legend-label">{row.label}</span>
-                    <span className="portfolio-donut-legend-value">
-                      {moneyFormat("KRW", row.amountKrw)}
-                    </span>
+                    <span className="portfolio-donut-legend-value">{moneyFormat("KRW", row.amountKrw)}</span>
                     <span className="portfolio-donut-legend-ratio">
                       {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}
                     </span>

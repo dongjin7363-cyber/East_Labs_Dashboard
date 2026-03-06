@@ -357,7 +357,7 @@ export function usePortfolio() {
 
   const updateQuotes = useCallback(
     (quoteUpdates: HoldingQuoteUpdate[]) => {
-      if (!isAuthenticated || quoteUpdates.length === 0) {
+      if (quoteUpdates.length === 0) {
         return;
       }
 
@@ -365,39 +365,50 @@ export function usePortfolio() {
         try {
           const refreshedAt = new Date().toISOString();
           const updateMap = new Map(quoteUpdates.map((item) => [item.id, item]));
-          const current = await repository.getHoldings();
-          const next = current.map((holding) => {
-            const quote = updateMap.get(holding.id);
+          let changed: PortfolioHolding[] = [];
+          let nextSorted: PortfolioHolding[] | null = null;
 
-            if (!quote) {
-              return holding;
+          setHoldings((prev) => {
+            const next = prev.map((holding) => {
+              const quote = updateMap.get(holding.id);
+
+              if (!quote) {
+                return holding;
+              }
+
+              return {
+                ...holding,
+                currentPrice: quote.currentPrice,
+                krCode:
+                  holding.market === "KR"
+                    ? quote.krCode ?? holding.krCode
+                    : undefined,
+                tickerCode:
+                  holding.market === "KR"
+                    ? normalizeTickerCode(quote.krCode) ??
+                      normalizeTickerCode(holding.tickerCode ?? holding.krCode)
+                    : holding.tickerCode,
+                priceUpdatedAt: quote.asOf ?? refreshedAt,
+                updatedAt: refreshedAt,
+              };
+            });
+
+            changed = next.filter((holding, index) => holding !== prev[index]);
+
+            if (changed.length === 0) {
+              nextSorted = null;
+              return prev;
             }
 
-            return {
-              ...holding,
-              currentPrice: quote.currentPrice,
-              krCode:
-                holding.market === "KR"
-                  ? quote.krCode ?? holding.krCode
-                  : undefined,
-              tickerCode:
-                holding.market === "KR"
-                  ? normalizeTickerCode(quote.krCode) ??
-                    normalizeTickerCode(holding.tickerCode ?? holding.krCode)
-                  : holding.tickerCode,
-              priceUpdatedAt: quote.asOf ?? refreshedAt,
-              updatedAt: refreshedAt,
-            };
+            nextSorted = sortHoldings(next);
+            return nextSorted;
           });
 
-          const changed = next.filter((holding, index) => holding !== current[index]);
-
-          if (changed.length === 0) {
+          if (!nextSorted || changed.length === 0) {
             return;
           }
 
           await Promise.all(changed.map((holding) => repository.upsertHolding(holding)));
-          setHoldings(sortHoldings(next));
           notifyFinanceDataChanged();
         } catch (error) {
           if (process.env.NODE_ENV === "development") {
@@ -406,7 +417,7 @@ export function usePortfolio() {
         }
       })();
     },
-    [isAuthenticated, repository],
+    [repository],
   );
 
   const uploadLocalToCloud = useCallback(async () => {
