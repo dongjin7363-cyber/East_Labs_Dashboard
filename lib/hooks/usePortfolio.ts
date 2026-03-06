@@ -42,6 +42,72 @@ function sortHoldings(holdings: PortfolioHolding[]): PortfolioHolding[] {
   return [...holdings].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+function buildHoldingLookupKey(holding: PortfolioHolding): string {
+  return `${holding.market}:${holding.ticker.trim().toUpperCase()}`;
+}
+
+function mergeHoldingsWithLocalMetadata(
+  cloudHoldings: PortfolioHolding[],
+  localHoldings: PortfolioHolding[],
+): { merged: PortfolioHolding[]; filledCount: number } {
+  if (cloudHoldings.length === 0 || localHoldings.length === 0) {
+    return { merged: cloudHoldings, filledCount: 0 };
+  }
+
+  const localById = new Map(localHoldings.map((holding) => [holding.id, holding]));
+  const localByTicker = new Map(
+    localHoldings.map((holding) => [buildHoldingLookupKey(holding), holding]),
+  );
+  let filledCount = 0;
+
+  const merged = cloudHoldings.map((holding) => {
+    const localMatched =
+      localById.get(holding.id) ?? localByTicker.get(buildHoldingLookupKey(holding));
+
+    if (!localMatched) {
+      return holding;
+    }
+
+    const next: PortfolioHolding = {
+      ...holding,
+      displayName: holding.displayName ?? localMatched.displayName,
+      tickerCode:
+        holding.tickerCode ??
+        localMatched.tickerCode ??
+        (holding.market === "KR" ? localMatched.krCode : undefined),
+      logoUrl: holding.logoUrl ?? localMatched.logoUrl,
+      comment: holding.comment ?? localMatched.comment,
+      prevClose: holding.prevClose ?? localMatched.prevClose,
+      dayChangePct: holding.dayChangePct ?? localMatched.dayChangePct,
+      priceUpdatedAt: holding.priceUpdatedAt ?? localMatched.priceUpdatedAt,
+      krCode:
+        holding.market === "KR"
+          ? holding.krCode ??
+            localMatched.krCode ??
+            localMatched.tickerCode
+          : undefined,
+    };
+
+    if (
+      next.displayName !== holding.displayName ||
+      next.tickerCode !== holding.tickerCode ||
+      next.logoUrl !== holding.logoUrl ||
+      next.comment !== holding.comment ||
+      next.prevClose !== holding.prevClose ||
+      next.dayChangePct !== holding.dayChangePct ||
+      next.priceUpdatedAt !== holding.priceUpdatedAt ||
+      next.krCode !== holding.krCode
+    ) {
+      filledCount += 1;
+      return next;
+    }
+
+    return holding;
+  });
+
+  return { merged, filledCount };
+}
+
 function resolveCurrency(market: Market, currency?: Currency): Currency {
   if (market === "KR") {
     return "KRW";
@@ -149,11 +215,21 @@ export function usePortfolio() {
 
     try {
       let next = await repository.getHoldings();
+      const localRepository = new LocalPortfolioRepository();
+      const localHoldings = await localRepository.getHoldings();
+
+      if (next.length > 0 && localHoldings.length > 0) {
+        const merged = mergeHoldingsWithLocalMetadata(next, localHoldings);
+        next = merged.merged;
+
+        if (merged.filledCount > 0) {
+          console.info("[portfolio] local metadata merged into cloud holdings", {
+            filledCount: merged.filledCount,
+          });
+        }
+      }
 
       if (userId && next.length === 0) {
-        const localRepository = new LocalPortfolioRepository();
-        const localHoldings = await localRepository.getHoldings();
-
         if (localHoldings.length > 0) {
           console.info(
             "[portfolio] local fallback used (cloud rows are empty)",

@@ -263,21 +263,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
     }
 
     const parsedFallback = (fallbackData ?? [])
-      .map((row, index) =>
-        normalizeHolding(
-          {
-            ...(row as Record<string, unknown>),
-            display_name:
-              normalizeOptionalText((row as { ticker?: unknown })?.ticker) ?? "",
-            ticker_code: "",
-            comment: "",
-            logo_url: null,
-            prev_close_int: null,
-            day_change_pct: null,
-          },
-          index,
-        ),
-      )
+      .map((row, index) => normalizeHolding(row, index))
       .filter((holding): holding is PortfolioHolding => Boolean(holding));
 
     return sortByUpdatedAtDesc(parsedFallback);

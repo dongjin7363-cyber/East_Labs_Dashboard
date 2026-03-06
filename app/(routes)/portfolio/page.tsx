@@ -1823,6 +1823,7 @@ export default function PortfolioPage() {
                         <div className="holding-info-cell">
                           <HoldingAvatar
                             market={holding.market}
+                            ticker={holding.ticker}
                             logoUrl={holding.logoUrl}
                             label={displayName}
                           />
