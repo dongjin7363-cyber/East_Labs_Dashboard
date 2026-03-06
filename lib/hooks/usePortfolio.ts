@@ -188,10 +188,18 @@ function normalizeTickerCode(value?: string): string | undefined {
 export function usePortfolio() {
   const { userId, isAuthenticated, loading: authLoading } = useAuth();
   const repository = useMemo(() => createPortfolioRepository(userId), [userId]);
+  const localRepository = useMemo(() => new LocalPortfolioRepository(), []);
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const requestSeqRef = useRef(0);
   const syncAttemptedUserRef = useRef<string | null>(null);
+  const holdingsRef = useRef<PortfolioHolding[]>([]);
+
+  const applyHoldings = useCallback((next: PortfolioHolding[]) => {
+    const sorted = sortHoldings(next);
+    setHoldings(sorted);
+    holdingsRef.current = sorted;
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -205,7 +213,7 @@ export function usePortfolio() {
     }
 
     if (!isAuthenticated) {
-      setHoldings([]);
+      applyHoldings([]);
       setLoading(false);
       return;
     }
@@ -215,7 +223,6 @@ export function usePortfolio() {
 
     try {
       let next = await repository.getHoldings();
-      const localRepository = new LocalPortfolioRepository();
       const localHoldings = await localRepository.getHoldings();
 
       if (next.length > 0 && localHoldings.length > 0) {
@@ -268,24 +275,35 @@ export function usePortfolio() {
         return;
       }
 
-      setHoldings(sortHoldings(next));
+      applyHoldings(next);
+
+      if (process.env.NODE_ENV === "development" && next.length > 0) {
+        const first = sortHoldings(next)[0];
+        console.debug("[portfolio-load]", {
+          ticker: first.ticker,
+          displayName: first.displayName,
+          tickerCode: first.tickerCode,
+          logoUrl: first.logoUrl,
+          prevCloseInt: first.prevClose,
+          dayChangePct: first.dayChangePct,
+        });
+      }
     } catch (error) {
       console.error("portfolio_holdings load error", error);
-      const localRepository = new LocalPortfolioRepository();
       const fallback = await localRepository.getHoldings();
       console.info("[portfolio] local fallback used (cloud load failed)", {
         localCount: fallback.length,
       });
 
       if (requestSeq === requestSeqRef.current) {
-        setHoldings(sortHoldings(fallback));
+        applyHoldings(fallback);
       }
     } finally {
       if (requestSeq === requestSeqRef.current) {
         setLoading(false);
       }
     }
-  }, [authLoading, isAuthenticated, repository, userId]);
+  }, [applyHoldings, authLoading, isAuthenticated, localRepository, repository, userId]);
 
   useEffect(() => {
     if (authLoading) {
@@ -346,7 +364,7 @@ export function usePortfolio() {
           };
 
           await repository.upsertHolding(next, { isCreate: true });
-          setHoldings(await repository.getHoldings());
+          applyHoldings(await repository.getHoldings());
           notifyFinanceDataChanged();
         } catch (error) {
           const message = errorMessage(error);
@@ -355,7 +373,7 @@ export function usePortfolio() {
         }
       })();
     },
-    [isAuthenticated, repository],
+    [applyHoldings, isAuthenticated, repository],
   );
 
   const update = useCallback(
@@ -408,7 +426,7 @@ export function usePortfolio() {
           };
 
           await repository.upsertHolding(next);
-          setHoldings(await repository.getHoldings());
+          applyHoldings(await repository.getHoldings());
           notifyFinanceDataChanged();
         } catch (error) {
           const message = errorMessage(error);
@@ -417,7 +435,7 @@ export function usePortfolio() {
         }
       })();
     },
-    [isAuthenticated, repository],
+    [applyHoldings, isAuthenticated, repository],
   );
 
   const remove = useCallback(
@@ -429,7 +447,7 @@ export function usePortfolio() {
       void (async () => {
         try {
           await repository.deleteHolding(id);
-          setHoldings(await repository.getHoldings());
+          applyHoldings(await repository.getHoldings());
           notifyFinanceDataChanged();
         } catch (error) {
           if (process.env.NODE_ENV === "development") {
@@ -439,87 +457,102 @@ export function usePortfolio() {
         }
       })();
     },
-    [isAuthenticated, repository],
+    [applyHoldings, isAuthenticated, repository],
   );
 
   const updateQuotes = useCallback(
-    (quoteUpdates: HoldingQuoteUpdate[]) => {
+    async (quoteUpdates: HoldingQuoteUpdate[]) => {
       if (quoteUpdates.length === 0) {
         return;
       }
 
-      void (async () => {
-        try {
-          const refreshedAt = new Date().toISOString();
-          const updateMap = new Map(quoteUpdates.map((item) => [item.id, item]));
-          let changed: PortfolioHolding[] = [];
-          let nextSorted: PortfolioHolding[] | null = null;
+      try {
+        const refreshedAt = new Date().toISOString();
+        const updateMap = new Map(quoteUpdates.map((item) => [item.id, item]));
+        const currentHoldings = holdingsRef.current;
+        const nextHoldings = currentHoldings.map((holding) => {
+          const quote = updateMap.get(holding.id);
 
-          setHoldings((prev) => {
-            const next = prev.map((holding) => {
-              const quote = updateMap.get(holding.id);
-
-              if (!quote) {
-                return holding;
-              }
-
-              return {
-                ...holding,
-                currentPrice: quote.currentPrice,
-                prevClose:
-                  typeof quote.prevClose === "number" &&
-                  Number.isFinite(quote.prevClose)
-                    ? quote.prevClose
-                    : holding.prevClose,
-                dayChangePct:
-                  typeof quote.dayChangePct === "number" &&
-                  Number.isFinite(quote.dayChangePct)
-                    ? quote.dayChangePct
-                    : holding.dayChangePct,
-                displayName:
-                  normalizeOptionalText(quote.displayName) ??
-                  holding.displayName,
-                logoUrl:
-                  normalizeOptionalText(quote.logoUrl) ?? holding.logoUrl,
-                krCode:
-                  holding.market === "KR"
-                    ? quote.krCode ?? holding.krCode
-                    : undefined,
-                tickerCode:
-                  normalizeTickerCode(quote.tickerCode ?? quote.krCode) ??
-                  (holding.market === "KR"
-                    ? normalizeTickerCode(holding.tickerCode ?? holding.krCode)
-                    : normalizeTickerCode(holding.tickerCode)),
-                priceUpdatedAt: quote.asOf ?? refreshedAt,
-                updatedAt: refreshedAt,
-              };
-            });
-
-            changed = next.filter((holding, index) => holding !== prev[index]);
-
-            if (changed.length === 0) {
-              nextSorted = null;
-              return prev;
-            }
-
-            nextSorted = sortHoldings(next);
-            return nextSorted;
-          });
-
-          if (!nextSorted || changed.length === 0) {
-            return;
+          if (!quote) {
+            return holding;
           }
 
-          await Promise.all(changed.map((holding) => repository.upsertHolding(holding)));
-          notifyFinanceDataChanged();
-        } catch (error) {
-          if (process.env.NODE_ENV === "development") {
-            console.error("[portfolio] failed to update quotes", error);
-          }
+          return {
+            ...holding,
+            currentPrice: quote.currentPrice,
+            prevClose:
+              typeof quote.prevClose === "number" &&
+              Number.isFinite(quote.prevClose)
+                ? quote.prevClose
+                : holding.prevClose,
+            dayChangePct:
+              typeof quote.dayChangePct === "number" &&
+              Number.isFinite(quote.dayChangePct)
+                ? quote.dayChangePct
+                : holding.dayChangePct,
+            displayName:
+              normalizeOptionalText(quote.displayName) ??
+              holding.displayName,
+            logoUrl:
+              normalizeOptionalText(quote.logoUrl) ?? holding.logoUrl,
+            krCode:
+              holding.market === "KR"
+                ? quote.krCode ?? holding.krCode
+                : undefined,
+            tickerCode:
+              normalizeTickerCode(quote.tickerCode ?? quote.krCode) ??
+              (holding.market === "KR"
+                ? normalizeTickerCode(holding.tickerCode ?? holding.krCode)
+                : normalizeTickerCode(holding.tickerCode)),
+            priceUpdatedAt: quote.asOf ?? refreshedAt,
+            updatedAt: refreshedAt,
+          };
+        });
+
+        const changed = nextHoldings.filter(
+          (holding, index) => holding !== currentHoldings[index],
+        );
+
+        if (changed.length === 0) {
+          return;
         }
-      })();
+
+        applyHoldings(nextHoldings);
+
+        await Promise.all(changed.map((holding) => localRepository.upsertHolding(holding)));
+
+        const upsertResults = await Promise.allSettled(
+          changed.map((holding) => repository.upsertHolding(holding)),
+        );
+        const upsertFailedCount = upsertResults.filter(
+          (result) => result.status === "rejected",
+        ).length;
+
+        if (upsertFailedCount > 0) {
+          console.error("[portfolio] failed to persist some refreshed quotes", {
+            failed: upsertFailedCount,
+            total: changed.length,
+          });
+        }
+
+        if (process.env.NODE_ENV === "development" && nextHoldings.length > 0) {
+          const first = sortHoldings(nextHoldings)[0];
+          console.debug("[portfolio-save]", {
+            ticker: first.ticker,
+            displayName: first.displayName,
+            tickerCode: first.tickerCode,
+            logoUrl: first.logoUrl,
+            prevCloseInt: first.prevClose,
+            dayChangePct: first.dayChangePct,
+          });
+        }
+
+        notifyFinanceDataChanged();
+      } catch (error) {
+        console.error("[portfolio] failed to update quotes", error);
+      }
     },
-    [repository],
+    [applyHoldings, localRepository, repository],
   );
 
   const uploadLocalToCloud = useCallback(async () => {
@@ -539,14 +572,14 @@ export function usePortfolio() {
       await cloudRepository.upsertHolding(holding);
     }
 
-    setHoldings(await cloudRepository.getHoldings());
+    applyHoldings(await cloudRepository.getHoldings());
     notifyFinanceDataChanged();
 
     return {
       uploaded: localHoldings.length,
       total: localHoldings.length,
     };
-  }, [isAuthenticated, userId]);
+  }, [applyHoldings, isAuthenticated, userId]);
 
   return {
     holdings,

@@ -847,7 +847,7 @@ export default function PortfolioPage() {
         }
 
         if (updates.length > 0) {
-          updateQuotes(updates);
+          await updateQuotes(updates);
         }
 
         setUnmatchedKrTickers(Array.from(new Set(failedNotFoundKrTickers)));
@@ -1413,7 +1413,7 @@ export default function PortfolioPage() {
         return;
       }
 
-      updateQuotes([
+      await updateQuotes([
         {
           id: target.id,
           currentPrice: Math.round(updatedPriceInt),
