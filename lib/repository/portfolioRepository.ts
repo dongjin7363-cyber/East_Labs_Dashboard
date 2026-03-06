@@ -137,7 +137,9 @@ function normalizeHolding(raw: unknown, index: number): PortfolioHolding | null 
     qty: toInt(input.qty),
     avgPrice: toInt(input.avg_price_int ?? input.avgPrice),
     currentPrice: toInt(input.current_price_int ?? input.currentPrice),
-    prevClose: toNumberOrUndefined(input.prev_close_int ?? input.prevClose),
+    prevClose: toNumberOrUndefined(
+      input.prev_close_int ?? input.prevCloseInt ?? input.prevClose,
+    ),
     dayChangePct: toNumberOrUndefined(input.day_change_pct ?? input.dayChangePct),
     priceUpdatedAt:
       normalizeOptionalText(input.price_updated_at) ??

@@ -57,6 +57,7 @@ interface QuoteApiResponse {
   tickerInput?: string;
   market: "US" | "KR";
   currency: "USD" | "KRW";
+  currentPriceInt?: number;
   price?: number;
   priceInt: number;
   prevClose?: number;
@@ -64,6 +65,9 @@ interface QuoteApiResponse {
   dayChangePct?: number;
   changePercent?: number;
   regularMarketChangePercent?: number;
+  displayName?: string | null;
+  tickerCode?: string | null;
+  logoUrl?: string | null;
   asOf: string;
   resolvedName?: string;
   resolvedCode?: string;
@@ -82,6 +86,7 @@ type QuoteFetchResult =
       ok: true;
       update: HoldingQuoteUpdate;
       ticker: string;
+      debugRaw?: unknown;
     }
   | {
       ok: false;
@@ -165,6 +170,27 @@ function formatKstTime(timestampMs: number): string {
     parts.find((part) => part.type === key)?.value ?? "";
 
   return `${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
+function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
+  if (
+    typeof holding.dayChangePct === "number" &&
+    Number.isFinite(holding.dayChangePct)
+  ) {
+    return holding.dayChangePct;
+  }
+
+  if (
+    typeof holding.prevClose === "number" &&
+    Number.isFinite(holding.prevClose) &&
+    holding.prevClose > 0 &&
+    Number.isFinite(holding.currentPrice) &&
+    holding.currentPrice > 0
+  ) {
+    return ((holding.currentPrice - holding.prevClose) / holding.prevClose) * 100;
+  }
+
+  return null;
 }
 
 function sanitizeQuoteBlacklist(raw: unknown): QuoteBlacklistMap {
@@ -568,7 +594,7 @@ export default function PortfolioPage() {
           };
         }
 
-        const directPriceInt = Number(parsed.priceInt);
+        const directPriceInt = Number(parsed.currentPriceInt ?? parsed.priceInt);
         let priceInt = directPriceInt;
 
         if (!Number.isFinite(priceInt) || priceInt <= 0) {
@@ -611,16 +637,20 @@ export default function PortfolioPage() {
                   : undefined,
             dayChangePct: resolveDayChangeRate(parsed, priceInt),
             displayName:
-              typeof parsed.resolvedName === "string"
-                ? parsed.resolvedName.trim() || undefined
+              typeof parsed.displayName === "string"
+                ? parsed.displayName.trim() || undefined
+                : typeof parsed.resolvedName === "string"
+                  ? parsed.resolvedName.trim() || undefined
                 : undefined,
             logoUrl:
-              typeof (parsed as { logoUrl?: unknown }).logoUrl === "string"
-                ? ((parsed as { logoUrl?: string }).logoUrl ?? "").trim() || undefined
+              typeof parsed.logoUrl === "string"
+                ? parsed.logoUrl.trim() || undefined
                 : undefined,
             tickerCode:
-              typeof parsed.resolvedCode === "string"
-                ? parsed.resolvedCode.trim().toUpperCase() || undefined
+              typeof parsed.tickerCode === "string"
+                ? parsed.tickerCode.trim().toUpperCase() || undefined
+                : typeof parsed.resolvedCode === "string"
+                  ? parsed.resolvedCode.trim().toUpperCase() || undefined
                 : undefined,
             krCode:
               holding.market === "KR" && typeof parsed.resolvedCode === "string"
@@ -631,6 +661,7 @@ export default function PortfolioPage() {
                 ? parsed.asOf
                 : new Date().toISOString(),
           },
+          debugRaw: parsed,
         };
       } catch {
         return {
@@ -735,6 +766,33 @@ export default function PortfolioPage() {
 
               if (result.ok) {
                 updates.push(result.update);
+
+                if (process.env.NODE_ENV === "development") {
+                  const prevCloseInt =
+                    typeof result.update.prevClose === "number" &&
+                    Number.isFinite(result.update.prevClose)
+                      ? result.update.prevClose
+                      : null;
+                  const dayChangePct =
+                    typeof result.update.dayChangePct === "number" &&
+                    Number.isFinite(result.update.dayChangePct)
+                      ? result.update.dayChangePct
+                      : null;
+
+                  console.debug("[quote-refresh]", {
+                    ticker: targetHolding.ticker,
+                    current_price_int: result.update.currentPrice,
+                    prev_close_int: prevCloseInt,
+                    day_change_pct: dayChangePct,
+                  });
+
+                  if (prevCloseInt === null && dayChangePct === null) {
+                    console.debug("[quote-refresh raw payload]", {
+                      ticker: targetHolding.ticker,
+                      payload: result.debugRaw ?? null,
+                    });
+                  }
+                }
               } else {
                 failedItems.push({ ticker: result.ticker, reason: result.reason });
 
@@ -910,11 +968,7 @@ export default function PortfolioPage() {
       filtered.map((holding, index) => ({
         holding,
         computed: calcHoldingComputed(holding),
-        dailyChangeRate:
-          typeof holding.dayChangePct === "number" &&
-          Number.isFinite(holding.dayChangePct)
-            ? holding.dayChangePct
-            : null,
+        dailyChangeRate: resolveHoldingDayChangePct(holding),
         defaultIndex: index,
       })),
     [filtered],
@@ -1340,7 +1394,7 @@ export default function PortfolioPage() {
         return;
       }
 
-      const updatedPriceInt = Number(parsed.priceInt);
+      const updatedPriceInt = Number(parsed.currentPriceInt ?? parsed.priceInt);
 
       if (!Number.isFinite(updatedPriceInt) || updatedPriceInt <= 0) {
         setQuoteWarning("수동 코드 저장 후 시세 값이 유효하지 않습니다.");
@@ -1358,10 +1412,15 @@ export default function PortfolioPage() {
               : undefined,
           dayChangePct: resolveDayChangeRate(parsed, Math.round(updatedPriceInt)),
           displayName:
-            typeof parsed.resolvedName === "string"
-              ? parsed.resolvedName.trim() || undefined
+            typeof parsed.displayName === "string"
+              ? parsed.displayName.trim() || undefined
+              : typeof parsed.resolvedName === "string"
+                ? parsed.resolvedName.trim() || undefined
               : undefined,
-          tickerCode: normalizedCode,
+          tickerCode:
+            typeof parsed.tickerCode === "string"
+              ? parsed.tickerCode.trim().toUpperCase() || normalizedCode
+              : normalizedCode,
           krCode: normalizedCode,
           asOf:
             typeof parsed.asOf === "string"

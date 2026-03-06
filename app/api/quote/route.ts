@@ -16,14 +16,18 @@ type QuoteSuccessResponse = {
   tickerInput: string;
   market: "US" | "KR";
   currency: "USD" | "KRW";
+  currentPriceInt: number;
+  prevCloseInt: number | null;
+  dayChangePct: number | null;
+  displayName: string | null;
+  tickerCode: string | null;
+  logoUrl: string | null;
   price: number;
   priceInt: number;
-  prevClose?: number;
-  prevCloseInt?: number;
-  dayChangePct?: number;
+  prevClose?: number | null;
   asOf: string;
-  resolvedName?: string;
-  resolvedCode?: string;
+  resolvedName?: string | null;
+  resolvedCode?: string | null;
 };
 
 type QuoteFailureResponse = {
@@ -100,6 +104,7 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   price: number;
   asOf: string;
   prevClose?: number;
+  dayChangePct?: number;
 }> {
   const apiKey = process.env.FINNHUB_API_KEY;
 
@@ -134,18 +139,45 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
     throw new QuoteLookupError("BAD_RESPONSE", "Finnhub payload is invalid");
   }
 
-  const price = Number((data as { c?: unknown }).c);
-  const prevClose = Number((data as { pc?: unknown }).pc);
+  const quoteData = data as Record<string, unknown>;
+  const priceCandidates = [
+    quoteData.c,
+    quoteData.currentPrice,
+    quoteData.regularMarketPrice,
+    quoteData.price,
+  ];
+  const prevCloseCandidates = [
+    quoteData.pc,
+    quoteData.previousClose,
+    quoteData.regularMarketPreviousClose,
+  ];
+  const dayChangeCandidates = [
+    quoteData.dp,
+    quoteData.changePercent,
+    quoteData.regularMarketChangePercent,
+  ];
+  const priceMaybe = priceCandidates
+    .map((item) => Number(item))
+    .find((item) => Number.isFinite(item) && item > 0);
+  const prevClose = prevCloseCandidates
+    .map((item) => Number(item))
+    .find((item) => Number.isFinite(item) && item > 0);
+  const dayChangePct = dayChangeCandidates
+    .map((item) => Number(item))
+    .find((item) => Number.isFinite(item));
   const asOf = toIsoOrNow((data as { t?: unknown }).t);
 
-  if (!Number.isFinite(price) || price <= 0) {
+  if (!Number.isFinite(priceMaybe) || (priceMaybe ?? 0) <= 0) {
     throw new QuoteLookupError("NO_QUOTE", "Finnhub current price is invalid");
   }
+
+  const price = Number(priceMaybe);
 
   return {
     price,
     asOf,
     prevClose: Number.isFinite(prevClose) && prevClose > 0 ? prevClose : undefined,
+    dayChangePct: Number.isFinite(dayChangePct) ? dayChangePct : undefined,
   };
 }
 
@@ -153,6 +185,7 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
   price: number;
   asOf: string;
   prevClose?: number;
+  dayChangePct?: number;
 }> {
   const stooqSymbol = `${ticker.toLowerCase().replace(/\.us$/i, "")}.us`;
 
@@ -220,6 +253,7 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
     price: closePriceInt / 100,
     asOf,
     prevClose: undefined,
+    dayChangePct: undefined,
   };
 }
 
@@ -227,6 +261,7 @@ async function fetchUsQuote(ticker: string): Promise<{
   price: number;
   asOf: string;
   prevClose?: number;
+  dayChangePct?: number;
 }> {
   try {
     return await fetchUsQuoteFromFinnhub(ticker);
@@ -900,18 +935,23 @@ export async function GET(request: NextRequest) {
         tickerInput,
         market: "KR",
         currency: "KRW",
-        price: quote.priceInt,
-        priceInt: quote.priceInt,
-        prevCloseInt: quote.prevCloseInt,
+        currentPriceInt: quote.priceInt,
+        prevCloseInt: quote.prevCloseInt ?? null,
         dayChangePct:
           quote.dayChangePct !== undefined
             ? quote.dayChangePct
             : quote.prevCloseInt && quote.prevCloseInt > 0
               ? ((quote.priceInt - quote.prevCloseInt) / quote.prevCloseInt) * 100
-              : undefined,
+              : null,
+        displayName: quote.resolvedName ?? null,
+        tickerCode: quote.resolvedCode ?? null,
+        logoUrl: null,
+        price: quote.priceInt,
+        priceInt: quote.priceInt,
+        prevClose: quote.prevCloseInt ?? null,
         asOf: quote.asOf,
-        resolvedName: quote.resolvedName,
-        resolvedCode: quote.resolvedCode,
+        resolvedName: quote.resolvedName ?? null,
+        resolvedCode: quote.resolvedCode ?? null,
       };
 
       setCached("KR", ticker, payload);
@@ -936,17 +976,26 @@ export async function GET(request: NextRequest) {
       tickerInput,
       market: "US",
       currency: "USD",
-      price: quote.price,
-      priceInt,
-      prevClose: quote.prevClose,
+      currentPriceInt: priceInt,
       prevCloseInt:
         quote.prevClose && quote.prevClose > 0
           ? toPriceIntUsd(quote.prevClose)
-          : undefined,
+          : null,
       dayChangePct:
-        quote.prevClose && quote.prevClose > 0
+        typeof quote.dayChangePct === "number" && Number.isFinite(quote.dayChangePct)
+          ? quote.dayChangePct
+          : quote.prevClose && quote.prevClose > 0
           ? ((quote.price - quote.prevClose) / quote.prevClose) * 100
-          : undefined,
+          : null,
+      displayName: null,
+      tickerCode: null,
+      logoUrl: null,
+      price: quote.price,
+      priceInt,
+      prevClose:
+        quote.prevClose && quote.prevClose > 0
+          ? quote.prevClose
+          : null,
       asOf: quote.asOf,
     };
 

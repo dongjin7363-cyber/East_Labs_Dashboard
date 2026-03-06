@@ -157,7 +157,9 @@ function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHoldin
       ? input.priceUpdatedAt
       : undefined;
   const prevCloseValue = Math.max(
-    Math.round(toNumber(input.prevClose ?? input.prev_close_int, 0)),
+    Math.round(
+      toNumber(input.prevClose ?? input.prevCloseInt ?? input.prev_close_int, 0),
+    ),
     0,
   );
   const dayChangeRaw = input.dayChangePct ?? input.day_change_pct;
