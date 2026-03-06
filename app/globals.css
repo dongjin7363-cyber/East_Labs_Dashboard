@@ -97,7 +97,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .nav-group {
@@ -111,6 +112,7 @@ textarea {
   color: var(--muted);
   background: transparent;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .nav-group-trigger.is-active,
@@ -282,6 +284,16 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.auth-modal-input {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--text);
 }
 
 .auth-gate-message {

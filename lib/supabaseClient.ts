@@ -1,9 +1,19 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://example.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://invalid.supabase.co";
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "public-anon-placeholder";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "invalid-anon-key";
+
+if (
+  process.env.NODE_ENV === "development" &&
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+) {
+  console.warn(
+    "[supabase] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY is missing.",
+  );
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -12,4 +22,3 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
-
