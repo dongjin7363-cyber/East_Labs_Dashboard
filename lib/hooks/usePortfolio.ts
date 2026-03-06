@@ -24,6 +24,8 @@ import {
   notifyFinanceDataChanged,
 } from "@/lib/services/events";
 
+const PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY = "pf_synced_portfolio_holdings_v1";
+
 function errorMessage(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {
     const message = (error as { message?: unknown }).message;
@@ -123,6 +125,13 @@ export function usePortfolio() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const requestSeqRef = useRef(0);
+  const syncAttemptedUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      syncAttemptedUserRef.current = null;
+    }
+  }, [isAuthenticated]);
 
   const refresh = useCallback(async () => {
     if (authLoading) {
@@ -139,7 +148,39 @@ export function usePortfolio() {
     setLoading(true);
 
     try {
-      const next = await repository.getHoldings();
+      let next = await repository.getHoldings();
+
+      if (userId && next.length === 0) {
+        const localRepository = new LocalPortfolioRepository();
+        const localHoldings = await localRepository.getHoldings();
+
+        if (localHoldings.length > 0) {
+          next = localHoldings;
+
+          const alreadySynced =
+            window.localStorage.getItem(PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY) === "true";
+
+          if (!alreadySynced && syncAttemptedUserRef.current !== userId) {
+            syncAttemptedUserRef.current = userId;
+            void (async () => {
+              try {
+                const cloudRepository = new SupabasePortfolioRepository(userId);
+
+                for (const holding of localHoldings) {
+                  await cloudRepository.upsertHolding(holding);
+                }
+
+                window.localStorage.setItem(
+                  PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY,
+                  "true",
+                );
+              } catch (error) {
+                console.error("[portfolio] local->cloud holdings sync failed", error);
+              }
+            })();
+          }
+        }
+      }
 
       if (requestSeq !== requestSeqRef.current) {
         return;
@@ -147,19 +188,19 @@ export function usePortfolio() {
 
       setHoldings(sortHoldings(next));
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("[portfolio] failed to load holdings", error);
-      }
+      console.error("portfolio_holdings load error", error);
+      const localRepository = new LocalPortfolioRepository();
+      const fallback = await localRepository.getHoldings();
 
       if (requestSeq === requestSeqRef.current) {
-        setHoldings([]);
+        setHoldings(sortHoldings(fallback));
       }
     } finally {
       if (requestSeq === requestSeqRef.current) {
         setLoading(false);
       }
     }
-  }, [authLoading, isAuthenticated, repository]);
+  }, [authLoading, isAuthenticated, repository, userId]);
 
   useEffect(() => {
     if (authLoading) {

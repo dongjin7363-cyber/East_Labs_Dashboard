@@ -185,14 +185,12 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
   async getHoldings(): Promise<PortfolioHolding[]> {
     const { data, error } = await supabase
       .from("portfolio_holdings")
-      .select(
-        "id, market, ticker, ticker_code, display_name, logo_url, qty, avg_price_int, current_price_int, comment, sector, updated_at",
-      )
+      .select("*")
       .eq("user_id", this.userId);
 
     if (error) {
-      console.error("[portfolio] failed to load holdings", error);
-      return [];
+      console.error("portfolio_holdings load error", error);
+      throw error;
     }
 
     const parsed = (data ?? [])
@@ -236,4 +234,3 @@ export function createPortfolioRepository(userId?: string | null): PortfolioRepo
 
   return new LocalPortfolioRepository();
 }
-

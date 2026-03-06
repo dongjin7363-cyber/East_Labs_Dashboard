@@ -83,8 +83,8 @@ export function usePortfolioAccountState() {
           const cloudRepository = new SupabasePortfolioAccountStateRepository(userId);
           const localState = await localRepository.getState();
 
-          if (hasNonZeroValue(localState)) {
-            await cloudRepository.upsertState(localState as PortfolioAccountState);
+          if (localState && hasNonZeroValue(localState)) {
+            await cloudRepository.upsertState(localState);
             window.localStorage.setItem(PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY, "true");
             nextState = localState;
           }
@@ -94,9 +94,7 @@ export function usePortfolioAccountState() {
       setState(nextState ?? EMPTY_STATE);
       setLoadedAt(Date.now());
     } catch (error) {
-      if (process.env.NODE_ENV === "development") {
-        console.error("[portfolio-account-state] failed to load", error);
-      }
+      console.error("portfolio_account_state load error", error);
 
       setState(EMPTY_STATE);
       setLoadedAt(Date.now());
