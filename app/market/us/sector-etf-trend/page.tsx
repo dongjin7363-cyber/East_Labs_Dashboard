@@ -1,12 +1,11 @@
-import { PageHeader } from "@/components/PageHeader";
+import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
 
 export default function MarketUsSectorTrendPage() {
   return (
-    <section>
-      <PageHeader title="US Sector ETF Trend" />
-      <section className="panel">
-        <p>데이터 준비 중입니다.</p>
-      </section>
-    </section>
+    <MarketSnapshotViewer
+      title="US Sector ETF Trend"
+      marketRegion="us"
+      pageSlug="sector-etf-trend"
+    />
   );
 }

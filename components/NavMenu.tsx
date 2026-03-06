@@ -35,9 +35,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Asset Management",
     items: [
-      { type: "link", label: "Total Asset", href: "/total-asset" },
       { type: "link", label: "Expenditure", href: "/expenditure" },
       { type: "link", label: "Salary", href: "/salary" },
+      { type: "link", label: "Asset Trend", href: "/asset-trend" },
     ],
   },
   {

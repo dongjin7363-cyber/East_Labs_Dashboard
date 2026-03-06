@@ -1,12 +1,11 @@
-import { PageHeader } from "@/components/PageHeader";
+import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
 
 export default function MarketCryptoPage() {
   return (
-    <section>
-      <PageHeader title="Crypto" />
-      <section className="panel">
-        <p>데이터 준비 중입니다.</p>
-      </section>
-    </section>
+    <MarketSnapshotViewer
+      title="Crypto"
+      marketRegion="crypto"
+      pageSlug="daily-market"
+    />
   );
 }

@@ -1,12 +1,11 @@
-import { PageHeader } from "@/components/PageHeader";
+import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
 
 export default function MarketKrSectorTrendPage() {
   return (
-    <section>
-      <PageHeader title="KR Sector ETF Trend" />
-      <section className="panel">
-        <p>데이터 준비 중입니다.</p>
-      </section>
-    </section>
+    <MarketSnapshotViewer
+      title="KR Sector ETF Trend"
+      marketRegion="kr"
+      pageSlug="sector-etf-trend"
+    />
   );
 }

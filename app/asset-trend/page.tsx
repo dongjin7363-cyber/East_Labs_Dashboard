@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { TotalAssetClient } from "@/components/TotalAssetClient";
 
 export default function AssetTrendRedirectPage() {
-  redirect("/total-asset");
+  return <TotalAssetClient />;
 }
