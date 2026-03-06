@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/PageHeader";
 
-export default function SalaryPage() {
+export default function MarketNewsPage() {
   return (
     <section>
-      <PageHeader title="Salary" />
+      <PageHeader title="News" />
       <section className="panel">
-        <p>Salary page is available.</p>
+        <p>뉴스 데이터가 아직 없습니다.</p>
       </section>
     </section>
   );

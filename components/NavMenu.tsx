@@ -14,6 +14,9 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Total Asset", href: "/total-asset" },
   { label: "Expenditure", href: "/expenditure" },
   { label: "Salary", href: "/salary" },
+  { label: "Market", href: "/market/news" },
+  { label: "Membership", href: "/membership" },
+  { label: "Memo", href: "/memo" },
 ];
 
 export function NavMenu() {
@@ -41,4 +44,3 @@ export function NavMenu() {
 }
 
 export default NavMenu;
-

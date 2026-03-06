@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/PageHeader";
 
-export default function SalaryPage() {
+export default function MembershipPage() {
   return (
     <section>
-      <PageHeader title="Salary" />
+      <PageHeader title="Membership" />
       <section className="panel">
-        <p>Salary page is available.</p>
+        <p>Membership page is available.</p>
       </section>
     </section>
   );
