@@ -23,6 +23,8 @@ interface PortfolioHoldingRow {
   qty: number;
   avg_price_int: number;
   current_price_int: number;
+  prev_close_int?: number | null;
+  day_change_pct?: number | null;
   comment: string | null;
   sector: string | null;
   updated_at: string;
@@ -44,6 +46,22 @@ function toInt(value: unknown): number {
   }
 
   return 0;
+}
+
+function toNumberOrUndefined(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[,%\s]/g, "").trim());
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 function normalizeOptionalText(value: unknown): string | undefined {
@@ -119,6 +137,8 @@ function normalizeHolding(raw: unknown, index: number): PortfolioHolding | null 
     qty: toInt(input.qty),
     avgPrice: toInt(input.avg_price_int ?? input.avgPrice),
     currentPrice: toInt(input.current_price_int ?? input.currentPrice),
+    prevClose: toNumberOrUndefined(input.prev_close_int ?? input.prevClose),
+    dayChangePct: toNumberOrUndefined(input.day_change_pct ?? input.dayChangePct),
     priceUpdatedAt:
       normalizeOptionalText(input.price_updated_at) ??
       normalizeOptionalText(input.priceUpdatedAt),
@@ -149,6 +169,14 @@ function mapHoldingToRow(
     qty: toInt(holding.qty),
     avg_price_int: toInt(holding.avgPrice),
     current_price_int: toInt(holding.currentPrice),
+    prev_close_int:
+      typeof holding.prevClose === "number" && Number.isFinite(holding.prevClose)
+        ? toInt(holding.prevClose)
+        : null,
+    day_change_pct:
+      typeof holding.dayChangePct === "number" && Number.isFinite(holding.dayChangePct)
+        ? holding.dayChangePct
+        : null,
     comment: normalizeOptionalText(holding.comment) ?? null,
     sector: normalizeOptionalText(holding.sector) ?? "Other",
     updated_at: holding.updatedAt || new Date().toISOString(),
@@ -185,7 +213,22 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
   async getHoldings(): Promise<PortfolioHolding[]> {
     const { data, error } = await supabase
       .from("portfolio_holdings")
-      .select("*")
+      .select(`
+        id,
+        market,
+        ticker,
+        ticker_code,
+        display_name,
+        logo_url,
+        qty,
+        avg_price_int,
+        current_price_int,
+        prev_close_int,
+        day_change_pct,
+        comment,
+        sector,
+        updated_at
+      `)
       .eq("user_id", this.userId);
 
     if (error) {

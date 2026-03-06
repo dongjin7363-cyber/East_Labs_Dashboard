@@ -82,7 +82,6 @@ type QuoteFetchResult =
       ok: true;
       update: HoldingQuoteUpdate;
       ticker: string;
-      dayChangeRate: number | null;
     }
   | {
       ok: false;
@@ -258,9 +257,6 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
-  const [dailyChangeRateById, setDailyChangeRateById] = useState<
-    Record<string, number | null>
-  >({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const quoteRefreshInFlightRef = useRef(false);
   const isAuthed = isCloudMode;
@@ -376,28 +372,6 @@ export default function PortfolioPage() {
     });
   }, [holdings]);
 
-  useEffect(() => {
-    setDailyChangeRateById((prev) => {
-      const ids = new Set(holdings.map((holding) => holding.id));
-      const next: Record<string, number | null> = {};
-      let changed = false;
-
-      Object.entries(prev).forEach(([id, value]) => {
-        if (ids.has(id)) {
-          next[id] = value;
-        } else {
-          changed = true;
-        }
-      });
-
-      if (!changed && Object.keys(next).length === Object.keys(prev).length) {
-        return prev;
-      }
-
-      return next;
-    });
-  }, [holdings]);
-
   const filtered = useMemo(() => {
     return filterHoldings(holdings, {
       market,
@@ -449,16 +423,16 @@ export default function PortfolioPage() {
     (
       payload: Partial<QuoteApiResponse>,
       priceInt: number,
-    ): number | null => {
+    ): number | undefined => {
       const directDayChangePct = parsePercentValue(payload.dayChangePct);
 
-      if (directDayChangePct !== null) {
+      if (directDayChangePct !== null && Number.isFinite(directDayChangePct)) {
         return directDayChangePct;
       }
 
       const changePercent = parsePercentValue(payload.changePercent);
 
-      if (changePercent !== null) {
+      if (changePercent !== null && Number.isFinite(changePercent)) {
         return changePercent;
       }
 
@@ -466,7 +440,10 @@ export default function PortfolioPage() {
         payload.regularMarketChangePercent,
       );
 
-      if (regularMarketChangePercent !== null) {
+      if (
+        regularMarketChangePercent !== null &&
+        Number.isFinite(regularMarketChangePercent)
+      ) {
         return Math.abs(regularMarketChangePercent) <= 1
           ? regularMarketChangePercent * 100
           : regularMarketChangePercent;
@@ -491,7 +468,7 @@ export default function PortfolioPage() {
         }
       }
 
-      return null;
+      return undefined;
     },
     [parsePercentValue],
   );
@@ -622,6 +599,29 @@ export default function PortfolioPage() {
           update: {
             id: holding.id,
             currentPrice: priceInt,
+            prevClose:
+              Number.isFinite(Number(parsed.prevCloseInt)) &&
+              Number(parsed.prevCloseInt) > 0
+                ? Math.round(Number(parsed.prevCloseInt))
+                : Number.isFinite(Number(parsed.prevClose)) &&
+                    Number(parsed.prevClose) > 0
+                  ? parsed.currency === "USD"
+                    ? Math.round(Number(parsed.prevClose) * 100)
+                    : Math.round(Number(parsed.prevClose))
+                  : undefined,
+            dayChangePct: resolveDayChangeRate(parsed, priceInt),
+            displayName:
+              typeof parsed.resolvedName === "string"
+                ? parsed.resolvedName.trim() || undefined
+                : undefined,
+            logoUrl:
+              typeof (parsed as { logoUrl?: unknown }).logoUrl === "string"
+                ? ((parsed as { logoUrl?: string }).logoUrl ?? "").trim() || undefined
+                : undefined,
+            tickerCode:
+              typeof parsed.resolvedCode === "string"
+                ? parsed.resolvedCode.trim().toUpperCase() || undefined
+                : undefined,
             krCode:
               holding.market === "KR" && typeof parsed.resolvedCode === "string"
                 ? parsed.resolvedCode
@@ -631,7 +631,6 @@ export default function PortfolioPage() {
                 ? parsed.asOf
                 : new Date().toISOString(),
           },
-          dayChangeRate: resolveDayChangeRate(parsed, priceInt),
         };
       } catch {
         return {
@@ -672,7 +671,7 @@ export default function PortfolioPage() {
           !holding.quoteDisabled &&
           (!staleOnly ||
             isQuoteStale(holding) ||
-            dailyChangeRateById[holding.id] === undefined),
+            typeof holding.dayChangePct !== "number"),
       );
 
       const targets = force
@@ -714,10 +713,6 @@ export default function PortfolioPage() {
 
       try {
         const updates: HoldingQuoteUpdate[] = [];
-        const dailyChangeUpdates: Array<{
-          id: string;
-          dayChangeRate: number | null;
-        }> = [];
         const failedItems: Array<{ ticker: string; reason: QuoteFailureReason }> = [];
         const failedNoQuoteTickers: string[] = [];
         const failedNotFoundKrTickers: string[] = [];
@@ -740,10 +735,6 @@ export default function PortfolioPage() {
 
               if (result.ok) {
                 updates.push(result.update);
-                dailyChangeUpdates.push({
-                  id: result.update.id,
-                  dayChangeRate: result.dayChangeRate,
-                });
               } else {
                 failedItems.push({ ticker: result.ticker, reason: result.reason });
 
@@ -787,16 +778,6 @@ export default function PortfolioPage() {
 
         if (updates.length > 0) {
           updateQuotes(updates);
-
-          setDailyChangeRateById((prev) => {
-            const next = { ...prev };
-
-            dailyChangeUpdates.forEach((item) => {
-              next[item.id] = item.dayChangeRate;
-            });
-
-            return next;
-          });
         }
 
         setUnmatchedKrTickers(Array.from(new Set(failedNotFoundKrTickers)));
@@ -865,7 +846,6 @@ export default function PortfolioPage() {
       lastQuoteFailAt,
       lastQuoteRefreshAt,
       quoteBlacklist,
-      dailyChangeRateById,
       updateQuotes,
     ],
   );
@@ -931,12 +911,13 @@ export default function PortfolioPage() {
         holding,
         computed: calcHoldingComputed(holding),
         dailyChangeRate:
-          dailyChangeRateById[holding.id] !== undefined
-            ? dailyChangeRateById[holding.id]
+          typeof holding.dayChangePct === "number" &&
+          Number.isFinite(holding.dayChangePct)
+            ? holding.dayChangePct
             : null,
         defaultIndex: index,
       })),
-    [dailyChangeRateById, filtered],
+    [filtered],
   );
   const sortedTableRows = useMemo(
     () =>
@@ -1370,6 +1351,17 @@ export default function PortfolioPage() {
         {
           id: target.id,
           currentPrice: Math.round(updatedPriceInt),
+          prevClose:
+            Number.isFinite(Number(parsed.prevCloseInt)) &&
+            Number(parsed.prevCloseInt) > 0
+              ? Math.round(Number(parsed.prevCloseInt))
+              : undefined,
+          dayChangePct: resolveDayChangeRate(parsed, Math.round(updatedPriceInt)),
+          displayName:
+            typeof parsed.resolvedName === "string"
+              ? parsed.resolvedName.trim() || undefined
+              : undefined,
+          tickerCode: normalizedCode,
           krCode: normalizedCode,
           asOf:
             typeof parsed.asOf === "string"
@@ -1383,10 +1375,6 @@ export default function PortfolioPage() {
       const nowTs = Date.now();
       setLastQuoteRefreshAt(nowTs);
       window.localStorage.setItem(LAST_QUOTE_REFRESH_STORAGE_KEY, `${nowTs}`);
-      setDailyChangeRateById((prev) => ({
-        ...prev,
-        [target.id]: resolveDayChangeRate(parsed, Math.round(updatedPriceInt)),
-      }));
     } catch {
       setQuoteWarning("수동 코드 저장 후 시세 조회 중 네트워크 오류가 발생했습니다.");
     }
@@ -1741,6 +1729,8 @@ export default function PortfolioPage() {
                       ? holding.ticker.trim().toUpperCase()
                       : holding.tickerCode?.trim()
                         ? holding.tickerCode.trim().toUpperCase()
+                        : holding.krCode?.trim()
+                          ? holding.krCode.trim().toUpperCase()
                         : /^\d{4,12}$/.test(holding.ticker.trim())
                           ? holding.ticker.trim()
                           : "-";

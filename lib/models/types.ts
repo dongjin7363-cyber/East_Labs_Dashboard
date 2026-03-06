@@ -30,6 +30,8 @@ export interface PortfolioHolding {
   qty: number;
   avgPrice: number;
   currentPrice: number;
+  prevClose?: number;
+  dayChangePct?: number;
   priceUpdatedAt?: string;
   updatedAt: string;
 }

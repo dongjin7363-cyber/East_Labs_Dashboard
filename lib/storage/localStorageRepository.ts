@@ -156,6 +156,15 @@ function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHoldin
     typeof input.priceUpdatedAt === "string" && input.priceUpdatedAt.trim() !== ""
       ? input.priceUpdatedAt
       : undefined;
+  const prevCloseValue = Math.max(
+    Math.round(toNumber(input.prevClose ?? input.prev_close_int, 0)),
+    0,
+  );
+  const dayChangeRaw = input.dayChangePct ?? input.day_change_pct;
+  const dayChangeCandidate =
+    typeof dayChangeRaw === "string"
+      ? Number(dayChangeRaw.replace(/[,%\s]/g, ""))
+      : toNumber(dayChangeRaw, Number.NaN);
 
   return {
     id,
@@ -173,6 +182,8 @@ function normalizePortfolioHolding(raw: unknown, index: number): PortfolioHoldin
     qty: Math.max(Math.round(toNumber(input.qty, 0)), 0),
     avgPrice: Math.max(Math.round(toNumber(input.avgPrice, 0)), 0),
     currentPrice: Math.max(Math.round(toNumber(input.currentPrice, 0)), 0),
+    prevClose: prevCloseValue > 0 ? prevCloseValue : undefined,
+    dayChangePct: Number.isFinite(dayChangeCandidate) ? dayChangeCandidate : undefined,
     priceUpdatedAt,
     updatedAt,
   };

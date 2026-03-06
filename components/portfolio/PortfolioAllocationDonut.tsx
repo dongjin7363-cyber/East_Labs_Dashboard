@@ -176,11 +176,13 @@ function PnlText({
   return (
     <div className="portfolio-donut-mini-pnl">
       <span>계좌 손익</span>
-      <strong className={amount >= 0 ? "is-positive" : "is-negative"}>
-        {moneyFormat(currency, amount)}
-      </strong>
-      <span className={pct === null ? "" : pct >= 0 ? "is-positive" : "is-negative"}>
-        ({pct === null ? "—" : percentFormat(pct)})
+      <span className="portfolio-donut-mini-pnl-values">
+        <strong className={amount >= 0 ? "is-positive" : "is-negative"}>
+          {moneyFormat(currency, amount)}
+        </strong>
+        <span className={pct === null ? "" : pct >= 0 ? "is-positive" : "is-negative"}>
+          ({pct === null ? "—" : percentFormat(pct)})
+        </span>
       </span>
     </div>
   );

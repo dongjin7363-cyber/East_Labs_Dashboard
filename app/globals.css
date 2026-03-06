@@ -1310,8 +1310,8 @@ th {
 
 .portfolio-donut-layout {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 14px;
 }
 
 .portfolio-donut-summary-column {
@@ -1357,9 +1357,16 @@ th {
 .portfolio-donut-mini-pnl {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.portfolio-donut-mini-pnl-values {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .portfolio-donut-mini-pnl strong {
@@ -1385,7 +1392,7 @@ th {
 
 .portfolio-donut-chart-row {
   display: grid;
-  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
   align-items: center;
   gap: 12px;
 }

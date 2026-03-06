@@ -316,6 +316,8 @@ export function usePortfolio() {
             qty: input.qty,
             avgPrice: input.avgPrice,
             currentPrice: input.currentPrice,
+            prevClose: target.prevClose,
+            dayChangePct: target.dayChangePct,
             priceUpdatedAt: input.currentPrice > 0 ? nowIso : undefined,
             updatedAt: nowIso,
           };
@@ -379,13 +381,28 @@ export function usePortfolio() {
               return {
                 ...holding,
                 currentPrice: quote.currentPrice,
+                prevClose:
+                  typeof quote.prevClose === "number" &&
+                  Number.isFinite(quote.prevClose)
+                    ? quote.prevClose
+                    : holding.prevClose,
+                dayChangePct:
+                  typeof quote.dayChangePct === "number" &&
+                  Number.isFinite(quote.dayChangePct)
+                    ? quote.dayChangePct
+                    : holding.dayChangePct,
+                displayName:
+                  normalizeOptionalText(quote.displayName) ??
+                  holding.displayName,
+                logoUrl:
+                  normalizeOptionalText(quote.logoUrl) ?? holding.logoUrl,
                 krCode:
                   holding.market === "KR"
                     ? quote.krCode ?? holding.krCode
                     : undefined,
                 tickerCode:
                   holding.market === "KR"
-                    ? normalizeTickerCode(quote.krCode) ??
+                    ? normalizeTickerCode(quote.tickerCode ?? quote.krCode) ??
                       normalizeTickerCode(holding.tickerCode ?? holding.krCode)
                     : holding.tickerCode,
                 priceUpdatedAt: quote.asOf ?? refreshedAt,
