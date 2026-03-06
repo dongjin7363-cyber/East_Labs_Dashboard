@@ -21,6 +21,14 @@ interface PortfolioAllocationDonutProps {
   totalAssetKrw: number;
   accountPnlKrw: number;
   totalPnlPct: number | null;
+  krNavKrw: number;
+  krPnlPct: number | null;
+  krAccountPnlKrw: number;
+  usNavCents: number;
+  usPnlPct: number | null;
+  usAccountPnlCents: number;
+  depositTotalKrw: number;
+  cashKrw: number;
 }
 
 const COLORS = [
@@ -87,6 +95,14 @@ export function PortfolioAllocationDonut({
   totalAssetKrw,
   accountPnlKrw,
   totalPnlPct,
+  krNavKrw,
+  krPnlPct,
+  krAccountPnlKrw,
+  usNavCents,
+  usPnlPct,
+  usAccountPnlCents,
+  depositTotalKrw,
+  cashKrw,
 }: PortfolioAllocationDonutProps) {
   const [mode, setMode] = useState<DonutMode>("SECTOR");
   const data = useMemo(() => buildSlices(holdings, fxRate, mode), [holdings, fxRate, mode]);
@@ -122,18 +138,12 @@ export function PortfolioAllocationDonut({
       </div>
 
       <div className="portfolio-donut-layout">
-        <div className="portfolio-donut-summary">
-          <div className="portfolio-donut-summary-row">
+        <div className="portfolio-donut-summary portfolio-donut-summary-expanded">
+          <div className="portfolio-donut-summary-row is-major">
             <span>총 자산</span>
             <strong>{moneyFormat("KRW", totalAssetKrw)}</strong>
           </div>
-          <div className="portfolio-donut-summary-row">
-            <span>총 계좌 손익</span>
-            <strong className={accountPnlKrw >= 0 ? "is-positive" : "is-negative"}>
-              {moneyFormat("KRW", accountPnlKrw)}
-            </strong>
-          </div>
-          <div className="portfolio-donut-summary-row">
+          <div className="portfolio-donut-summary-row is-major">
             <span>총 PnL%</span>
             <strong
               className={
@@ -143,13 +153,64 @@ export function PortfolioAllocationDonut({
               {totalPnlPct === null ? "—" : percentFormat(totalPnlPct)}
             </strong>
           </div>
+          <div className="portfolio-donut-summary-row is-major">
+            <span>총 계좌 손익</span>
+            <strong className={accountPnlKrw >= 0 ? "is-positive" : "is-negative"}>
+              {moneyFormat("KRW", accountPnlKrw)}
+            </strong>
+          </div>
+
+          <div className="portfolio-donut-summary-gap" />
+
+          <div className="portfolio-donut-summary-row">
+            <span>KR NAV</span>
+            <strong>{moneyFormat("KRW", krNavKrw)}</strong>
+          </div>
+          <div className="portfolio-donut-summary-row is-minor">
+            <span>PnL%</span>
+            <strong className={krPnlPct === null ? "" : krPnlPct >= 0 ? "is-positive" : "is-negative"}>
+              {krPnlPct === null ? "—" : percentFormat(krPnlPct)}
+            </strong>
+          </div>
+          <div className="portfolio-donut-summary-row is-minor">
+            <span>계좌 손익</span>
+            <strong className={krAccountPnlKrw >= 0 ? "is-positive" : "is-negative"}>
+              {moneyFormat("KRW", krAccountPnlKrw)}
+            </strong>
+          </div>
+
+          <div className="portfolio-donut-summary-row">
+            <span>US NAV</span>
+            <strong>{moneyFormat("USD", usNavCents)}</strong>
+          </div>
+          <div className="portfolio-donut-summary-row is-minor">
+            <span>PnL%</span>
+            <strong className={usPnlPct === null ? "" : usPnlPct >= 0 ? "is-positive" : "is-negative"}>
+              {usPnlPct === null ? "—" : percentFormat(usPnlPct)}
+            </strong>
+          </div>
+          <div className="portfolio-donut-summary-row is-minor">
+            <span>계좌 손익</span>
+            <strong className={usAccountPnlCents >= 0 ? "is-positive" : "is-negative"}>
+              {moneyFormat("USD", usAccountPnlCents)}
+            </strong>
+          </div>
+
+          <div className="portfolio-donut-summary-row">
+            <span>예수금</span>
+            <strong>{moneyFormat("KRW", depositTotalKrw)}</strong>
+          </div>
+          <div className="portfolio-donut-summary-row">
+            <span>현금</span>
+            <strong>{moneyFormat("KRW", cashKrw)}</strong>
+          </div>
         </div>
 
         <div className="portfolio-donut-chart-wrap">
           {data.length === 0 ? (
             <div className="empty-state">데이터가 없습니다.</div>
           ) : (
-            <>
+            <div className="portfolio-donut-chart-row">
               <div className="portfolio-donut-chart">
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
@@ -173,7 +234,10 @@ export function PortfolioAllocationDonut({
                           total > 0
                             ? `${((amount / total) * 100).toFixed(2)}%`
                             : "0.00%";
-                        return [`${moneyFormat("KRW", amount)} (${ratio})`, payload?.payload?.label ?? "비중"];
+                        return [
+                          `${moneyFormat("KRW", amount)} (${ratio})`,
+                          payload?.payload?.label ?? "비중",
+                        ];
                       }}
                     />
                   </PieChart>
@@ -182,7 +246,10 @@ export function PortfolioAllocationDonut({
               <ul className="portfolio-donut-legend">
                 {data.map((row) => (
                   <li key={row.key}>
-                    <span className="portfolio-donut-legend-dot" style={{ backgroundColor: row.color }} />
+                    <span
+                      className="portfolio-donut-legend-dot"
+                      style={{ backgroundColor: row.color }}
+                    />
                     <span className="portfolio-donut-legend-label">{row.label}</span>
                     <span className="portfolio-donut-legend-value">
                       {moneyFormat("KRW", row.amountKrw)}
@@ -193,7 +260,7 @@ export function PortfolioAllocationDonut({
                   </li>
                 ))}
               </ul>
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -202,4 +269,3 @@ export function PortfolioAllocationDonut({
 }
 
 export default PortfolioAllocationDonut;
-

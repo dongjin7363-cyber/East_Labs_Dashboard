@@ -1179,14 +1179,53 @@ th {
 }
 
 .portfolio-holdings-table {
-  min-width: 1160px;
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.portfolio-table-wrap {
+  overflow-x: hidden;
+}
+
+.portfolio-holdings-table th,
+.portfolio-holdings-table td {
+  padding: 8px 8px;
+}
+
+.portfolio-col-holding {
+  width: 228px;
+}
+
+.portfolio-col-change {
+  width: 92px;
+}
+
+.portfolio-col-price {
+  width: 104px;
+}
+
+.portfolio-col-qty {
+  width: 72px;
+}
+
+.portfolio-col-value {
+  width: 116px;
+}
+
+.portfolio-col-rate {
+  width: 86px;
+}
+
+.portfolio-col-comment {
+  width: 148px;
 }
 
 .holding-info-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 210px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .holding-avatar {
@@ -1221,20 +1260,28 @@ th {
 }
 
 .holding-display-name {
+  display: block;
   font-size: 13px;
   line-height: 1.2;
   color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .holding-ticker-meta {
+  display: block;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .portfolio-comment-input {
   width: 100%;
-  min-width: 180px;
+  min-width: 0;
   border: 1px solid #d8dee4;
   border-radius: 8px;
   padding: 6px 8px;
@@ -1263,7 +1310,7 @@ th {
 
 .portfolio-donut-layout {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 12px;
 }
 
@@ -1275,6 +1322,10 @@ th {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.portfolio-donut-summary-expanded {
+  gap: 7px;
 }
 
 .portfolio-donut-summary-row {
@@ -1289,6 +1340,27 @@ th {
 .portfolio-donut-summary-row strong {
   color: var(--text);
   font-size: 14px;
+}
+
+.portfolio-donut-summary-row.is-major {
+  font-size: 14px;
+}
+
+.portfolio-donut-summary-row.is-major strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.portfolio-donut-summary-row.is-minor {
+  font-size: 12px;
+}
+
+.portfolio-donut-summary-row.is-minor strong {
+  font-size: 13px;
+}
+
+.portfolio-donut-summary-gap {
+  height: 8px;
 }
 
 .portfolio-donut-summary-row strong.is-positive {
@@ -1306,6 +1378,13 @@ th {
   background: #fbfdff;
 }
 
+.portfolio-donut-chart-row {
+  display: grid;
+  grid-template-columns: minmax(250px, 300px) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
 .portfolio-donut-chart {
   width: 100%;
   height: 260px;
@@ -1313,10 +1392,11 @@ th {
 
 .portfolio-donut-legend {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
   gap: 6px;
+  align-content: start;
 }
 
 .portfolio-donut-legend li {
@@ -2438,6 +2518,11 @@ table tfoot td {
 
   .portfolio-donut-summary {
     padding: 10px;
+  }
+
+  .portfolio-donut-chart-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .portfolio-donut-legend li {

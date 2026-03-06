@@ -15,7 +15,6 @@ import { PortfolioAnalytics } from "@/components/PortfolioAnalytics";
 import { PortfolioAllocationDonut } from "@/components/portfolio/PortfolioAllocationDonut";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
-import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
@@ -106,6 +105,10 @@ interface PortfolioTableRow {
   defaultIndex: number;
 }
 
+const US_DISPLAY_NAME_FALLBACK: Record<string, string> = {
+  RKLB: "Rocket Lab",
+};
+
 function parseStoredTimestamp(raw: string | null): number | null {
   if (!raw) {
     return null;
@@ -125,6 +128,24 @@ function normalizeKrCodeInput(value: string): string {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 12);
+}
+
+function resolveHoldingDisplayName(holding: PortfolioHolding): string {
+  const explicitName = holding.displayName?.trim();
+
+  if (explicitName) {
+    return explicitName;
+  }
+
+  if (holding.market === "US") {
+    const symbol = holding.ticker.trim().toUpperCase();
+
+    if (US_DISPLAY_NAME_FALLBACK[symbol]) {
+      return US_DISPLAY_NAME_FALLBACK[symbol];
+    }
+  }
+
+  return holding.ticker;
 }
 
 function formatKstTime(timestampMs: number): string {
@@ -796,7 +817,7 @@ export default function PortfolioPage() {
         sortState,
         (row, key) => {
           if (key === "ticker") {
-            return row.holding.displayName ?? row.holding.ticker;
+            return resolveHoldingDisplayName(row.holding);
           }
 
           if (key === "dailyChangeRate") {
@@ -833,9 +854,6 @@ export default function PortfolioPage() {
       ),
     [sortState, tableRows],
   );
-  const totalKrwEval = totalAsset.totalKrwEval;
-  const totalUsdEvalCents = totalAsset.totalUsdEvalCents;
-  const usdTotalKrw = totalAsset.usdTotalKrw;
   const usdPnlKrw = totalAsset.usdPnlKrw;
   const totalAssetKrw = totalAsset.totalAssetKrw;
   const krHoldingsPnlKrw = totalAsset.krHoldingsPnlKrw;
@@ -845,6 +863,32 @@ export default function PortfolioPage() {
     () => depositKrw + usdToKrw(usdCentsToUsdFloat(depositUsdCents), fxRate),
     [depositKrw, depositUsdCents, fxRate],
   );
+  const krHoldingsBaseKrw = useMemo(
+    () =>
+      holdings.reduce(
+        (sum, holding) =>
+          holding.market === "KR" ? sum + holding.qty * holding.avgPrice : sum,
+        0,
+      ),
+    [holdings],
+  );
+  const usHoldingsBaseCents = useMemo(
+    () =>
+      holdings.reduce(
+        (sum, holding) =>
+          holding.market === "US" ? sum + holding.qty * holding.avgPrice : sum,
+        0,
+      ),
+    [holdings],
+  );
+  const krPnlPct =
+    krHoldingsBaseKrw > 0
+      ? (krHoldingsPnlKrw / krHoldingsBaseKrw) * 100
+      : null;
+  const usPnlPct =
+    usHoldingsBaseCents > 0
+      ? (usdHoldingsPnlCents / usHoldingsBaseCents) * 100
+      : null;
   const accountBaseKrw = useMemo(() => {
     const bases = holdings.reduce(
       (acc, holding) => {
@@ -942,48 +986,6 @@ export default function PortfolioPage() {
       </span>
     );
   };
-
-  const cards = [
-    {
-      title: "총 평가금액 (KRW)",
-      value: renderMoney("KRW", totalKrwEval),
-    },
-    {
-      title: "총 평가금액 (USD)",
-      value: renderMoney("USD", totalUsdEvalCents),
-      subtitle: (
-        <span>
-          ({renderMoney("KRW", usdTotalKrw)})
-        </span>
-      ),
-    },
-    {
-      title: "예수금(총, KRW 환산)",
-      value: renderMoney("KRW", totalDepositKrw),
-      subtitle: <span>({renderMoney("USD", depositUsdCents)})</span>,
-    },
-    {
-      title: "현금 (KRW)",
-      value: renderMoney("KRW", cashKrw),
-    },
-    {
-      title: "총 손익 (KRW)",
-      value: renderMoney("KRW", krHoldingsPnlKrw),
-      tone:
-        krHoldingsPnlKrw >= 0 ? ("positive" as const) : ("negative" as const),
-    },
-    {
-      title: "총 손익 (USD)",
-      value: renderMoney("USD", usdHoldingsPnlCents),
-      subtitle: (
-        <span>
-          ({renderMoney("KRW", usdPnlKrw)})
-        </span>
-      ),
-      tone:
-        usdHoldingsPnlCents >= 0 ? ("positive" as const) : ("negative" as const),
-    },
-  ];
 
   const handleDepositKrwInputChange = (rawDigits: string) => {
     if (!isAuthed) {
@@ -1408,13 +1410,20 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      <SummaryCardGrid cards={cards} />
       <PortfolioAllocationDonut
         holdings={holdings}
         fxRate={fxRate}
         totalAssetKrw={totalAssetKrw}
         accountPnlKrw={accountPnlKrw}
         totalPnlPct={totalPnlPct}
+        krNavKrw={totalAsset.krHoldingsMarketValueKrw}
+        krPnlPct={krPnlPct}
+        krAccountPnlKrw={krHoldingsPnlKrw}
+        usNavCents={totalAsset.usdHoldingsMarketValueCents}
+        usPnlPct={usPnlPct}
+        usAccountPnlCents={usdHoldingsPnlCents}
+        depositTotalKrw={totalDepositKrw}
+        cashKrw={cashKrw}
       />
 
       <section className="panel">
@@ -1456,8 +1465,19 @@ export default function PortfolioPage() {
           </label>
         </div>
 
-        <div className="table-wrap">
+        <div className="table-wrap portfolio-table-wrap">
           <table className="portfolio-holdings-table">
+            <colgroup>
+              <col className="portfolio-col-holding" />
+              <col className="portfolio-col-change" />
+              <col className="portfolio-col-price" />
+              <col className="portfolio-col-price" />
+              <col className="portfolio-col-qty" />
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-rate" />
+              <col className="portfolio-col-comment" />
+            </colgroup>
             <thead>
               <tr>
                 <th>
@@ -1584,6 +1604,13 @@ export default function PortfolioPage() {
               ) : (
                 sortedTableRows.map((row) => {
                   const { holding, computed } = row;
+                  const displayName = resolveHoldingDisplayName(holding);
+                  const tickerMeta =
+                    holding.market === "US"
+                      ? holding.ticker.trim().toUpperCase()
+                      : holding.tickerCode
+                        ? `${holding.ticker} · ${holding.tickerCode}`
+                        : holding.ticker;
 
                   return (
                     <tr
@@ -1603,15 +1630,14 @@ export default function PortfolioPage() {
                           <HoldingAvatar
                             market={holding.market}
                             logoUrl={holding.logoUrl}
-                            label={holding.displayName ?? holding.ticker}
+                            label={displayName}
                           />
                           <div className="holding-info-text">
                             <strong className="holding-display-name">
-                              {holding.displayName?.trim() || holding.ticker}
+                              {displayName}
                             </strong>
                             <span className="holding-ticker-meta">
-                              {holding.ticker}
-                              {holding.tickerCode ? ` · ${holding.tickerCode}` : ""}
+                              {tickerMeta}
                             </span>
                           </div>
                         </div>
