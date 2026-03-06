@@ -167,17 +167,36 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
     .find((item) => Number.isFinite(item));
   const asOf = toIsoOrNow((data as { t?: unknown }).t);
 
-  if (!Number.isFinite(priceMaybe) || (priceMaybe ?? 0) <= 0) {
+  if (typeof priceMaybe !== "number") {
     throw new QuoteLookupError("NO_QUOTE", "Finnhub current price is invalid");
   }
 
-  const price = Number(priceMaybe);
+  if (!Number.isFinite(priceMaybe) || priceMaybe <= 0) {
+    throw new QuoteLookupError("NO_QUOTE", "Finnhub current price is invalid");
+  }
+
+  const price = priceMaybe;
+  const safePrevClose =
+    typeof prevClose === "number" &&
+    Number.isFinite(prevClose) &&
+    prevClose > 0
+      ? prevClose
+      : undefined;
+  const safeDayChangePct =
+    typeof dayChangePct === "number" && Number.isFinite(dayChangePct)
+      ? dayChangePct
+      : typeof price === "number" &&
+          Number.isFinite(price) &&
+          typeof safePrevClose === "number" &&
+          safePrevClose > 0
+        ? ((price - safePrevClose) / safePrevClose) * 100
+        : undefined;
 
   return {
     price,
     asOf,
-    prevClose: Number.isFinite(prevClose) && prevClose > 0 ? prevClose : undefined,
-    dayChangePct: Number.isFinite(dayChangePct) ? dayChangePct : undefined,
+    prevClose: safePrevClose,
+    dayChangePct: safeDayChangePct,
   };
 }
 
@@ -970,6 +989,24 @@ export async function GET(request: NextRequest) {
       throw new QuoteLookupError("BAD_RESPONSE", "priceInt conversion failed");
     }
 
+    const safePrevClose =
+      typeof quote.prevClose === "number" &&
+      Number.isFinite(quote.prevClose) &&
+      quote.prevClose > 0
+        ? quote.prevClose
+        : undefined;
+    const safePrevCloseInt =
+      typeof safePrevClose === "number" ? toPriceIntUsd(safePrevClose) : null;
+    const safeDayChangePct =
+      typeof quote.dayChangePct === "number" && Number.isFinite(quote.dayChangePct)
+        ? quote.dayChangePct
+        : typeof quote.price === "number" &&
+            Number.isFinite(quote.price) &&
+            typeof safePrevClose === "number" &&
+            safePrevClose > 0
+          ? ((quote.price - safePrevClose) / safePrevClose) * 100
+          : null;
+
     const payload: QuoteSuccessResponse = {
       ok: true,
       ticker,
@@ -977,25 +1014,14 @@ export async function GET(request: NextRequest) {
       market: "US",
       currency: "USD",
       currentPriceInt: priceInt,
-      prevCloseInt:
-        quote.prevClose && quote.prevClose > 0
-          ? toPriceIntUsd(quote.prevClose)
-          : null,
-      dayChangePct:
-        typeof quote.dayChangePct === "number" && Number.isFinite(quote.dayChangePct)
-          ? quote.dayChangePct
-          : quote.prevClose && quote.prevClose > 0
-          ? ((quote.price - quote.prevClose) / quote.prevClose) * 100
-          : null,
+      prevCloseInt: safePrevCloseInt,
+      dayChangePct: safeDayChangePct,
       displayName: null,
       tickerCode: null,
       logoUrl: null,
       price: quote.price,
       priceInt,
-      prevClose:
-        quote.prevClose && quote.prevClose > 0
-          ? quote.prevClose
-          : null,
+      prevClose: safePrevClose ?? null,
       asOf: quote.asOf,
     };
 
