@@ -1333,7 +1333,14 @@ th {
   gap: 4px;
 }
 
-.portfolio-donut-mini-block h4 {
+.portfolio-donut-mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.portfolio-donut-mini-row h4 {
   margin: 0;
   font-size: 14px;
   font-weight: 700;
@@ -1343,6 +1350,8 @@ th {
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
+  text-align: right;
+  margin-left: auto;
 }
 
 .portfolio-donut-mini-pnl {

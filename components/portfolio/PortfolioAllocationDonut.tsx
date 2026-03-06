@@ -164,7 +164,15 @@ function buildSlices(
     .sort((a, b) => b.amountKrw - a.amountKrw);
 }
 
-function PnlText({ amount, pct, currency }: { amount: number; pct: number | null; currency: "KRW" | "USD" }) {
+function PnlText({
+  amount,
+  pct,
+  currency,
+}: {
+  amount: number;
+  pct: number | null;
+  currency: "KRW" | "USD";
+}) {
   return (
     <div className="portfolio-donut-mini-pnl">
       <span>계좌 손익</span>
@@ -230,25 +238,35 @@ export function PortfolioAllocationDonut({
         <div className="portfolio-donut-summary-column">
           <div className="portfolio-donut-summary-box">
             <div className="portfolio-donut-mini-block">
-              <h4>KR NAV</h4>
-              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", krNavKrw)}</div>
+              <div className="portfolio-donut-mini-row">
+                <h4>KR NAV</h4>
+                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", krNavKrw)}</div>
+              </div>
               <PnlText amount={krAccountPnlKrw} pct={krPnlPct} currency="KRW" />
             </div>
             <div className="portfolio-donut-mini-block">
-              <h4>US NAV</h4>
-              <div className="portfolio-donut-mini-nav">{moneyFormat("USD", usNavCents)}</div>
+              <div className="portfolio-donut-mini-row">
+                <h4>US NAV</h4>
+                <div className="portfolio-donut-mini-nav">{moneyFormat("USD", usNavCents)}</div>
+              </div>
               <PnlText amount={usAccountPnlCents} pct={usPnlPct} currency="USD" />
             </div>
           </div>
 
           <div className="portfolio-donut-summary-box">
             <div className="portfolio-donut-mini-block">
-              <h4>예수금</h4>
-              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", depositTotalKrw)}</div>
+              <div className="portfolio-donut-mini-row">
+                <h4>예수금</h4>
+                <div className="portfolio-donut-mini-nav">
+                  {moneyFormat("KRW", depositTotalKrw)}
+                </div>
+              </div>
             </div>
             <div className="portfolio-donut-mini-block">
-              <h4>현금</h4>
-              <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", cashKrw)}</div>
+              <div className="portfolio-donut-mini-row">
+                <h4>현금</h4>
+                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", cashKrw)}</div>
+              </div>
             </div>
           </div>
         </div>

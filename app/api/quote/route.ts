@@ -18,6 +18,9 @@ type QuoteSuccessResponse = {
   currency: "USD" | "KRW";
   price: number;
   priceInt: number;
+  prevClose?: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
   asOf: string;
   resolvedName?: string;
   resolvedCode?: string;
@@ -93,7 +96,11 @@ function toPriceIntUsd(price: number): number {
   return Math.round(price * 100);
 }
 
-async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{ price: number; asOf: string }> {
+async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
+  price: number;
+  asOf: string;
+  prevClose?: number;
+}> {
   const apiKey = process.env.FINNHUB_API_KEY;
 
   if (!apiKey) {
@@ -128,6 +135,7 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{ price: number;
   }
 
   const price = Number((data as { c?: unknown }).c);
+  const prevClose = Number((data as { pc?: unknown }).pc);
   const asOf = toIsoOrNow((data as { t?: unknown }).t);
 
   if (!Number.isFinite(price) || price <= 0) {
@@ -137,10 +145,15 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{ price: number;
   return {
     price,
     asOf,
+    prevClose: Number.isFinite(prevClose) && prevClose > 0 ? prevClose : undefined,
   };
 }
 
-async function fetchUsQuoteFromStooq(ticker: string): Promise<{ price: number; asOf: string }> {
+async function fetchUsQuoteFromStooq(ticker: string): Promise<{
+  price: number;
+  asOf: string;
+  prevClose?: number;
+}> {
   const stooqSymbol = `${ticker.toLowerCase().replace(/\.us$/i, "")}.us`;
 
   const response = await fetch(
@@ -206,10 +219,15 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{ price: number; a
   return {
     price: closePriceInt / 100,
     asOf,
+    prevClose: undefined,
   };
 }
 
-async function fetchUsQuote(ticker: string): Promise<{ price: number; asOf: string }> {
+async function fetchUsQuote(ticker: string): Promise<{
+  price: number;
+  asOf: string;
+  prevClose?: number;
+}> {
   try {
     return await fetchUsQuoteFromFinnhub(ticker);
   } catch (finnhubError) {
@@ -227,6 +245,73 @@ async function fetchUsQuote(ticker: string): Promise<{ price: number; asOf: stri
       throw new QuoteLookupError("BAD_RESPONSE", "quote lookup failed");
     }
   }
+}
+
+function parsePercentValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const cleaned = value.replace(/[%\s,]/g, "");
+
+    if (!cleaned) {
+      return null;
+    }
+
+    const parsed = Number(cleaned);
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function parseDayChangePctFromRecord(
+  row: Record<string, unknown>,
+  keys: string[],
+): number | undefined {
+  for (const key of keys) {
+    if (!(key in row)) {
+      continue;
+    }
+
+    const parsed = parsePercentValue(row[key]);
+
+    if (parsed === null) {
+      continue;
+    }
+
+    // Some APIs expose percent as ratio (0.01 -> 1%)
+    if (Math.abs(parsed) <= 1 && key.toLowerCase().includes("percent")) {
+      return parsed * 100;
+    }
+
+    return parsed;
+  }
+
+  return undefined;
+}
+
+function parsePrevCloseIntFromRecord(
+  row: Record<string, unknown>,
+  keys: string[],
+): number | undefined {
+  for (const key of keys) {
+    if (!(key in row)) {
+      continue;
+    }
+
+    const parsed = parseKrwPriceInt(row[key]);
+
+    if (parsed && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return undefined;
 }
 
 function toText(value: unknown): string {
@@ -393,6 +478,8 @@ async function fetchKrSearchRows(
 
 async function fetchKrBasicQuoteByCode(code: string): Promise<{
   priceInt: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
   resolvedName: string;
   resolvedCode: string;
   asOf: string;
@@ -431,6 +518,19 @@ async function fetchKrBasicQuoteByCode(code: string): Promise<{
 
   return {
     priceInt,
+    prevCloseInt: parsePrevCloseIntFromRecord(row, [
+      "prevClosePrice",
+      "previousClosePrice",
+      "pc",
+    ]),
+    dayChangePct: parseDayChangePctFromRecord(row, [
+      "compareToPreviousClosePriceRate",
+      "compareToPreviousPriceRate",
+      "fluctuationRate",
+      "changeRate",
+      "rf",
+      "fr",
+    ]),
     resolvedName: toText(row.stockName) || toText(row.itemName) || code,
     resolvedCode: normalizeKrCode(row.itemCode) ?? code,
     asOf: toIsoFromDateText(row.localTradedAt),
@@ -576,7 +676,14 @@ function resolveBestKrRow(
 
 async function fetchKrQuote(
   tickerInput: string,
-): Promise<{ priceInt: number; resolvedName: string; resolvedCode: string; asOf: string }> {
+): Promise<{
+  priceInt: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
+  resolvedName: string;
+  resolvedCode: string;
+  asOf: string;
+}> {
   const trimmedInput = tickerInput.trim();
 
   if (!trimmedInput) {
@@ -598,6 +705,19 @@ async function fetchKrQuote(
         if (priceInt && priceInt > 0) {
           return {
             priceInt,
+            prevCloseInt: parsePrevCloseIntFromRecord(codeMatched, [
+              "pc",
+              "prevClose",
+              "previousClose",
+            ]),
+            dayChangePct: parseDayChangePctFromRecord(codeMatched, [
+              "rf",
+              "fr",
+              "changeRate",
+              "fluctuationRate",
+              "compareToPreviousPriceRate",
+              "compareToPreviousClosePriceRate",
+            ]),
             resolvedName,
             resolvedCode,
             asOf: new Date().toISOString(),
@@ -644,8 +764,32 @@ async function fetchKrQuote(
 
     if (priceInt && priceInt > 0) {
       if (resolvedCode) {
+        const parsedPrevCloseInt = parsePrevCloseIntFromRecord(matched, [
+          "pc",
+          "prevClose",
+          "previousClose",
+        ]);
+        let parsedDayChangePct = parseDayChangePctFromRecord(matched, [
+          "rf",
+          "fr",
+          "changeRate",
+          "fluctuationRate",
+          "compareToPreviousPriceRate",
+          "compareToPreviousClosePriceRate",
+        ]);
+
+        if (
+          parsedDayChangePct === undefined &&
+          parsedPrevCloseInt &&
+          parsedPrevCloseInt > 0
+        ) {
+          parsedDayChangePct = ((priceInt - parsedPrevCloseInt) / parsedPrevCloseInt) * 100;
+        }
+
         return {
           priceInt,
+          prevCloseInt: parsedPrevCloseInt,
+          dayChangePct: parsedDayChangePct,
           resolvedName,
           resolvedCode,
           asOf: new Date().toISOString(),
@@ -657,6 +801,19 @@ async function fetchKrQuote(
       if (mappedCode) {
         return {
           priceInt,
+          prevCloseInt: parsePrevCloseIntFromRecord(matched, [
+            "pc",
+            "prevClose",
+            "previousClose",
+          ]),
+          dayChangePct: parseDayChangePctFromRecord(matched, [
+            "rf",
+            "fr",
+            "changeRate",
+            "fluctuationRate",
+            "compareToPreviousPriceRate",
+            "compareToPreviousClosePriceRate",
+          ]),
           resolvedName,
           resolvedCode: mappedCode.code,
           asOf: new Date().toISOString(),
@@ -745,6 +902,13 @@ export async function GET(request: NextRequest) {
         currency: "KRW",
         price: quote.priceInt,
         priceInt: quote.priceInt,
+        prevCloseInt: quote.prevCloseInt,
+        dayChangePct:
+          quote.dayChangePct !== undefined
+            ? quote.dayChangePct
+            : quote.prevCloseInt && quote.prevCloseInt > 0
+              ? ((quote.priceInt - quote.prevCloseInt) / quote.prevCloseInt) * 100
+              : undefined,
         asOf: quote.asOf,
         resolvedName: quote.resolvedName,
         resolvedCode: quote.resolvedCode,
@@ -774,6 +938,15 @@ export async function GET(request: NextRequest) {
       currency: "USD",
       price: quote.price,
       priceInt,
+      prevClose: quote.prevClose,
+      prevCloseInt:
+        quote.prevClose && quote.prevClose > 0
+          ? toPriceIntUsd(quote.prevClose)
+          : undefined,
+      dayChangePct:
+        quote.prevClose && quote.prevClose > 0
+          ? ((quote.price - quote.prevClose) / quote.prevClose) * 100
+          : undefined,
       asOf: quote.asOf,
     };
 

@@ -59,6 +59,11 @@ interface QuoteApiResponse {
   currency: "USD" | "KRW";
   price?: number;
   priceInt: number;
+  prevClose?: number;
+  prevCloseInt?: number;
+  dayChangePct?: number;
+  changePercent?: number;
+  regularMarketChangePercent?: number;
   asOf: string;
   resolvedName?: string;
   resolvedCode?: string;
@@ -77,6 +82,7 @@ type QuoteFetchResult =
       ok: true;
       update: HoldingQuoteUpdate;
       ticker: string;
+      dayChangeRate: number | null;
     }
   | {
       ok: false;
@@ -252,6 +258,9 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
+  const [dailyChangeRateById, setDailyChangeRateById] = useState<
+    Record<string, number | null>
+  >({});
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const quoteRefreshInFlightRef = useRef(false);
   const isAuthed = isCloudMode;
@@ -367,6 +376,28 @@ export default function PortfolioPage() {
     });
   }, [holdings]);
 
+  useEffect(() => {
+    setDailyChangeRateById((prev) => {
+      const ids = new Set(holdings.map((holding) => holding.id));
+      const next: Record<string, number | null> = {};
+      let changed = false;
+
+      Object.entries(prev).forEach(([id, value]) => {
+        if (ids.has(id)) {
+          next[id] = value;
+        } else {
+          changed = true;
+        }
+      });
+
+      if (!changed && Object.keys(next).length === Object.keys(prev).length) {
+        return prev;
+      }
+
+      return next;
+    });
+  }, [holdings]);
+
   const filtered = useMemo(() => {
     return filterHoldings(holdings, {
       market,
@@ -391,6 +422,79 @@ export default function PortfolioPage() {
 
     return Date.now() - updatedAtMs >= QUOTE_REFRESH_INTERVAL_MS;
   }, []);
+
+  const parsePercentValue = useCallback((value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const cleaned = value.replace(/[%\s,]/g, "");
+
+      if (!cleaned) {
+        return null;
+      }
+
+      const parsed = Number(cleaned);
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }, []);
+
+  const resolveDayChangeRate = useCallback(
+    (
+      payload: Partial<QuoteApiResponse>,
+      priceInt: number,
+    ): number | null => {
+      const directDayChangePct = parsePercentValue(payload.dayChangePct);
+
+      if (directDayChangePct !== null) {
+        return directDayChangePct;
+      }
+
+      const changePercent = parsePercentValue(payload.changePercent);
+
+      if (changePercent !== null) {
+        return changePercent;
+      }
+
+      const regularMarketChangePercent = parsePercentValue(
+        payload.regularMarketChangePercent,
+      );
+
+      if (regularMarketChangePercent !== null) {
+        return Math.abs(regularMarketChangePercent) <= 1
+          ? regularMarketChangePercent * 100
+          : regularMarketChangePercent;
+      }
+
+      const prevCloseIntRaw = Number(payload.prevCloseInt);
+
+      if (Number.isFinite(prevCloseIntRaw) && prevCloseIntRaw > 0) {
+        return ((priceInt - prevCloseIntRaw) / prevCloseIntRaw) * 100;
+      }
+
+      const prevCloseRaw = Number(payload.prevClose);
+
+      if (Number.isFinite(prevCloseRaw) && prevCloseRaw > 0) {
+        const prevCloseInt =
+          payload.currency === "USD"
+            ? Math.round(prevCloseRaw * 100)
+            : Math.round(prevCloseRaw);
+
+        if (prevCloseInt > 0) {
+          return ((priceInt - prevCloseInt) / prevCloseInt) * 100;
+        }
+      }
+
+      return null;
+    },
+    [parsePercentValue],
+  );
 
   const fetchHoldingQuote = useCallback(
     async (holding: PortfolioHolding): Promise<QuoteFetchResult> => {
@@ -527,6 +631,7 @@ export default function PortfolioPage() {
                 ? parsed.asOf
                 : new Date().toISOString(),
           },
+          dayChangeRate: resolveDayChangeRate(parsed, priceInt),
         };
       } catch {
         return {
@@ -537,7 +642,7 @@ export default function PortfolioPage() {
         };
       }
     },
-    [],
+    [resolveDayChangeRate],
   );
 
   const refreshQuotesForVisible = useCallback(
@@ -565,7 +670,9 @@ export default function PortfolioPage() {
         (holding) =>
           (holding.market === "US" || holding.market === "KR") &&
           !holding.quoteDisabled &&
-          (!staleOnly || isQuoteStale(holding)),
+          (!staleOnly ||
+            isQuoteStale(holding) ||
+            dailyChangeRateById[holding.id] === undefined),
       );
 
       const targets = force
@@ -607,6 +714,10 @@ export default function PortfolioPage() {
 
       try {
         const updates: HoldingQuoteUpdate[] = [];
+        const dailyChangeUpdates: Array<{
+          id: string;
+          dayChangeRate: number | null;
+        }> = [];
         const failedItems: Array<{ ticker: string; reason: QuoteFailureReason }> = [];
         const failedNoQuoteTickers: string[] = [];
         const failedNotFoundKrTickers: string[] = [];
@@ -629,6 +740,10 @@ export default function PortfolioPage() {
 
               if (result.ok) {
                 updates.push(result.update);
+                dailyChangeUpdates.push({
+                  id: result.update.id,
+                  dayChangeRate: result.dayChangeRate,
+                });
               } else {
                 failedItems.push({ ticker: result.ticker, reason: result.reason });
 
@@ -672,6 +787,16 @@ export default function PortfolioPage() {
 
         if (updates.length > 0) {
           updateQuotes(updates);
+
+          setDailyChangeRateById((prev) => {
+            const next = { ...prev };
+
+            dailyChangeUpdates.forEach((item) => {
+              next[item.id] = item.dayChangeRate;
+            });
+
+            return next;
+          });
         }
 
         setUnmatchedKrTickers(Array.from(new Set(failedNotFoundKrTickers)));
@@ -740,6 +865,7 @@ export default function PortfolioPage() {
       lastQuoteFailAt,
       lastQuoteRefreshAt,
       quoteBlacklist,
+      dailyChangeRateById,
       updateQuotes,
     ],
   );
@@ -804,10 +930,13 @@ export default function PortfolioPage() {
       filtered.map((holding, index) => ({
         holding,
         computed: calcHoldingComputed(holding),
-        dailyChangeRate: null,
+        dailyChangeRate:
+          dailyChangeRateById[holding.id] !== undefined
+            ? dailyChangeRateById[holding.id]
+            : null,
         defaultIndex: index,
       })),
-    [filtered],
+    [dailyChangeRateById, filtered],
   );
   const sortedTableRows = useMemo(
     () =>
@@ -1254,6 +1383,10 @@ export default function PortfolioPage() {
       const nowTs = Date.now();
       setLastQuoteRefreshAt(nowTs);
       window.localStorage.setItem(LAST_QUOTE_REFRESH_STORAGE_KEY, `${nowTs}`);
+      setDailyChangeRateById((prev) => ({
+        ...prev,
+        [target.id]: resolveDayChangeRate(parsed, Math.round(updatedPriceInt)),
+      }));
     } catch {
       setQuoteWarning("수동 코드 저장 후 시세 조회 중 네트워크 오류가 발생했습니다.");
     }
@@ -1606,9 +1739,11 @@ export default function PortfolioPage() {
                   const tickerMeta =
                     holding.market === "US"
                       ? holding.ticker.trim().toUpperCase()
-                      : holding.tickerCode
-                        ? `${holding.ticker} · ${holding.tickerCode}`
-                        : holding.ticker;
+                      : holding.tickerCode?.trim()
+                        ? holding.tickerCode.trim().toUpperCase()
+                        : /^\d{4,12}$/.test(holding.ticker.trim())
+                          ? holding.ticker.trim()
+                          : "-";
 
                   return (
                     <tr
@@ -1641,7 +1776,22 @@ export default function PortfolioPage() {
                         </div>
                       </td>
                       <td>
-                        <span className="muted-placeholder">—</span>
+                        {row.dailyChangeRate === null ? (
+                          <span className="muted-placeholder">—</span>
+                        ) : (
+                          <span
+                            style={{
+                              color:
+                                row.dailyChangeRate > 0
+                                  ? "var(--positive)"
+                                  : row.dailyChangeRate < 0
+                                    ? "var(--negative)"
+                                    : "var(--text)",
+                            }}
+                          >
+                            {percentFormat(row.dailyChangeRate)}
+                          </span>
+                        )}
                       </td>
                       <td>{renderMoney(holding.currency, holding.avgPrice, "table")}</td>
                       <td>{renderMoney(holding.currency, holding.currentPrice, "table")}</td>
