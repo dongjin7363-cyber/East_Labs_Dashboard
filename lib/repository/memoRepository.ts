@@ -1,4 +1,8 @@
 import { MemoEntry } from "@/lib/models/types";
+import {
+  deserializeMemoEntry,
+  serializeMemoEntryRow,
+} from "@/lib/repository/mappers/memoEntryMapper";
 import { supabase } from "@/lib/supabaseClient";
 import { getMonthRangeFromYm } from "@/lib/utils/date";
 
@@ -6,87 +10,12 @@ const MEMO_STORAGE_KEY = "pf_memo_entries_v1";
 export const MEMO_ENTRIES_SYNCED_FLAG_KEY = "pf_synced_memo_entries_v1";
 const MEMO_IMAGE_BUCKET = "memo-images";
 
-interface MemoEntryRow {
-  id?: string;
-  user_id: string;
-  date: string;
-  buy_tickers: string;
-  sell_tickers: string;
-  comment: string;
-  image_paths: string[] | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface MemoRepository {
   getEntriesByMonth(ym: string): Promise<MemoEntry[]>;
   getEntriesByDate(date: string): Promise<MemoEntry[]>;
   getAllEntries(): Promise<MemoEntry[]>;
   upsertEntry(entry: MemoEntry, options?: { isCreate?: boolean }): Promise<void>;
   deleteEntry(id: string): Promise<void>;
-}
-
-function normalizeOptionalText(value: unknown): string | undefined {
-  if (typeof value !== "string") {
-    return undefined;
-  }
-
-  const normalized = value.trim();
-  return normalized ? normalized : undefined;
-}
-
-function normalizeImagePaths(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .filter((item): item is string => typeof item === "string")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-}
-
-function normalizeMemoEntry(raw: unknown, index: number): MemoEntry | null {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-
-  const input = raw as Record<string, unknown>;
-  const date = normalizeOptionalText(input.date);
-
-  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return null;
-  }
-
-  const buyTickers =
-    normalizeOptionalText(input.buy_tickers) ??
-    normalizeOptionalText(input.buyTickers) ??
-    "";
-  const sellTickers =
-    normalizeOptionalText(input.sell_tickers) ??
-    normalizeOptionalText(input.sellTickers) ??
-    "";
-  const comment =
-    normalizeOptionalText(input.comment) ??
-    normalizeOptionalText(input.body) ??
-    "";
-
-  return {
-    id: normalizeOptionalText(input.id) ?? `memo-entry-${index}`,
-    date,
-    buyTickers,
-    sellTickers,
-    comment,
-    imagePaths: normalizeImagePaths(input.image_paths ?? input.imagePaths),
-    createdAt:
-      normalizeOptionalText(input.created_at) ??
-      normalizeOptionalText(input.createdAt) ??
-      new Date().toISOString(),
-    updatedAt:
-      normalizeOptionalText(input.updated_at) ??
-      normalizeOptionalText(input.updatedAt) ??
-      new Date().toISOString(),
-  };
 }
 
 function sortEntries(entries: MemoEntry[]): MemoEntry[] {
@@ -130,7 +59,7 @@ function readLocalEntries(): MemoEntry[] {
 
     return sortEntries(
       parsed
-        .map((item, index) => normalizeMemoEntry(item, index))
+        .map((item, index) => deserializeMemoEntry(item, index))
         .filter((entry): entry is MemoEntry => Boolean(entry)),
     );
   } catch {
@@ -143,30 +72,12 @@ function writeLocalEntries(entries: MemoEntry[]): void {
     return;
   }
 
-  window.localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(sortEntries(entries)));
-}
+  const canonical = sortEntries(entries).map((entry, index) => {
+    const normalized = deserializeMemoEntry(entry, index);
+    return normalized ?? entry;
+  });
 
-function toRow(
-  entry: MemoEntry,
-  userId: string,
-  options?: { isCreate?: boolean },
-): MemoEntryRow {
-  const row: MemoEntryRow = {
-    user_id: userId,
-    date: entry.date,
-    buy_tickers: normalizeOptionalText(entry.buyTickers) ?? "",
-    sell_tickers: normalizeOptionalText(entry.sellTickers) ?? "",
-    comment: normalizeOptionalText(entry.comment) ?? "",
-    image_paths: entry.imagePaths.length > 0 ? [...entry.imagePaths] : [],
-    created_at: entry.createdAt,
-    updated_at: entry.updatedAt,
-  };
-
-  if (!options?.isCreate && entry.id.trim()) {
-    row.id = entry.id.trim();
-  }
-
-  return row;
+  window.localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(canonical));
 }
 
 async function withSignedUrls(entry: MemoEntry): Promise<MemoEntry> {
@@ -240,7 +151,7 @@ export class SupabaseMemoRepository implements MemoRepository {
 
     const parsed = sortEntries(
       (data ?? [])
-        .map((row, index) => normalizeMemoEntry(row, index))
+        .map((row, index) => deserializeMemoEntry(row, index))
         .filter((entry): entry is MemoEntry => Boolean(entry)),
     );
 
@@ -257,7 +168,7 @@ export class SupabaseMemoRepository implements MemoRepository {
   }
 
   async upsertEntry(entry: MemoEntry, options?: { isCreate?: boolean }): Promise<void> {
-    const row = toRow(entry, this.userId, options);
+    const row = serializeMemoEntryRow(entry, this.userId, options);
     const { error } = await supabase
       .from("memo_entries")
       .upsert([row], { onConflict: "id" });

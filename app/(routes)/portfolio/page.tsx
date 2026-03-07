@@ -810,9 +810,9 @@ export default function PortfolioPage() {
 
                   console.debug("[quote-refresh]", {
                     ticker: targetHolding.ticker,
-                    current_price_int: result.update.currentPrice,
-                    prev_close_int: prevCloseInt,
-                    day_change_pct: dayChangePct,
+                    currentPriceInt: result.update.currentPrice,
+                    prevCloseInt: prevCloseInt,
+                    dayChangePct,
                   });
 
                   if (prevCloseInt === null && dayChangePct === null) {

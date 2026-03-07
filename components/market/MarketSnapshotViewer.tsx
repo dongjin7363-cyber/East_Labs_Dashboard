@@ -3,144 +3,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
-import { supabase } from "@/lib/supabaseClient";
+import { MarketRegion, MarketSnapshot } from "@/lib/models/types";
+import { getMarketCategoryBadgeTone } from "@/lib/repository/mappers/marketSnapshotMapper";
+import { createMarketSnapshotRepository } from "@/lib/repository/marketSnapshotRepository";
 import { todayKstYmd } from "@/lib/utils/date";
 import { formatKST } from "@/lib/utils/time";
 
 type ViewMode = "grid" | "list";
 
-interface MarketSnapshot {
-  id: string;
-  runDate: string;
-  snapshotKey: string;
-  title: string;
-  symbol: string;
-  category: string;
-  section: string;
-  sourceUrl: string;
-  imageUrl: string;
-  sortOrder: number;
-  updatedAt: string;
-}
-
 interface MarketSnapshotViewerProps {
   title: string;
-  marketRegion: string;
+  marketRegion: MarketRegion | string;
   pageSlug: string;
 }
 
-const REMOVED_SYMBOLS = new Set([
-  "PHXE",
-  "VTI",
-  "IVV",
-  "KLAC",
-  "HPE",
-  "STX",
-  "PSTG",
-  "AMKR",
-  "ASX",
-  "BKR",
-  "SLB",
-]);
-
-function normalizeText(value: unknown): string {
-  if (typeof value !== "string") {
-    return "";
-  }
-
-  return value.trim();
-}
-
-function normalizeSection(section: string): string {
-  const normalized = section.trim();
-
-  if (normalized === "주요살피는 종목군") {
-    return "Main Watchlist";
-  }
-
-  return normalized || "Other";
-}
-
-function normalizeCategory(category: string): string {
-  const normalized = category.trim();
-
-  if (!normalized) {
-    return "Other";
-  }
-
-  if (normalized.toLowerCase() === "index") {
-    return "Index";
-  }
-
-  if (normalized.toLowerCase() === "sector") {
-    return "Sector";
-  }
-
-  if (normalized.toLowerCase() === "stock") {
-    return "Stock";
-  }
-
-  return normalized;
-}
-
 function categoryBadgeClass(category: string): string {
-  const normalized = category.toLowerCase();
-
-  if (normalized === "index") {
-    return "market-category-badge is-index";
-  }
-
-  if (normalized === "sector") {
-    return "market-category-badge is-sector";
-  }
-
-  if (normalized === "stock") {
-    return "market-category-badge is-stock";
-  }
-
-  return "market-category-badge is-other";
-}
-
-function toSnapshot(raw: unknown, index: number): MarketSnapshot | null {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-
-  const input = raw as Record<string, unknown>;
-  const symbol = normalizeText(input.symbol).toUpperCase();
-
-  if (!symbol || REMOVED_SYMBOLS.has(symbol)) {
-    return null;
-  }
-
-  const snapshotKey = normalizeText(input.snapshot_key || input.snapshotKey);
-  const runDate = normalizeText(input.run_date || input.runDate);
-  const title = normalizeText(input.title) || symbol;
-  const imageUrl = normalizeText(input.image_url || input.imageUrl);
-
-  if (!runDate || !imageUrl) {
-    return null;
-  }
-
-  return {
-    id: normalizeText(input.id) || `market-snapshot-${runDate}-${snapshotKey || symbol}-${index}`,
-    runDate,
-    snapshotKey,
-    title,
-    symbol,
-    category: normalizeCategory(normalizeText(input.category)),
-    section: normalizeSection(normalizeText(input.section)),
-    sourceUrl: normalizeText(input.source_url || input.sourceUrl),
-    imageUrl,
-    sortOrder:
-      typeof input.sort_order === "number" && Number.isFinite(input.sort_order)
-        ? input.sort_order
-        : typeof input.sortOrder === "number" && Number.isFinite(input.sortOrder)
-          ? input.sortOrder
-          : 0,
-    updatedAt:
-      normalizeText(input.updated_at || input.updatedAt) || new Date().toISOString(),
-  };
+  return `market-category-badge ${getMarketCategoryBadgeTone(category)}`;
 }
 
 export function MarketSnapshotViewer({
@@ -148,6 +26,7 @@ export function MarketSnapshotViewer({
   marketRegion,
   pageSlug,
 }: MarketSnapshotViewerProps) {
+  const repository = useMemo(() => createMarketSnapshotRepository(), []);
   const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [search, setSearch] = useState("");
@@ -164,36 +43,32 @@ export function MarketSnapshotViewer({
     const loadSnapshots = async () => {
       setLoading(true);
 
-      const query = supabase
-        .from("market_snapshots")
-        .select("*")
-        .eq("market_region", marketRegion)
-        .eq("page_slug", pageSlug)
-        .eq("run_date", selectedDate)
-        .order("sort_order", { ascending: true })
-        .order("snapshot_key", { ascending: true });
+      try {
+        const parsed = await repository.listByRunDate({
+          marketRegion,
+          pageSlug,
+          runDate: selectedDate,
+        });
 
-      const { data, error } = await query;
+        if (cancelled) {
+          return;
+        }
 
-      if (cancelled) {
-        return;
-      }
+        setItems(parsed);
+        setSelectedId(parsed.length > 0 ? parsed[0].id : null);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
 
-      if (error) {
         console.error("[market] failed to load snapshots", error);
         setItems([]);
         setSelectedId(null);
-        setLoading(false);
-        return;
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-
-      const parsed = (data ?? [])
-        .map((item, index) => toSnapshot(item, index))
-        .filter((item): item is MarketSnapshot => Boolean(item));
-
-      setItems(parsed);
-      setSelectedId(parsed.length > 0 ? parsed[0].id : null);
-      setLoading(false);
     };
 
     void loadSnapshots();
@@ -201,7 +76,7 @@ export function MarketSnapshotViewer({
     return () => {
       cancelled = true;
     };
-  }, [marketRegion, pageSlug, selectedDate]);
+  }, [marketRegion, pageSlug, repository, selectedDate]);
 
   const sections = useMemo(() => {
     const seen = new Set<string>();

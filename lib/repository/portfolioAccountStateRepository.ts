@@ -1,4 +1,8 @@
 import { PortfolioAccountState } from "@/lib/models/types";
+import {
+  deserializePortfolioAccountState,
+  serializePortfolioAccountStateRow,
+} from "@/lib/repository/mappers/portfolioAccountStateMapper";
 import { supabase } from "@/lib/supabaseClient";
 import {
   PORTFOLIO_CASH_STORAGE_KEY,
@@ -12,14 +16,6 @@ export const PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY =
 export interface PortfolioAccountStateRepository {
   getState(): Promise<PortfolioAccountState | null>;
   upsertState(state: PortfolioAccountState): Promise<void>;
-}
-
-interface PortfolioAccountStateRow {
-  user_id: string;
-  deposit_krw_int: number;
-  deposit_usd_cents: number;
-  cash_krw_int: number;
-  updated_at: string;
 }
 
 function toNonNegativeInt(value: unknown): number {
@@ -36,43 +32,6 @@ function toNonNegativeInt(value: unknown): number {
   }
 
   return 0;
-}
-
-function normalizeState(raw: unknown): PortfolioAccountState | null {
-  if (!raw || typeof raw !== "object") {
-    return null;
-  }
-
-  const input = raw as Record<string, unknown>;
-
-  return {
-    depositKrwInt: toNonNegativeInt(
-      input.deposit_krw_int ?? input.depositKrwInt,
-    ),
-    depositUsdCents: toNonNegativeInt(
-      input.deposit_usd_cents ?? input.depositUsdCents,
-    ),
-    cashKrwInt: toNonNegativeInt(input.cash_krw_int ?? input.cashKrwInt),
-    updatedAt:
-      typeof input.updated_at === "string" && input.updated_at.trim() !== ""
-        ? input.updated_at
-        : typeof input.updatedAt === "string" && input.updatedAt.trim() !== ""
-          ? input.updatedAt
-          : new Date().toISOString(),
-  };
-}
-
-function mapStateToRow(
-  state: PortfolioAccountState,
-  userId: string,
-): PortfolioAccountStateRow {
-  return {
-    user_id: userId,
-    deposit_krw_int: toNonNegativeInt(state.depositKrwInt),
-    deposit_usd_cents: toNonNegativeInt(state.depositUsdCents),
-    cash_krw_int: toNonNegativeInt(state.cashKrwInt),
-    updated_at: state.updatedAt || new Date().toISOString(),
-  };
 }
 
 export class LocalPortfolioAccountStateRepository
@@ -133,11 +92,11 @@ export class SupabasePortfolioAccountStateRepository
       throw error;
     }
 
-    return normalizeState(data);
+    return deserializePortfolioAccountState(data);
   }
 
   async upsertState(state: PortfolioAccountState): Promise<void> {
-    const row = mapStateToRow(state, this.userId);
+    const row = serializePortfolioAccountStateRow(state, this.userId);
     const { error } = await supabase
       .from("portfolio_account_state")
       .upsert([row], { onConflict: "user_id" });

@@ -20,6 +20,8 @@ export interface PortfolioHolding {
   market: Market;
   currency: Currency;
   ticker: string;
+  // Optional human-friendly display label. Storage and UI always treat this as
+  // a canonical camelCase app field, regardless of DB/local source naming.
   displayName?: string;
   comment?: string;
   tickerCode?: string;
@@ -28,6 +30,9 @@ export interface PortfolioHolding {
   quoteDisabled?: boolean;
   sector: PortfolioSector;
   qty: number;
+  // Integer price units:
+  // - KRW: won
+  // - USD: cents
   avgPrice: number;
   currentPrice: number;
   prevClose?: number;
@@ -178,5 +183,21 @@ export interface MembershipPost {
   body: string;
   visibility: MembershipVisibility;
   createdAt: string;
+  updatedAt: string;
+}
+
+export type MarketRegion = "kr" | "us" | "crypto";
+
+export interface MarketSnapshot {
+  id: string;
+  runDate: string;
+  snapshotKey: string;
+  title: string;
+  symbol: string;
+  category: string;
+  section: string;
+  sourceUrl: string;
+  imageUrl: string;
+  sortOrder: number;
   updatedAt: string;
 }
