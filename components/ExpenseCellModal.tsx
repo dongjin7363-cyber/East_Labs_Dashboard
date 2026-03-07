@@ -6,6 +6,7 @@ import { Modal } from "@/components/Modal";
 import {
   ExpenseBucket,
   ExpenseEntry,
+  EXPENSE_SUBCATEGORIES,
   ExpenseSubcategory,
 } from "@/lib/models/types";
 import {
@@ -60,6 +61,16 @@ function bucketLabel(bucket: ExpenseBucket): string {
   return "Spending";
 }
 
+function normalizeSubcategory(value?: string): ExpenseSubcategory | undefined {
+  const raw = value?.trim();
+
+  if (!raw) {
+    return undefined;
+  }
+
+  return EXPENSE_SUBCATEGORIES.find((subcategory) => subcategory === raw);
+}
+
 export function ExpenseCellModal({
   open,
   date,
@@ -85,8 +96,7 @@ export function ExpenseCellModal({
   const defaultSubcategory =
     subcategory ??
     subcategoryOptions[0] ??
-    defaultSubcategoryForBucket(bucket) ??
-    "";
+    defaultSubcategoryForBucket(bucket);
 
   const totalAmount = useMemo(
     () => entries.reduce((sum, entry) => sum + entry.amountInt, 0),
@@ -101,7 +111,7 @@ export function ExpenseCellModal({
     setEditingId(null);
     setAmountInput("");
     setNoteInput("");
-    setSubcategoryInput(defaultSubcategory);
+    setSubcategoryInput(defaultSubcategory ?? "");
   }, [bucket, date, defaultSubcategory, open]);
 
   const handleSelectEntry = (entry: ExpenseEntry) => {
@@ -113,14 +123,14 @@ export function ExpenseCellModal({
     setEditingId(entry.id);
     setAmountInput(`${entry.amountInt}`);
     setNoteInput(entry.note);
-    setSubcategoryInput(selectedSubcategory);
+    setSubcategoryInput(selectedSubcategory ?? "");
   };
 
   const clearFormForNew = () => {
     setEditingId(null);
     setAmountInput("");
     setNoteInput("");
-    setSubcategoryInput(defaultSubcategory);
+    setSubcategoryInput(defaultSubcategory ?? "");
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -136,13 +146,9 @@ export function ExpenseCellModal({
     const payload: ExpenseEntryInput = {
       date,
       bucket,
-      subcategory:
-        usesSubcategory && defaultSubcategory
-          ? subcategory ??
-            subcategoryInput ??
-            defaultSubcategory ??
-            undefined
-          : undefined,
+      subcategory: usesSubcategory
+        ? normalizeSubcategory(subcategory ?? subcategoryInput ?? defaultSubcategory)
+        : undefined,
       amountInt,
       note: noteInput,
     };
@@ -227,7 +233,9 @@ export function ExpenseCellModal({
               <select
                 value={subcategoryInput}
                 onChange={(event) =>
-                  setSubcategoryInput(event.target.value as ExpenseSubcategory)
+                  setSubcategoryInput(
+                    normalizeSubcategory(event.target.value) ?? "",
+                  )
                 }
               >
                 {subcategoryOptions.map((subcategory) => (
