@@ -6,9 +6,8 @@ import { Modal } from "@/components/Modal";
 import { MonthlyNetChart } from "@/components/MonthlyNetChart";
 import { PageHeader } from "@/components/PageHeader";
 import { RealizedTradeModal } from "@/components/RealizedTradeModal";
-import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
-import { Market, RealizedTrade, TradeRating } from "@/lib/models/types";
+import { Market, RealizedTrade } from "@/lib/models/types";
 import {
   buildDailyNetSeries,
   buildMonthlyNetSeriesByYear,
@@ -85,7 +84,6 @@ export default function LeaderboardPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [search, setSearch] = useState("");
   const [market, setMarket] = useState<"ALL" | Market>("ALL");
-  const [rating, setRating] = useState<"ALL" | TradeRating>("ALL");
   const [sortState, setSortState] = useState<SortState<LeaderboardSortKey>>({
     key: null,
     mode: null,
@@ -199,9 +197,8 @@ export default function LeaderboardPage() {
         dateRange,
         market,
         search,
-        rating,
       }),
-    [dateRange, market, rating, search, trades],
+    [dateRange, market, search, trades],
   );
 
   const filteredForYearlyMonthly = useMemo(
@@ -209,9 +206,8 @@ export default function LeaderboardPage() {
       filterRealizedTrades(trades, {
         market,
         search,
-        rating,
       }),
-    [market, rating, search, trades],
+    [market, search, trades],
   );
 
   const sortedFiltered = useMemo(
@@ -385,76 +381,71 @@ export default function LeaderboardPage() {
         </section>
       ) : null}
 
-      <SummaryCardGrid
-        cards={[
-          {
-            title: "총 거래 수",
-            value: summary.totalCount,
-          },
-          {
-            title: "수익 거래 수",
-            value: summary.winCount,
-            tone: "positive" as const,
-          },
-          {
-            title: "순수익 합계(KRW 환산)",
-            value: moneyFormat("KRW", monthlyTotal),
-            tone: monthlyTotal >= 0 ? ("positive" as const) : ("negative" as const),
-          },
-          {
-            title: "승률",
-            value: percentFormat(summary.winRate),
-          },
-        ]}
-      />
-
       <section className="panel">
-        <div className="filter-row">
-          <label>
-            월 선택
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) =>
-                setSelectedMonth(event.target.value || toYm(new Date()))
-              }
-            />
-          </label>
+        <div className="leaderboard-toolbar">
+          <div className="filter-row leaderboard-toolbar-controls">
+            <label className="leaderboard-control">
+              월 선택
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(event) =>
+                  setSelectedMonth(event.target.value || toYm(new Date()))
+                }
+              />
+            </label>
 
-          <label>
-            Market
-            <select
-              value={market}
-              onChange={(event) => setMarket(event.target.value as "ALL" | Market)}
-            >
-              <option value="ALL">ALL</option>
-              <option value="KR">KR</option>
-              <option value="US">US</option>
-            </select>
-          </label>
+            <label className="leaderboard-control leaderboard-control-market">
+              Market
+              <select
+                value={market}
+                onChange={(event) => setMarket(event.target.value as "ALL" | Market)}
+                className="leaderboard-market-select"
+              >
+                <option value="ALL">ALL</option>
+                <option value="KR">KR</option>
+                <option value="US">US</option>
+              </select>
+            </label>
 
-          <label>
-            검색
-            <input
-              placeholder="ticker / content"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </label>
+            <label className="leaderboard-control leaderboard-control-search">
+              Search
+              <input
+                placeholder="ticker / content"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+          </div>
 
-          <label>
-            Rating
-            <select
-              value={rating}
-              onChange={(event) => setRating(event.target.value as "ALL" | TradeRating)}
-            >
-              <option value="ALL">ALL</option>
-              <option value="Best">Best</option>
-              <option value="Good">Good</option>
-              <option value="Normal">Normal</option>
-              <option value="Bad">Bad</option>
-            </select>
-          </label>
+          <div className="leaderboard-toolbar-summary">
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">총 거래 수</span>
+              <strong className="leaderboard-summary-value">{summary.totalCount}건</strong>
+            </div>
+
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">수익 거래</span>
+              <strong className="leaderboard-summary-value">
+                {summary.winCount}건 ({percentFormat(summary.winRate)})
+              </strong>
+            </div>
+
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">순수익</span>
+              <strong
+                className={`leaderboard-summary-value ${
+                  monthlyTotal > 0
+                    ? "is-positive"
+                    : monthlyTotal < 0
+                      ? "is-negative"
+                      : ""
+                }`}
+              >
+                {moneyFormat("KRW", monthlyTotal)}
+              </strong>
+            </div>
+          </div>
         </div>
 
         <div className="table-wrap">

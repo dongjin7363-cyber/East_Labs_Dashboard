@@ -19,6 +19,8 @@ interface ExpenseCellModalProps {
   open: boolean;
   date: string;
   bucket: ExpenseBucket;
+  subcategory?: ExpenseSubcategory;
+  titleOverride?: string;
   entries: ExpenseEntry[];
   onClose: () => void;
   onCreate: (input: ExpenseEntryInput) => void;
@@ -62,6 +64,8 @@ export function ExpenseCellModal({
   open,
   date,
   bucket,
+  subcategory,
+  titleOverride,
   entries,
   onClose,
   onCreate,
@@ -76,10 +80,13 @@ export function ExpenseCellModal({
     [bucket],
   );
   const usesSubcategory = subcategoryOptions.length > 0;
-  const showSubcategoryDropdown = subcategoryOptions.length > 1;
+  const showSubcategoryDropdown = !subcategory && subcategoryOptions.length > 1;
   const [subcategoryInput, setSubcategoryInput] = useState<ExpenseSubcategory | "">("");
   const defaultSubcategory =
-    (subcategoryOptions[0] ?? defaultSubcategoryForBucket(bucket) ?? "");
+    subcategory ??
+    subcategoryOptions[0] ??
+    defaultSubcategoryForBucket(bucket) ??
+    "";
 
   const totalAmount = useMemo(
     () => entries.reduce((sum, entry) => sum + entry.amountInt, 0),
@@ -129,9 +136,13 @@ export function ExpenseCellModal({
     const payload: ExpenseEntryInput = {
       date,
       bucket,
-      subcategory: usesSubcategory
-        ? (subcategoryInput || defaultSubcategory || undefined)
-        : undefined,
+      subcategory:
+        usesSubcategory && defaultSubcategory
+          ? subcategory ??
+            subcategoryInput ??
+            defaultSubcategory ??
+            undefined
+          : undefined,
       amountInt,
       note: noteInput,
     };
@@ -161,7 +172,7 @@ export function ExpenseCellModal({
   return (
     <Modal
       open={open}
-      title={`${date} · ${bucketLabel(bucket)}`}
+      title={`${date} · ${titleOverride ?? bucketLabel(bucket)}`}
       onClose={onClose}
     >
       <div className="expense-modal-meta">

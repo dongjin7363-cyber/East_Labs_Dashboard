@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExpenseCellModal } from "@/components/ExpenseCellModal";
+import { ExpenditureCalendar } from "@/components/expenditure/ExpenditureCalendar";
+import { ExpenditureWeekTable } from "@/components/expenditure/ExpenditureWeekTable";
 import {
   MonthlyBucketBarChart,
   type MonthlyBucketBarPoint,
@@ -12,7 +14,11 @@ import {
 } from "@/components/MonthlySubcategoryPieChart";
 import { PageHeader } from "@/components/PageHeader";
 import { useExpenses } from "@/lib/hooks/useExpenses";
-import { ExpenseBucket, EXPENSE_SUBCATEGORIES } from "@/lib/models/types";
+import {
+  ExpenseBucket,
+  ExpenseSubcategory,
+  EXPENSE_SUBCATEGORIES,
+} from "@/lib/models/types";
 import {
   buildExpenseCellSumMap,
   computeDailyNetFromBucketTotals,
@@ -22,21 +28,19 @@ import {
   summarizeExpenseSubcategories,
 } from "@/lib/services/expenseService";
 import {
-  getDatesInMonthFromYm,
+  getDatesInRange,
   getMonthRangeFromYm,
+  getWeekRangeSundayStart,
   todayKstYmd,
   toYm,
 } from "@/lib/utils/date";
 import { moneyFormat } from "@/lib/utils/money";
 
-interface BucketColumn {
-  key: ExpenseBucket;
-  label: string;
-}
-
 interface SelectedCell {
   date: string;
   bucket: ExpenseBucket;
+  subcategory?: ExpenseSubcategory;
+  title: string;
 }
 
 interface CalendarDayMeta {
@@ -55,13 +59,6 @@ interface CalendarDayInfo {
   isHoliday: boolean;
   holidayName?: string;
 }
-
-const BUCKET_COLUMNS: BucketColumn[] = [
-  { key: "INCOME", label: "Income" },
-  { key: "SUBSCRIPTION", label: "Subscription" },
-  { key: "PLUS", label: "Plus" },
-  { key: "SPENDING", label: "Spending" },
-];
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
@@ -84,12 +81,48 @@ function weekdayLabel(dayOfWeek: number): string {
   return WEEKDAY_LABELS[dayOfWeek] ?? WEEKDAY_LABELS[0];
 }
 
-function cellDisplay(amountInt: number): string {
-  if (amountInt === 0) {
-    return "-";
+function formatWeekRangeLabel(from: string, to: string): string {
+  const [fromYear, fromMonth] = from.split("-");
+  const [toYear, toMonth, toDay] = to.split("-");
+
+  if (fromYear === toYear && fromMonth === toMonth) {
+    return `${from} ~ ${toDay}`;
   }
 
-  return moneyFormat("KRW", amountInt);
+  if (fromYear === toYear) {
+    return `${from} ~ ${to}`;
+  }
+
+  return `${from} ~ ${to}`;
+}
+
+function defaultSelectedDateForMonth(month: string, todayKst: string): string {
+  const monthRange = getMonthRangeFromYm(month);
+
+  if (todayKst.startsWith(`${month}-`)) {
+    return todayKst;
+  }
+
+  return monthRange.from;
+}
+
+function matchesExpenseCell(
+  entry: {
+    bucket: ExpenseBucket;
+    subcategory?: ExpenseSubcategory;
+  },
+  bucket: ExpenseBucket,
+  subcategory?: ExpenseSubcategory,
+): boolean {
+  if (entry.bucket !== bucket) {
+    return false;
+  }
+
+  if (!subcategory) {
+    return true;
+  }
+
+  return entry.subcategory === subcategory;
 }
 
 export default function ExpenditurePage() {
@@ -103,14 +136,31 @@ export default function ExpenditurePage() {
     remove,
   } = useExpenses();
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
+  const todayKst = useMemo(() => todayKstYmd(), []);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    defaultSelectedDateForMonth(toYm(new Date()), todayKst),
+  );
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
-  const todayKst = useMemo(() => todayKstYmd(), []);
   const isAuthed = isAuthenticated;
-  const isCurrentKstMonthSelected = useMemo(
-    () => selectedMonth === todayKst.slice(0, 7),
-    [selectedMonth, todayKst],
+  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
+  const calendarFetchRange = useMemo(() => {
+    const startOfGrid = getWeekRangeSundayStart(monthRange.from).from;
+    const endOfGrid = getWeekRangeSundayStart(monthRange.to).to;
+
+    return {
+      from: startOfGrid,
+      to: endOfGrid,
+    };
+  }, [monthRange.from, monthRange.to]);
+  const selectedWeekRange = useMemo(
+    () => getWeekRangeSundayStart(selectedDate),
+    [selectedDate],
+  );
+  const selectedWeekDates = useMemo(
+    () => getDatesInRange(selectedWeekRange.from, selectedWeekRange.to),
+    [selectedWeekRange.from, selectedWeekRange.to],
   );
 
   useEffect(() => {
@@ -121,27 +171,71 @@ export default function ExpenditurePage() {
     setSelectedCell(null);
   }, [authLoading, isAuthed]);
 
+  useEffect(() => {
+    if (!selectedDate.startsWith(`${selectedMonth}-`)) {
+      setSelectedDate(defaultSelectedDateForMonth(selectedMonth, todayKst));
+    }
+  }, [selectedDate, selectedMonth, todayKst]);
+
   const monthEntries = useMemo(
     () => listExpenseEntriesByMonth(entries, selectedMonth),
     [entries, selectedMonth],
   );
-  const dates = useMemo(() => getDatesInMonthFromYm(selectedMonth), [selectedMonth]);
+  const weekDateSet = useMemo(() => new Set(selectedWeekDates), [selectedWeekDates]);
+  const weekEntries = useMemo(
+    () => entries.filter((entry) => weekDateSet.has(entry.date)),
+    [entries, weekDateSet],
+  );
+  const weekCellSumMap = useMemo(() => buildExpenseCellSumMap(weekEntries), [weekEntries]);
+  const monthDailyBreakdowns = useMemo(() => {
+    const map: Record<string, { income: number; spend: number }> = {};
 
-  const cellSumMap = useMemo(() => buildExpenseCellSumMap(monthEntries), [monthEntries]);
+    monthEntries.forEach((entry) => {
+      const current = map[entry.date] ?? { income: 0, spend: 0 };
 
-  const rows = useMemo(
+      map[entry.date] = {
+        income:
+          entry.bucket === "INCOME"
+            ? current.income + entry.amountInt
+            : current.income,
+        spend:
+          entry.bucket === "INCOME"
+            ? current.spend
+            : current.spend + entry.amountInt,
+      };
+    });
+
+    return map;
+  }, [monthEntries]);
+
+  const weekRows = useMemo(
     () =>
-      dates.map((date) => {
+      selectedWeekDates.map((date) => {
         const info = calendarMap[date];
         const dayOfWeek = info?.dow ?? dayOfWeekFromDateString(date);
         const isHoliday = info?.isHoliday ?? false;
         const isSunday = info ? info.dow === 0 : false;
         const isSaturday = info ? info.dow === 6 : false;
-        const income = cellSumMap.get(`${date}|INCOME`) ?? 0;
-        const subscription = cellSumMap.get(`${date}|SUBSCRIPTION`) ?? 0;
-        const plus = cellSumMap.get(`${date}|PLUS`) ?? 0;
-        const spending = cellSumMap.get(`${date}|SPENDING`) ?? 0;
-        const dailyTotal = income - (subscription + plus + spending);
+        const income = weekCellSumMap.get(`${date}|INCOME`) ?? 0;
+        const subscription = weekEntries
+          .filter((entry) =>
+            entry.date === date &&
+            matchesExpenseCell(entry, "SUBSCRIPTION", "Subscription"),
+          )
+          .reduce((sum, entry) => sum + entry.amountInt, 0);
+        const rent = weekEntries
+          .filter((entry) =>
+            entry.date === date && matchesExpenseCell(entry, "SUBSCRIPTION", "Rent"),
+          )
+          .reduce((sum, entry) => sum + entry.amountInt, 0);
+        const debt = weekEntries
+          .filter((entry) =>
+            entry.date === date && matchesExpenseCell(entry, "SUBSCRIPTION", "Debt"),
+          )
+          .reduce((sum, entry) => sum + entry.amountInt, 0);
+        const plus = weekCellSumMap.get(`${date}|PLUS`) ?? 0;
+        const spending = weekCellSumMap.get(`${date}|SPENDING`) ?? 0;
+        const dailyTotal = income - (subscription + rent + debt + plus + spending);
 
         return {
           date,
@@ -151,32 +245,61 @@ export default function ExpenditurePage() {
           isHoliday,
           holidayName: info?.holidayName,
           INCOME: income,
-          SUBSCRIPTION: subscription,
+          SUBSCRIPTION_ONLY: subscription,
+          RENT: rent,
+          DEBT: debt,
           PLUS: plus,
           SPENDING: spending,
           dailyTotal,
+          isToday: date === todayKst,
+          isOutsideSelectedMonth: !date.startsWith(`${selectedMonth}-`),
         };
       }),
-    [calendarMap, dates, cellSumMap],
+    [calendarMap, selectedMonth, selectedWeekDates, todayKst, weekCellSumMap, weekEntries],
   );
 
-  const monthlyTotals = useMemo(
+  const weeklyTotals = useMemo(
+    () =>
+      weekRows.reduce(
+        (acc, row) => ({
+          income: acc.income + row.INCOME,
+          subscription: acc.subscription + row.SUBSCRIPTION_ONLY,
+          rent: acc.rent + row.RENT,
+          debt: acc.debt + row.DEBT,
+          plus: acc.plus + row.PLUS,
+          spending: acc.spending + row.SPENDING,
+          dailyTotal: acc.dailyTotal + row.dailyTotal,
+        }),
+        {
+          income: 0,
+          subscription: 0,
+          rent: 0,
+          debt: 0,
+          plus: 0,
+          spending: 0,
+          dailyTotal: 0,
+        },
+      ),
+    [weekRows],
+  );
+
+  const monthlyBucketTotals = useMemo(
     () => summarizeExpenseBuckets(monthEntries),
     [monthEntries],
   );
 
   const monthlyNet = useMemo(
-    () => computeDailyNetFromBucketTotals(monthlyTotals),
-    [monthlyTotals],
+    () => computeDailyNetFromBucketTotals(monthlyBucketTotals),
+    [monthlyBucketTotals],
   );
   const monthlyBucketChartData = useMemo<MonthlyBucketBarPoint[]>(
     () => [
-      { category: "Income", amountInt: monthlyTotals.INCOME },
-      { category: "Subscription", amountInt: monthlyTotals.SUBSCRIPTION },
-      { category: "Plus", amountInt: monthlyTotals.PLUS },
-      { category: "Spending", amountInt: monthlyTotals.SPENDING },
+      { category: "Income", amountInt: monthlyBucketTotals.INCOME },
+      { category: "Subscription", amountInt: monthlyBucketTotals.SUBSCRIPTION },
+      { category: "Plus", amountInt: monthlyBucketTotals.PLUS },
+      { category: "Spending", amountInt: monthlyBucketTotals.SPENDING },
     ],
-    [monthlyTotals],
+    [monthlyBucketTotals],
   );
   const monthlySubcategoryTotals = useMemo(
     () => summarizeExpenseSubcategories(monthEntries),
@@ -190,17 +313,28 @@ export default function ExpenditurePage() {
       })),
     [monthlySubcategoryTotals],
   );
+  const monthlySplitTotals = useMemo(
+    () => ({
+      income: monthlyBucketTotals.INCOME,
+      subscription: monthlySubcategoryTotals.Subscription,
+      rent: monthlySubcategoryTotals.Rent,
+      debt: monthlySubcategoryTotals.Debt,
+      plus: monthlyBucketTotals.PLUS,
+      spending: monthlyBucketTotals.SPENDING,
+      dailyTotal: monthlyNet,
+    }),
+    [monthlyBucketTotals, monthlyNet, monthlySubcategoryTotals],
+  );
   const monthlyTotalSpendInt = useMemo(
     () =>
-      monthlyTotals.SUBSCRIPTION +
-      monthlyTotals.PLUS +
-      monthlyTotals.SPENDING,
-    [monthlyTotals],
+      monthlyBucketTotals.SUBSCRIPTION +
+      monthlyBucketTotals.PLUS +
+      monthlyBucketTotals.SPENDING,
+    [monthlyBucketTotals],
   );
 
   useEffect(() => {
     let cancelled = false;
-    const monthRange = getMonthRangeFromYm(selectedMonth);
     const cachedMap = calendarMonthCacheRef.current[selectedMonth];
 
     if (cachedMap) {
@@ -216,7 +350,7 @@ export default function ExpenditurePage() {
     const loadCalendarDays = async () => {
       try {
         const response = await fetch(
-          `/api/calendar-days?from=${monthRange.from}&to=${monthRange.to}&country=KR`,
+          `/api/calendar-days?from=${calendarFetchRange.from}&to=${calendarFetchRange.to}&country=KR`,
           { cache: "no-store" },
         );
 
@@ -254,15 +388,20 @@ export default function ExpenditurePage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedMonth]);
+  }, [calendarFetchRange.from, calendarFetchRange.to, selectedMonth]);
 
   const selectedCellEntries = useMemo(() => {
     if (!selectedCell) {
       return [];
     }
 
-    return listExpenseEntriesByCell(monthEntries, selectedCell.date, selectedCell.bucket);
-  }, [monthEntries, selectedCell]);
+    return listExpenseEntriesByCell(
+      entries,
+      selectedCell.date,
+      selectedCell.bucket,
+      selectedCell.subcategory,
+    );
+  }, [entries, selectedCell]);
 
   return (
     <>
@@ -284,116 +423,55 @@ export default function ExpenditurePage() {
       ) : null}
 
       <section className="panel">
-        <div className="filter-row">
+        <div className="filter-row expense-calendar-controls">
           <label>
             월 선택
             <input
               type="month"
               value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value || toYm(new Date()))}
+              onChange={(event) => {
+                const nextMonth = event.target.value || toYm(new Date());
+                setSelectedMonth(nextMonth);
+                setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
+              }}
             />
           </label>
+          <div className="expense-selected-meta">
+            <span className="expense-selected-meta-label">선택 날짜</span>
+            <strong>{selectedDate}</strong>
+          </div>
+          <div className="expense-selected-meta">
+            <span className="expense-selected-meta-label">선택 주</span>
+            <strong>{formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}</strong>
+          </div>
         </div>
 
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Income</th>
-                <th>Subscription</th>
-                <th>Plus</th>
-                <th>Spending</th>
-                <th>Daily Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6}>로딩 중...</td>
-                </tr>
-              ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.date}
-                    className={isCurrentKstMonthSelected && row.date === todayKst ? "expense-row-today" : ""}
-                  >
-                    <td>
-                      <span
-                        className={`expense-date-cell ${
-                          row.isHoliday || row.isSunday
-                            ? "is-red"
-                            : row.isSaturday
-                              ? "is-blue"
-                              : ""
-                        }`}
-                        title={row.holidayName ? row.holidayName : undefined}
-                      >
-                        {row.date}
-                        <span className="expense-weekday">({row.weekday})</span>
-                      </span>
-                    </td>
-                    {BUCKET_COLUMNS.map((column) => {
-                      const amount = row[column.key];
+        <ExpenditureCalendar
+          month={selectedMonth}
+          selectedDate={selectedDate}
+          selectedWeekDates={selectedWeekDates}
+          today={todayKst}
+          calendarMap={calendarMap}
+          dailyBreakdowns={monthDailyBreakdowns}
+          onSelectDate={setSelectedDate}
+        />
+      </section>
 
-                      return (
-                        <td key={`${row.date}-${column.key}`}>
-                          <button
-                            type="button"
-                            className={`expense-sheet-cell ${amount !== 0 ? "has-value" : ""}`}
-                            onClick={() => {
-                              if (!isAuthed) {
-                                window.alert("로그인 후 사용 가능합니다.");
-                                return;
-                              }
-
-                              setSelectedCell({ date: row.date, bucket: column.key });
-                            }}
-                          >
-                            {cellDisplay(amount)}
-                          </button>
-                        </td>
-                      );
-                    })}
-                    <td
-                      style={{
-                        color:
-                          row.dailyTotal > 0
-                            ? "var(--positive)"
-                            : row.dailyTotal < 0
-                              ? "var(--negative)"
-                              : "var(--muted)",
-                      }}
-                    >
-                      {cellDisplay(row.dailyTotal)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-            <tfoot>
-              <tr>
-                <th>Monthly Total</th>
-                <th>{cellDisplay(monthlyTotals.INCOME)}</th>
-                <th>{cellDisplay(monthlyTotals.SUBSCRIPTION)}</th>
-                <th>{cellDisplay(monthlyTotals.PLUS)}</th>
-                <th>{cellDisplay(monthlyTotals.SPENDING)}</th>
-                <th
-                  style={{
-                    color:
-                      monthlyNet > 0
-                        ? "var(--positive)"
-                        : monthlyNet < 0
-                          ? "var(--negative)"
-                          : "var(--muted)",
-                  }}
-                >
-                  {cellDisplay(monthlyNet)}
-                </th>
-              </tr>
-            </tfoot>
-          </table>
+      <section className="panel">
+        <div className="panel-header-inline">
+          <h3>주간 입력</h3>
+          <span className="expense-week-range-label">
+            {formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
+          </span>
         </div>
+        <ExpenditureWeekTable
+          rows={weekRows}
+          loading={loading}
+          isAuthed={isAuthed}
+          weeklyTotals={weeklyTotals}
+          monthlyTotals={monthlySplitTotals}
+          onSelectCell={(cell) => setSelectedCell(cell)}
+        />
       </section>
 
       <section className="panel">
@@ -423,6 +501,8 @@ export default function ExpenditurePage() {
         open={Boolean(selectedCell)}
         date={selectedCell?.date ?? ""}
         bucket={selectedCell?.bucket ?? "INCOME"}
+        subcategory={selectedCell?.subcategory}
+        titleOverride={selectedCell?.title}
         entries={selectedCellEntries}
         onClose={() => setSelectedCell(null)}
         onCreate={(input) => {

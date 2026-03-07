@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
-import { PageHeader } from "@/components/PageHeader";
 import { useMemos } from "@/lib/hooks/useMemos";
 import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
 import { formatKST } from "@/lib/utils/time";
@@ -202,27 +201,25 @@ export default function MemoPage() {
 
   return (
     <>
-      <PageHeader
-        title="Memo"
-        actions={
-          <div className="filter-row memo-header-row">
-            <label>
-              월 선택
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(event) =>
-                  setSelectedMonth(event.target.value || toYm(new Date()))
-                }
-              />
-            </label>
-            <div className="memo-selected-date">
-              <span>선택 날짜</span>
-              <strong>{selectedDate}</strong>
-            </div>
+      <section className="memo-page-header">
+        <h1>Memo</h1>
+        <div className="filter-row memo-header-row memo-page-actions">
+          <label>
+            월 선택
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(event) =>
+                setSelectedMonth(event.target.value || toYm(new Date()))
+              }
+            />
+          </label>
+          <div className="memo-selected-date">
+            <span>선택 날짜</span>
+            <strong>{selectedDate}</strong>
           </div>
-        }
-      />
+        </div>
+      </section>
 
       {!authLoading && !isAuthed ? (
         <section className="panel">

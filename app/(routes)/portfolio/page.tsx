@@ -172,6 +172,23 @@ function formatKstTime(timestampMs: number): string {
   return `${get("hour")}:${get("minute")}:${get("second")}`;
 }
 
+function formatKstDate(isoLike?: string | null): string {
+  if (typeof isoLike === "string" && isoLike.trim() !== "") {
+    const matched = isoLike.match(/\d{4}-\d{2}-\d{2}/);
+
+    if (matched) {
+      return matched[0];
+    }
+  }
+
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function formatDailyChangeLabel(rate: number): string {
   if (rate > 0) {
     return `↑ ${percentFormat(rate)}`;
@@ -289,7 +306,7 @@ export default function PortfolioPage() {
   const [lastQuoteRefreshAt, setLastQuoteRefreshAt] = useState<number | null>(null);
   const [lastQuoteFailAt, setLastQuoteFailAt] = useState<number | null>(null);
   const [quoteWarning, setQuoteWarning] = useState<string | null>(null);
-  const [quoteRefreshSummary, setQuoteRefreshSummary] = useState<string>("-");
+  const [, setQuoteRefreshSummary] = useState<string>("-");
   const [quoteBlacklist, setQuoteBlacklist] = useState<QuoteBlacklistMap>({});
   const [quoteMetaLoaded, setQuoteMetaLoaded] = useState(false);
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
@@ -1319,6 +1336,29 @@ export default function PortfolioPage() {
 
     return Array.from(new Set([...unmatchedKrTickers, ...blacklistedKrTickers]));
   }, [holdings, quoteBlacklist, unmatchedKrTickers]);
+  const fxSummaryText = useMemo(() => {
+    const fxDate = formatKstDate(fxAsOf);
+    const fxValue = fxRate.toLocaleString("ko-KR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const refreshValue = lastQuoteRefreshAt ? formatKstTime(lastQuoteRefreshAt) : "-";
+
+    return `${fxDate} : ₩${fxValue} / (Last Refresh ${refreshValue})`;
+  }, [fxAsOf, fxRate, lastQuoteRefreshAt]);
+  const quoteWarningLine = useMemo(() => {
+    const messages: string[] = [];
+
+    if (quoteWarning) {
+      messages.push(quoteWarning);
+    }
+
+    if (unmatchedKrDisplayTickers.length > 0) {
+      messages.push(`미매칭 티커 ${unmatchedKrDisplayTickers.length}건`);
+    }
+
+    return messages.join(" | ");
+  }, [quoteWarning, unmatchedKrDisplayTickers]);
 
   const openManualKrCodeModal = (ticker: string) => {
     const target = holdings.find(
@@ -1566,37 +1606,26 @@ export default function PortfolioPage() {
             />
           </label>
           <div className="fx-meta">
-            <div>
-              자동 환율(USD→KRW{fxAsOf ? `, ${fxAsOf}` : ""}):{" "}
-              <strong>{fxRate.toLocaleString("ko-KR")}</strong>
+            <div className="fx-meta-line">
+              <strong>{fxSummaryText}</strong>
             </div>
-            <div>
-              Last refresh:{" "}
-              <strong>
-                {lastQuoteRefreshAt ? formatKstTime(lastQuoteRefreshAt) : "-"}
-              </strong>
-            </div>
-            <div>
-              <span>결과: </span>
-              <strong>{quoteRefreshSummary}</strong>
-            </div>
-            {quoteWarning ? <div className="quote-warning">{quoteWarning}</div> : null}
-            {unmatchedKrDisplayTickers.length > 0 ? (
-              <div className="quote-unmatched-row">
-                <span>미매칭 티커:</span>
-                {unmatchedKrDisplayTickers.map((ticker) => (
-                  <button
-                    key={ticker}
-                    type="button"
-                    className="quote-unmatched-link"
-                    onClick={() => openManualKrCodeModal(ticker)}
-                  >
-                    {ticker}
-                  </button>
-                ))}
-                <span className="quote-unmatched-hint">
-                  클릭 후 종목코드 입력
-                </span>
+            {quoteWarningLine ? (
+              <div className="quote-warning">
+                <span>{quoteWarningLine}</span>
+                {unmatchedKrDisplayTickers.length > 0 ? (
+                  <span className="quote-warning-links">
+                    {unmatchedKrDisplayTickers.map((ticker) => (
+                      <button
+                        key={ticker}
+                        type="button"
+                        className="quote-unmatched-link"
+                        onClick={() => openManualKrCodeModal(ticker)}
+                      >
+                        {ticker}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
               </div>
             ) : null}
           </div>

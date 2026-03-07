@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
-import { SummaryCardGrid } from "@/components/SummaryCardGrid";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
@@ -197,25 +196,10 @@ export function TotalAssetClient() {
     [monthRange.from, monthRange.to, snapshots],
   );
 
-  const latestSnapshot = useMemo(
-    () => (snapshots.length === 0 ? undefined : snapshots[snapshots.length - 1]),
-    [snapshots],
-  );
-
   const trendData = useMemo(
     () => buildTotalAssetTrendByMonth(snapshots, selectedMonth),
     [selectedMonth, snapshots],
   );
-
-  const monthPeakSnapshot = useMemo(() => {
-    if (monthSnapshots.length === 0) {
-      return undefined;
-    }
-
-    return monthSnapshots.reduce((best, current) =>
-      current.totalAssetKrwInt > best.totalAssetKrwInt ? current : best,
-    );
-  }, [monthSnapshots]);
 
   const shouldShowMorningReminder = useMemo(
     () => mounted && isCloudMode && nowKstHour >= 7 && !snapshotsByDate.has(todayKst),
@@ -445,48 +429,6 @@ export function TotalAssetClient() {
     setStatusMessage(`${selectedDate} 스냅샷을 삭제했습니다.`);
   };
 
-  const summaryCards = useMemo(
-    () =>
-      mounted
-        ? [
-            {
-              title: "선택일 총자산",
-              value: selectedSnapshot
-                ? moneyFormat("KRW", selectedSnapshot.totalAssetKrwInt)
-                : "-",
-              subtitle: selectedSnapshot
-                ? `환율 ${selectedSnapshot.fxRate.toFixed(2)}`
-                : "-",
-            },
-            {
-              title: "월 기록 수",
-              value: monthSnapshots.length,
-              subtitle: `${monthRange.from} ~ ${monthRange.to}`,
-            },
-            {
-              title: "월 최고 자산",
-              value: monthPeakSnapshot
-                ? moneyFormat("KRW", monthPeakSnapshot.totalAssetKrwInt)
-                : "-",
-              subtitle: monthPeakSnapshot ? monthPeakSnapshot.date : "-",
-            },
-            {
-              title: "최신 기록",
-              value: latestSnapshot
-                ? moneyFormat("KRW", latestSnapshot.totalAssetKrwInt)
-                : "-",
-              subtitle: latestSnapshot ? latestSnapshot.date : "-",
-            },
-          ]
-        : [
-            { title: "선택일 총자산", value: "-", subtitle: "-" },
-            { title: "월 기록 수", value: "-", subtitle: "-" },
-            { title: "월 최고 자산", value: "-", subtitle: "-" },
-            { title: "최신 기록", value: "-", subtitle: "-" },
-          ],
-    [latestSnapshot, monthPeakSnapshot, monthRange.from, monthRange.to, monthSnapshots.length, mounted, selectedSnapshot],
-  );
-
   return (
     <>
       <PageHeader
@@ -527,8 +469,6 @@ export function TotalAssetClient() {
           </button>
         </section>
       ) : null}
-
-      <SummaryCardGrid cards={summaryCards} />
 
       <section className="panel">
         <div className="filter-row">

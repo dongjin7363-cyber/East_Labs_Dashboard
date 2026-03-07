@@ -4,14 +4,19 @@ interface YearPickerProps {
 }
 
 export function YearPicker({ year, onYearChange }: YearPickerProps) {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 9 }, (_, index) => currentYear + 1 - index);
+
+  if (!years.includes(year)) {
+    years.push(year);
+    years.sort((a, b) => b - a);
+  }
+
   return (
-    <label>
-      Year
-      <input
-        type="number"
-        min={2000}
-        max={2100}
-        step={1}
+    <label className="year-picker">
+      <span className="year-picker-label">Year</span>
+      <select
+        className="year-picker-select"
         value={year}
         onChange={(event) => {
           const nextValue = Number.parseInt(event.target.value, 10);
@@ -22,7 +27,13 @@ export function YearPicker({ year, onYearChange }: YearPickerProps) {
 
           onYearChange(nextValue);
         }}
-      />
+      >
+        {years.map((optionYear) => (
+          <option key={optionYear} value={optionYear}>
+            {optionYear}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

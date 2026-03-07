@@ -348,12 +348,21 @@ export function listExpenseEntriesByCell(
   entries: ExpenseEntry[],
   date: string,
   bucket: ExpenseBucket,
+  subcategory?: ExpenseSubcategory,
 ): ExpenseEntry[] {
   return entries
     .filter((entry) => {
       const normalized = resolveBucketAndSubcategory(entry.bucket, entry.subcategory);
 
-      return entry.date === date && normalized.bucket === bucket;
+      if (entry.date !== date || normalized.bucket !== bucket) {
+        return false;
+      }
+
+      if (!subcategory) {
+        return true;
+      }
+
+      return normalized.subcategory === subcategory;
     })
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }

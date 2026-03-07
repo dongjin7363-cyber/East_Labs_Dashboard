@@ -11,6 +11,7 @@ export interface SalaryMonthRow {
   plus: number;
   spendingOnly: number;
   spending: number;
+  presence: SalaryMonthPresence;
 }
 
 export interface SalaryYearTotals {
@@ -30,6 +31,30 @@ export interface SalaryYearSummary {
   totals: SalaryYearTotals;
 }
 
+export interface SalaryMonthPresence {
+  income: boolean;
+  stock: boolean;
+  earnings: boolean;
+  rent: boolean;
+  debt: boolean;
+  plus: boolean;
+  spendingOnly: boolean;
+  spending: boolean;
+}
+
+function createMonthPresence(): SalaryMonthPresence {
+  return {
+    income: false,
+    stock: false,
+    earnings: false,
+    rent: false,
+    debt: false,
+    plus: false,
+    spendingOnly: false,
+    spending: false,
+  };
+}
+
 function createMonthRow(month: number): SalaryMonthRow {
   return {
     month,
@@ -41,6 +66,7 @@ function createMonthRow(month: number): SalaryMonthRow {
     plus: 0,
     spendingOnly: 0,
     spending: 0,
+    presence: createMonthPresence(),
   };
 }
 
@@ -78,6 +104,10 @@ function finalizeRows(rows: SalaryMonthRow[]): SalaryMonthRow[] {
   return rows.map((row) => ({
     ...row,
     earnings: row.income + row.stock,
+    presence: {
+      ...row.presence,
+      earnings: row.presence.income || row.presence.stock,
+    },
   }));
 }
 
@@ -119,10 +149,12 @@ export function getYearSummary(options: {
 
     if (entry.bucket === "INCOME") {
       target.income += entry.amountInt;
+      target.presence.income = true;
     }
 
     if (entry.bucket === "PLUS") {
       target.plus += entry.amountInt;
+      target.presence.plus = true;
     }
 
     // Spending in Asset Management means total monthly consumption:
@@ -133,18 +165,22 @@ export function getYearSummary(options: {
       entry.bucket === "SPENDING"
     ) {
       target.spending += entry.amountInt;
+      target.presence.spending = true;
     }
 
     if (entry.bucket === "SPENDING") {
       target.spendingOnly += entry.amountInt;
+      target.presence.spendingOnly = true;
     }
 
     if (entry.subcategory === "Rent") {
       target.rent += entry.amountInt;
+      target.presence.rent = true;
     }
 
     if (entry.subcategory === "Debt") {
       target.debt += entry.amountInt;
+      target.presence.debt = true;
     }
   });
 
@@ -156,6 +192,7 @@ export function getYearSummary(options: {
     }
 
     rows[monthIndex].stock += getPnlKrw(trade, options.fxRate);
+    rows[monthIndex].presence.stock = true;
   });
 
   const finalizedRows = finalizeRows(rows);

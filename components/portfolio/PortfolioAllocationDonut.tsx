@@ -310,15 +310,21 @@ export function PortfolioAllocationDonut({
               <ul className="portfolio-donut-legend">
                 {data.map((row) => (
                   <li key={row.key}>
-                    <span
-                      className="portfolio-donut-legend-dot"
-                      style={{ backgroundColor: row.color }}
-                    />
-                    <span className="portfolio-donut-legend-label">{row.label}</span>
-                    <span className="portfolio-donut-legend-value">{moneyFormat("KRW", row.amountKrw)}</span>
-                    <span className="portfolio-donut-legend-ratio">
-                      {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}
-                    </span>
+                    <div className="portfolio-donut-legend-left">
+                      <span
+                        className="portfolio-donut-legend-dot"
+                        style={{ backgroundColor: row.color }}
+                      />
+                      <span className="portfolio-donut-legend-label">{row.label}</span>
+                    </div>
+                    <div className="portfolio-donut-legend-right">
+                      <span className="portfolio-donut-legend-value">
+                        {moneyFormat("KRW", row.amountKrw)}
+                      </span>
+                      <span className="portfolio-donut-legend-ratio">
+                        {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>

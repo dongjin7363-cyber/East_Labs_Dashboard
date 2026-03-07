@@ -12,6 +12,7 @@ import {
   buildSalaryChartData,
   getYearSummary,
 } from "@/lib/services/salaryService";
+import type { SalaryMonthRow } from "@/lib/services/salaryService";
 import { moneyFormat } from "@/lib/utils/money";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
@@ -19,6 +20,29 @@ const DEFAULT_FX_RATE = 1350;
 
 interface FxApiResponse {
   rate: number;
+}
+
+function renderMonthAmount(value: number, hasData: boolean): string {
+  if (!hasData) {
+    return "-";
+  }
+
+  return moneyFormat("KRW", value);
+}
+
+function renderRowAmount(
+  row: SalaryMonthRow,
+  key:
+    | "income"
+    | "stock"
+    | "earnings"
+    | "rent"
+    | "debt"
+    | "plus"
+    | "spendingOnly"
+    | "spending",
+): string {
+  return renderMonthAmount(row[key], row.presence[key]);
 }
 
 export default function SalaryPage() {
@@ -139,14 +163,14 @@ export default function SalaryPage() {
               ) : summary.months.map((row) => (
                 <tr key={row.month}>
                   <td>{row.month}</td>
-                  <td>{moneyFormat("KRW", row.income)}</td>
-                  <td>{moneyFormat("KRW", row.stock)}</td>
-                  <td style={{ fontWeight: 700 }}>{moneyFormat("KRW", row.earnings)}</td>
-                  <td>{moneyFormat("KRW", row.rent)}</td>
-                  <td>{moneyFormat("KRW", row.debt)}</td>
-                  <td>{moneyFormat("KRW", row.plus)}</td>
-                  <td>{moneyFormat("KRW", row.spendingOnly)}</td>
-                  <td style={{ fontWeight: 700 }}>{moneyFormat("KRW", row.spending)}</td>
+                  <td>{renderRowAmount(row, "income")}</td>
+                  <td>{renderRowAmount(row, "stock")}</td>
+                  <td style={{ fontWeight: 700 }}>{renderRowAmount(row, "earnings")}</td>
+                  <td>{renderRowAmount(row, "rent")}</td>
+                  <td>{renderRowAmount(row, "debt")}</td>
+                  <td>{renderRowAmount(row, "plus")}</td>
+                  <td>{renderRowAmount(row, "spendingOnly")}</td>
+                  <td style={{ fontWeight: 700 }}>{renderRowAmount(row, "spending")}</td>
                 </tr>
               ))}
             </tbody>

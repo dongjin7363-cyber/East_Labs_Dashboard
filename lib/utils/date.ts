@@ -4,6 +4,32 @@ function toDate(value: string): Date {
   return new Date(`${value}T00:00:00`);
 }
 
+function parseYmd(value: string): Date | null {
+  const matched = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matched) {
+    return null;
+  }
+
+  const year = Number.parseInt(matched[1], 10);
+  const month = Number.parseInt(matched[2], 10);
+  const day = Number.parseInt(matched[3], 10);
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return null;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
 function getKstParts(date: Date): Record<string, string> {
   const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
@@ -105,6 +131,38 @@ export function getDatesInMonthFromYm(ym: string): string[] {
   }
 
   return dates;
+}
+
+export function getDatesInRange(from: string, to: string): string[] {
+  const start = parseYmd(from);
+  const end = parseYmd(to);
+
+  if (!start || !end || start.getTime() > end.getTime()) {
+    return [];
+  }
+
+  const dates: string[] = [];
+  const cursor = new Date(start);
+
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(toYmd(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+}
+
+export function getWeekRangeSundayStart(dateYmd: string): DateRange {
+  const baseDate = parseYmd(dateYmd) ?? new Date();
+  const start = new Date(baseDate);
+  start.setDate(baseDate.getDate() - baseDate.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+
+  return {
+    from: toYmd(start),
+    to: toYmd(end),
+  };
 }
 
 export function resolveDateRange(
