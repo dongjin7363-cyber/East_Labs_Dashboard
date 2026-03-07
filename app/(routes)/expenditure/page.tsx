@@ -2,17 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExpenseCellModal } from "@/components/ExpenseCellModal";
-import { ExpenditureCalendar } from "@/components/expenditure/ExpenditureCalendar";
-import { ExpenditureWeekTable } from "@/components/expenditure/ExpenditureWeekTable";
-import {
-  MonthlyBucketBarChart,
-  type MonthlyBucketBarPoint,
-} from "@/components/MonthlyBucketBarChart";
-import {
-  MonthlySubcategoryPieChart,
-  type MonthlySubcategoryPiePoint,
-} from "@/components/MonthlySubcategoryPieChart";
-import { PageHeader } from "@/components/PageHeader";
+import { ExpenditureChartsSection } from "@/components/expenditure/ExpenditureChartsSection";
+import { ExpenditureHeaderBar } from "@/components/expenditure/ExpenditureHeaderBar";
+import { ExpenditureMonthCalendar } from "@/components/expenditure/ExpenditureMonthCalendar";
+import { ExpenditureWeekSection } from "@/components/expenditure/ExpenditureWeekSection";
+import type { MonthlyBucketBarPoint } from "@/components/MonthlyBucketBarChart";
+import type { MonthlySubcategoryPiePoint } from "@/components/MonthlySubcategoryPieChart";
 import { useExpenses } from "@/lib/hooks/useExpenses";
 import {
   ExpenseBucket,
@@ -34,7 +29,6 @@ import {
   todayKstYmd,
   toYm,
 } from "@/lib/utils/date";
-import { moneyFormat } from "@/lib/utils/money";
 
 interface SelectedCell {
   date: string;
@@ -405,15 +399,9 @@ export default function ExpenditurePage() {
 
   return (
     <>
-      <PageHeader
-        title="Expenditure"
-        titleMeta={
-          <span className="inline-title-metric">
-            <span className="inline-title-divider">|</span>
-            <span className="inline-title-metric-label">총 소비(월)</span>
-            <strong>{loading ? "—" : moneyFormat("KRW", monthlyTotalSpendInt)}</strong>
-          </span>
-        }
+      <ExpenditureHeaderBar
+        loading={loading}
+        monthlyTotalSpendInt={monthlyTotalSpendInt}
       />
 
       {!authLoading && !isAuthed ? (
@@ -422,80 +410,38 @@ export default function ExpenditurePage() {
         </section>
       ) : null}
 
-      <section className="panel">
-        <div className="filter-row expense-calendar-controls">
-          <label>
-            월 선택
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) => {
-                const nextMonth = event.target.value || toYm(new Date());
-                setSelectedMonth(nextMonth);
-                setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
-              }}
-            />
-          </label>
-          <div className="expense-selected-meta">
-            <span className="expense-selected-meta-label">선택 날짜</span>
-            <strong>{selectedDate}</strong>
-          </div>
-          <div className="expense-selected-meta">
-            <span className="expense-selected-meta-label">선택 주</span>
-            <strong>{formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}</strong>
-          </div>
-        </div>
+      <ExpenditureMonthCalendar
+        selectedMonth={selectedMonth}
+        selectedDate={selectedDate}
+        selectedWeekLabel={formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
+        onMonthChange={(value) => {
+          const nextMonth = value || toYm(new Date());
+          setSelectedMonth(nextMonth);
+          setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
+        }}
+        month={selectedMonth}
+        selectedWeekDates={selectedWeekDates}
+        today={todayKst}
+        calendarMap={calendarMap}
+        dailyBreakdowns={monthDailyBreakdowns}
+        onSelectDate={setSelectedDate}
+      />
 
-        <ExpenditureCalendar
-          month={selectedMonth}
-          selectedDate={selectedDate}
-          selectedWeekDates={selectedWeekDates}
-          today={todayKst}
-          calendarMap={calendarMap}
-          dailyBreakdowns={monthDailyBreakdowns}
-          onSelectDate={setSelectedDate}
-        />
-      </section>
+      <ExpenditureWeekSection
+        rangeLabel={formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
+        rows={weekRows}
+        loading={loading}
+        isAuthed={isAuthed}
+        weeklyTotals={weeklyTotals}
+        monthlyTotals={monthlySplitTotals}
+        onSelectCell={(cell) => setSelectedCell(cell)}
+      />
 
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>주간 입력</h3>
-          <span className="expense-week-range-label">
-            {formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
-          </span>
-        </div>
-        <ExpenditureWeekTable
-          rows={weekRows}
-          loading={loading}
-          isAuthed={isAuthed}
-          weeklyTotals={weeklyTotals}
-          monthlyTotals={monthlySplitTotals}
-          onSelectCell={(cell) => setSelectedCell(cell)}
-        />
-      </section>
-
-      <section className="panel">
-        <div className="expense-chart-grid">
-          <article className="expense-chart-card">
-            <div className="expense-chart-header">
-              <h3 className="expense-chart-title">월 카테고리 합계</h3>
-            </div>
-            <MonthlyBucketBarChart data={monthlyBucketChartData} />
-          </article>
-          <article className="expense-chart-card">
-            <div className="expense-chart-header">
-              <h3 className="expense-chart-title">월 세부항목 비중</h3>
-              <div className="expense-chart-total-spend">
-                <span className="expense-total-spend-label">총 소비</span>
-                <strong className="expense-total-spend-value">
-                  {moneyFormat("KRW", monthlyTotalSpendInt)}
-                </strong>
-              </div>
-            </div>
-            <MonthlySubcategoryPieChart data={monthlySubcategoryPieData} />
-          </article>
-        </div>
-      </section>
+      <ExpenditureChartsSection
+        monthlyBucketChartData={monthlyBucketChartData}
+        monthlySubcategoryPieData={monthlySubcategoryPieData}
+        monthlyTotalSpendInt={monthlyTotalSpendInt}
+      />
 
       <ExpenseCellModal
         open={Boolean(selectedCell)}
