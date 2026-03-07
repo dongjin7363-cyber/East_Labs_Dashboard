@@ -26,6 +26,7 @@ export default function MarketNewsPage() {
     <section>
       <PageHeader title="News" />
       <section className="panel market-news-list">
+        {/* Route shell intentionally kept stable while News data integration remains pending. */}
         {PLACEHOLDER_NEWS.map((item) => (
           <article key={item.id} className="market-news-card">
             <h4>{item.title}</h4>
