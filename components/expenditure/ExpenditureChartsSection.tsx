@@ -1,5 +1,6 @@
 "use client";
 
+import { ChartSectionCard } from "@/components/common/ChartSectionCard";
 import { SectionCard } from "@/components/common/SectionCard";
 import {
   MonthlyBucketBarChart,
@@ -25,24 +26,23 @@ export function ExpenditureChartsSection({
   return (
     <SectionCard>
       <div className="expense-chart-grid">
-        <article className="expense-chart-card">
-          <div className="expense-chart-header">
-            <h3 className="expense-chart-title">월 카테고리 합계</h3>
-          </div>
+        <ChartSectionCard title="월 카테고리 합계" variant="compact">
           <MonthlyBucketBarChart data={monthlyBucketChartData} />
-        </article>
-        <article className="expense-chart-card">
-          <div className="expense-chart-header">
-            <h3 className="expense-chart-title">월 세부항목 비중</h3>
+        </ChartSectionCard>
+        <ChartSectionCard
+          title="월 세부항목 비중"
+          variant="compact"
+          rightSlot={
             <div className="expense-chart-total-spend">
               <span className="expense-total-spend-label">총 소비</span>
               <strong className="expense-total-spend-value">
                 {moneyFormat("KRW", monthlyTotalSpendInt)}
               </strong>
             </div>
-          </div>
+          }
+        >
           <MonthlySubcategoryPieChart data={monthlySubcategoryPieData} />
-        </article>
+        </ChartSectionCard>
       </div>
     </SectionCard>
   );

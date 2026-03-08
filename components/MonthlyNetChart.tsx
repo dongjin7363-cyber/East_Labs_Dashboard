@@ -1,6 +1,6 @@
 "use client";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { EmptyChartState } from "@/components/common/EmptyChartState";
 import {
   Bar,
   BarChart,
@@ -25,7 +25,7 @@ const ZERO_BAR = "#b8c3cf";
 
 export function MonthlyNetChart({ data }: MonthlyNetChartProps) {
   if (data.length === 0) {
-    return <EmptyState title="차트 데이터가 없습니다." compact />;
+    return <EmptyChartState />;
   }
 
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyChartState } from "@/components/common/EmptyChartState";
 import {
   CartesianGrid,
   Line,
@@ -50,7 +51,7 @@ function resolveDateColor(dayInfo: CalendarDayInfo | undefined): string {
 
 export function TotalAssetTrendChart({ data, calendarMap }: TotalAssetTrendChartProps) {
   if (data.length === 0) {
-    return <div className="empty-state">차트 데이터가 없습니다.</div>;
+    return <EmptyChartState />;
   }
 
   const renderDateTick = (props: DateTickProps) => {

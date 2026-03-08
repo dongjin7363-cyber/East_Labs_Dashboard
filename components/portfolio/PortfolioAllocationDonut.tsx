@@ -1,9 +1,11 @@
 "use client";
 
+import { ChartSectionCard } from "@/components/common/ChartSectionCard";
+import { DonutWithLegendLayout } from "@/components/common/DonutWithLegendLayout";
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { EmptyState } from "@/components/common/EmptyState";
-import { SectionCard } from "@/components/common/SectionCard";
+import { EmptyChartState } from "@/components/common/EmptyChartState";
+import { SummaryStatList } from "@/components/common/SummaryStatList";
 import { PortfolioHolding } from "@/lib/models/types";
 import { calcHoldingComputed } from "@/lib/services/portfolioService";
 import {
@@ -176,7 +178,7 @@ function PnlText({
   currency: "KRW" | "USD";
 }) {
   return (
-    <div className="portfolio-donut-mini-pnl">
+    <div className="summary-stat-inline-subvalue portfolio-donut-mini-pnl">
       <span>계좌 손익</span>
       <span className="portfolio-donut-mini-pnl-values">
         <strong className={amount >= 0 ? "is-positive" : "is-negative"}>
@@ -208,9 +210,41 @@ export function PortfolioAllocationDonut({
     [holdings, fxRate, mode, depositTotalKrw, cashKrw],
   );
   const total = useMemo(() => data.reduce((sum, row) => sum + row.amountKrw, 0), [data]);
+  const navRows = useMemo(
+    () => [
+      {
+        key: "kr-nav",
+        label: "KR NAV",
+        value: moneyFormat("KRW", krNavKrw),
+        subValue: <PnlText amount={krAccountPnlKrw} pct={krPnlPct} currency="KRW" />,
+      },
+      {
+        key: "us-nav",
+        label: "US NAV",
+        value: moneyFormat("USD", usNavCents),
+        subValue: <PnlText amount={usAccountPnlCents} pct={usPnlPct} currency="USD" />,
+      },
+    ],
+    [krAccountPnlKrw, krNavKrw, krPnlPct, usAccountPnlCents, usNavCents, usPnlPct],
+  );
+  const cashRows = useMemo(
+    () => [
+      {
+        key: "deposit",
+        label: "예수금",
+        value: moneyFormat("KRW", depositTotalKrw),
+      },
+      {
+        key: "cash",
+        label: "현금",
+        value: moneyFormat("KRW", cashKrw),
+      },
+    ],
+    [cashKrw, depositTotalKrw],
+  );
 
   return (
-    <SectionCard
+    <ChartSectionCard
       className="portfolio-donut-panel"
       title="투자 현황"
       rightSlot={
@@ -239,104 +273,79 @@ export function PortfolioAllocationDonut({
         </div>
       }
     >
-
       <div className="portfolio-donut-layout">
         <div className="portfolio-donut-summary-column">
-          <div className="portfolio-donut-summary-box">
-            <div className="portfolio-donut-mini-block">
-              <div className="portfolio-donut-mini-row">
-                <h4>KR NAV</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", krNavKrw)}</div>
-              </div>
-              <PnlText amount={krAccountPnlKrw} pct={krPnlPct} currency="KRW" />
-            </div>
-            <div className="portfolio-donut-mini-block">
-              <div className="portfolio-donut-mini-row">
-                <h4>US NAV</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("USD", usNavCents)}</div>
-              </div>
-              <PnlText amount={usAccountPnlCents} pct={usPnlPct} currency="USD" />
-            </div>
-          </div>
-
-          <div className="portfolio-donut-summary-box">
-            <div className="portfolio-donut-mini-block">
-              <div className="portfolio-donut-mini-row">
-                <h4>예수금</h4>
-                <div className="portfolio-donut-mini-nav">
-                  {moneyFormat("KRW", depositTotalKrw)}
-                </div>
-              </div>
-            </div>
-            <div className="portfolio-donut-mini-block">
-              <div className="portfolio-donut-mini-row">
-                <h4>현금</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", cashKrw)}</div>
-              </div>
-            </div>
-          </div>
+          <SummaryStatList rows={navRows} className="portfolio-donut-summary-box" />
+          <SummaryStatList rows={cashRows} className="portfolio-donut-summary-box" />
         </div>
 
         <div className="portfolio-donut-chart-wrap">
           {data.length === 0 ? (
-            <EmptyState title="데이터가 없습니다." compact />
+            <EmptyChartState title="데이터가 없습니다." />
           ) : (
-            <div className="portfolio-donut-chart-row">
-              <div className="portfolio-donut-chart">
-                <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
-                    <Pie
-                      data={data}
-                      dataKey="amountKrw"
-                      nameKey="label"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={66}
-                      outerRadius={98}
-                    >
-                      {data.map((row) => (
-                        <Cell key={row.key} fill={row.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: number, _name, payload) => {
-                        const amount = Number(value);
-                        const ratio = total > 0 ? `${((amount / total) * 100).toFixed(2)}%` : "0.00%";
-                        return [
-                          `${moneyFormat("KRW", amount)} (${ratio})`,
-                          payload?.payload?.label ?? "비중",
-                        ];
-                      }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <ul className="portfolio-donut-legend">
-                {data.map((row) => (
-                  <li key={row.key}>
-                    <div className="portfolio-donut-legend-left">
-                      <span
-                        className="portfolio-donut-legend-dot"
-                        style={{ backgroundColor: row.color }}
+            <DonutWithLegendLayout
+              className="portfolio-donut-chart-row"
+              chartClassName="portfolio-donut-chart"
+              legendClassName="portfolio-donut-legend-wrap"
+              chartSlot={
+                <div className="portfolio-donut-chart">
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={data}
+                        dataKey="amountKrw"
+                        nameKey="label"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={66}
+                        outerRadius={98}
+                      >
+                        {data.map((row) => (
+                          <Cell key={row.key} fill={row.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        formatter={(value: number, _name, payload) => {
+                          const amount = Number(value);
+                          const ratio = total > 0 ? `${((amount / total) * 100).toFixed(2)}%` : "0.00%";
+                          return [
+                            `${moneyFormat("KRW", amount)} (${ratio})`,
+                            payload?.payload?.label ?? "비중",
+                          ];
+                        }}
                       />
-                      <span className="portfolio-donut-legend-label">{row.label}</span>
-                    </div>
-                    <div className="portfolio-donut-legend-right">
-                      <span className="portfolio-donut-legend-value">
-                        {moneyFormat("KRW", row.amountKrw)}
-                      </span>
-                      <span className="portfolio-donut-legend-ratio">
-                        {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              }
+              legendSlot={
+                <ul className="portfolio-donut-legend">
+                  {data.map((row) => (
+                    <li key={row.key}>
+                      <div className="portfolio-donut-legend-left">
+                        <span
+                          className="portfolio-donut-legend-dot"
+                          style={{ backgroundColor: row.color }}
+                        />
+                        <span className="portfolio-donut-legend-label">{row.label}</span>
+                      </div>
+                      <div className="portfolio-donut-legend-right">
+                        <span className="portfolio-donut-legend-value">
+                          {moneyFormat("KRW", row.amountKrw)}
+                        </span>
+                        <span className="portfolio-donut-legend-ratio">
+                          {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              }
+            />
           )}
         </div>
       </div>
-    </SectionCard>
+    </ChartSectionCard>
   );
 }
 

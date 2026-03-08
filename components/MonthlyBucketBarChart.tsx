@@ -1,6 +1,6 @@
 "use client";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { EmptyChartState } from "@/components/common/EmptyChartState";
 import {
   Bar,
   BarChart,
@@ -32,7 +32,7 @@ const BAR_COLORS: Record<MonthlyBucketBarPoint["category"], string> = {
 
 export function MonthlyBucketBarChart({ data }: MonthlyBucketBarChartProps) {
   if (data.length === 0) {
-    return <EmptyState title="차트 데이터가 없습니다." compact />;
+    return <EmptyChartState />;
   }
 
   return (

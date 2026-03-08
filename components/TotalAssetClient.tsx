@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarHeaderBar } from "@/components/common/CalendarHeaderBar";
+import { ChartSectionCard } from "@/components/common/ChartSectionCard";
+import { EmptyChartState } from "@/components/common/EmptyChartState";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
@@ -559,17 +561,16 @@ export function TotalAssetClient() {
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>일별 총자산 추이 ({selectedMonth})</h3>
-          <div className="panel-submetric">스냅샷 없는 날짜는 공백으로 표시됩니다.</div>
-        </div>
+      <ChartSectionCard
+        title={`일별 총자산 추이 (${selectedMonth})`}
+        rightSlot={<div className="panel-submetric">스냅샷 없는 날짜는 공백으로 표시됩니다.</div>}
+      >
         {mounted ? (
           <TotalAssetTrendChart data={trendData} calendarMap={calendarMap} />
         ) : (
-          <div className="empty-state">차트 데이터 로딩 중...</div>
+          <EmptyChartState title="차트 데이터 로딩 중..." />
         )}
-      </section>
+      </ChartSectionCard>
     </>
   );
 }
