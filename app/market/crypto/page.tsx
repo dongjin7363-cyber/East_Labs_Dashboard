@@ -1,11 +1,6 @@
 import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
+import { MARKET_SNAPSHOT_PAGES } from "@/lib/market/marketPages";
 
 export default function MarketCryptoPage() {
-  return (
-    <MarketSnapshotViewer
-      title="Crypto"
-      marketRegion="crypto"
-      pageSlug="daily-market"
-    />
-  );
+  return <MarketSnapshotViewer {...MARKET_SNAPSHOT_PAGES.cryptoDaily} />;
 }

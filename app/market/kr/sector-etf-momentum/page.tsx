@@ -1,11 +1,6 @@
 import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
+import { MARKET_SNAPSHOT_PAGES } from "@/lib/market/marketPages";
 
 export default function MarketKrSectorMomentumPage() {
-  return (
-    <MarketSnapshotViewer
-      title="KR Sector ETF Momentum"
-      marketRegion="kr"
-      pageSlug="sector-etf-momentum"
-    />
-  );
+  return <MarketSnapshotViewer {...MARKET_SNAPSHOT_PAGES.krSectorEtfMomentum} />;
 }
