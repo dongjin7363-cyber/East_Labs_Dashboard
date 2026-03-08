@@ -276,15 +276,6 @@ export default function LeaderboardPage() {
     [filtered, fxRate],
   );
 
-  const sumDailyBars = useMemo(
-    () =>
-      dailyNet.reduce(
-        (sum, point) => sum + (typeof point.netPnlInt === "number" ? point.netPnlInt : 0),
-        0,
-      ),
-    [dailyNet],
-  );
-
   const monthlyNet = useMemo(
     () =>
       buildMonthlyNetSeriesByYear(filteredForYearlyMonthly, selectedYear, {
@@ -298,17 +289,6 @@ export default function LeaderboardPage() {
     () => monthlyNet.reduce((sum, point) => sum + point.netPnlInt, 0),
     [monthlyNet],
   );
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development") {
-      return;
-    }
-
-    const diff = monthlyTotal - sumDailyBars;
-    console.log("monthlyTotal", monthlyTotal);
-    console.log("sumDailyBars", sumDailyBars);
-    console.log("diff", diff);
-  }, [monthlyTotal, sumDailyBars]);
 
   const openCreate = () => {
     if (!isAuthed) {

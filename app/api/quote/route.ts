@@ -103,24 +103,6 @@ function toPriceIntUsd(price: number): number {
   return Math.round(price * 100);
 }
 
-function debugQuoteRaw(
-  scope: string,
-  payload: Record<string, unknown>,
-  keys: string[],
-): void {
-  if (process.env.NODE_ENV !== "development") {
-    return;
-  }
-
-  const snapshot: Record<string, unknown> = {};
-
-  keys.forEach((key) => {
-    snapshot[key] = payload[key];
-  });
-
-  console.debug(`[quote][raw:${scope}]`, snapshot);
-}
-
 async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   price: number;
   asOf: string;
@@ -162,17 +144,6 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   }
 
   const quoteData = data as Record<string, unknown>;
-  debugQuoteRaw("US_FINNHUB", quoteData, [
-    "c",
-    "pc",
-    "dp",
-    "changePercent",
-    "regularMarketChangePercent",
-    "previousClose",
-    "regularMarketPreviousClose",
-    "name",
-    "companyName",
-  ]);
   const priceCandidates = [
     quoteData.c,
     quoteData.currentPrice,
@@ -319,13 +290,6 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
 
   const headers = lines[0].split(",").map((field) => field.replaceAll('"', "").trim());
   const values = lines[1].split(",").map((field) => field.replaceAll('"', "").trim());
-  if (process.env.NODE_ENV === "development") {
-    console.debug("[quote][raw:US_STOOQ]", {
-      symbol: stooqSymbol,
-      headers,
-      row: values,
-    });
-  }
 
   if (values.length < 2) {
     throw new QuoteLookupError("BAD_RESPONSE", "Stooq quote row is invalid");
@@ -682,21 +646,6 @@ async function fetchKrBasicQuoteByCode(code: string): Promise<{
   }
 
   const row = payload as Record<string, unknown>;
-  debugQuoteRaw("KR_BASIC", row, [
-    "closePrice",
-    "nv",
-    "prevClosePrice",
-    "previousClosePrice",
-    "pc",
-    "compareToPreviousClosePriceRate",
-    "compareToPreviousPriceRate",
-    "fluctuationRate",
-    "changeRate",
-    "rf",
-    "fr",
-    "stockName",
-    "itemCode",
-  ]);
   const priceInt = parseKrwPriceInt(row.closePrice ?? row.nv);
 
   if (!priceInt || priceInt <= 0) {
@@ -1001,18 +950,6 @@ async function fetchKrQuote(
       const codeMatched = resolveBestKrRow(codeRows, directCode);
 
       if (codeMatched) {
-        debugQuoteRaw("KR_SEARCH_CODE", codeMatched, [
-          "nm",
-          "cd",
-          "nv",
-          "pc",
-          "prevClose",
-          "previousClose",
-          "rf",
-          "fr",
-          "changeRate",
-          "fluctuationRate",
-        ]);
         const resolvedName = toText(codeMatched.nm) || directCode;
         const resolvedCode = normalizeKrCode(codeMatched.cd) ?? directCode;
         const priceInt = parseKrwPriceInt(codeMatched.nv);
@@ -1074,18 +1011,6 @@ async function fetchKrQuote(
   }
 
   if (matched) {
-    debugQuoteRaw("KR_SEARCH_NAME", matched, [
-      "nm",
-      "cd",
-      "nv",
-      "pc",
-      "prevClose",
-      "previousClose",
-      "rf",
-      "fr",
-      "changeRate",
-      "fluctuationRate",
-    ]);
     const resolvedName = toText(matched.nm) || trimmedInput;
     const resolvedCode = normalizeKrCode(matched.cd);
     const priceInt = parseKrwPriceInt(matched.nv);

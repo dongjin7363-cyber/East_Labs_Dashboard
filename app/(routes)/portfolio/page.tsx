@@ -772,32 +772,6 @@ export default function PortfolioPage() {
               if (result.ok) {
                 updates.push(result.update);
 
-                if (process.env.NODE_ENV === "development") {
-                  const prevCloseInt =
-                    typeof result.update.prevClose === "number" &&
-                    Number.isFinite(result.update.prevClose)
-                      ? result.update.prevClose
-                      : null;
-                  const dayChangePct =
-                    typeof result.update.dayChangePct === "number" &&
-                    Number.isFinite(result.update.dayChangePct)
-                      ? result.update.dayChangePct
-                      : null;
-
-                  console.debug("[quote-refresh]", {
-                    ticker: targetHolding.ticker,
-                    currentPriceInt: result.update.currentPrice,
-                    prevCloseInt: prevCloseInt,
-                    dayChangePct,
-                  });
-
-                  if (prevCloseInt === null && dayChangePct === null) {
-                    console.debug("[quote-refresh raw payload]", {
-                      ticker: targetHolding.ticker,
-                      payload: result.debugRaw ?? null,
-                    });
-                  }
-                }
               } else {
                 failedItems.push({ ticker: result.ticker, reason: result.reason });
 
@@ -1081,65 +1055,6 @@ export default function PortfolioPage() {
   const totalPnlPct =
     accountBaseKrw > 0 ? (accountPnlKrw / accountBaseKrw) * 100 : null;
 
-  const tableUsdMvCents = useMemo(
-    () =>
-      tableRows.reduce(
-        (sum, row) =>
-          row.holding.market === "US" ? sum + row.computed.marketValue : sum,
-        0,
-      ),
-    [tableRows],
-  );
-  const tableKrwMvWon = useMemo(
-    () =>
-      tableRows.reduce(
-        (sum, row) =>
-          row.holding.market === "KR" ? sum + row.computed.marketValue : sum,
-        0,
-      ),
-    [tableRows],
-  );
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || loading) {
-      return;
-    }
-
-    const sumTableUsdMv = tableUsdMvCents / 100;
-    const totalUsdMv = totalAsset.usdHoldingsMarketValueCents / 100;
-    const sumTableKrwMv = tableKrwMvWon;
-    const totalKrwMvWithoutDeposit = totalAsset.totalKrwEval - Math.max(depositKrw, 0);
-    const totalAssetKrwWon = totalAsset.totalAssetKrw;
-    const formulaTotalAssetKrw =
-      totalAsset.totalKrwEval + totalAsset.usdTotalKrw + Math.max(cashKrw, 0);
-
-    console.log(
-      "[portfolio-debug]",
-      {
-        sumTableUsdMv,
-        totalUsdMv,
-        usdMatch: sumTableUsdMv === totalUsdMv,
-      },
-      {
-        sumTableKrwMv,
-        totalKrwMvWithoutDeposit,
-        krwMatch: sumTableKrwMv === totalKrwMvWithoutDeposit,
-      },
-      {
-        totalAssetKrwWon,
-        formulaTotalAssetKrw,
-        totalMatch: totalAssetKrwWon === formulaTotalAssetKrw,
-      },
-    );
-  }, [
-    cashKrw,
-    depositKrw,
-    loading,
-    tableKrwMvWon,
-    tableUsdMvCents,
-    totalAsset,
-  ]);
-
   const renderMoney = (
     currency: Currency,
     amountInt: number,
@@ -1295,7 +1210,6 @@ export default function PortfolioPage() {
       return;
     }
 
-    console.log("[quote-refresh] manual refresh clicked");
     await refreshQuotesForVisible({ staleOnly: false, force: true });
   };
 

@@ -277,17 +277,6 @@ export function usePortfolio() {
 
       applyHoldings(next);
 
-      if (process.env.NODE_ENV === "development" && next.length > 0) {
-        const first = sortHoldings(next)[0];
-        console.debug("[portfolio-load]", {
-          ticker: first.ticker,
-          displayName: first.displayName,
-          tickerCode: first.tickerCode,
-          logoUrl: first.logoUrl,
-          prevCloseInt: first.prevClose,
-          dayChangePct: first.dayChangePct,
-        });
-      }
     } catch (error) {
       console.error("portfolio_holdings load error", error);
       const fallback = await localRepository.getHoldings();
@@ -532,18 +521,6 @@ export function usePortfolio() {
           console.error("[portfolio] failed to persist some refreshed quotes", {
             failed: upsertFailedCount,
             total: changed.length,
-          });
-        }
-
-        if (process.env.NODE_ENV === "development" && nextHoldings.length > 0) {
-          const first = sortHoldings(nextHoldings)[0];
-          console.debug("[portfolio-save]", {
-            ticker: first.ticker,
-            displayName: first.displayName,
-            tickerCode: first.tickerCode,
-            logoUrl: first.logoUrl,
-            prevCloseInt: first.prevClose,
-            dayChangePct: first.dayChangePct,
           });
         }
 

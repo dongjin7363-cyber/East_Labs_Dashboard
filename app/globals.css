@@ -1639,10 +1639,6 @@ th {
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.08);
 }
 
-.muted-placeholder {
-  color: var(--muted);
-}
-
 .daily-change-pill {
   display: inline-flex;
   align-items: center;
