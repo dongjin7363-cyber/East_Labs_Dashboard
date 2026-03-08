@@ -3,7 +3,89 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_GROUPS } from "@/lib/config/navigation";
+
+interface NavLinkItem {
+  type: "link";
+  label: string;
+  href: string;
+}
+
+interface NavSubgroupItem {
+  type: "subgroup";
+  label: string;
+  items: NavLinkItem[];
+}
+
+type NavDropdownItem = NavLinkItem | NavSubgroupItem;
+
+interface NavGroup {
+  label: string;
+  items: NavDropdownItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Investment",
+    items: [
+      { type: "link", label: "Portfolio", href: "/portfolio" },
+      { type: "link", label: "Leaderboard", href: "/leaderboard" },
+      { type: "link", label: "Memo", href: "/memo" },
+    ],
+  },
+  {
+    label: "Asset Management",
+    items: [
+      { type: "link", label: "Expenditure", href: "/expenditure" },
+      { type: "link", label: "Salary", href: "/salary" },
+      { type: "link", label: "Asset Trend", href: "/asset-trend" },
+    ],
+  },
+  {
+    label: "Market",
+    items: [
+      { type: "link", label: "News", href: "/market/news" },
+      {
+        type: "subgroup",
+        label: "KR",
+        items: [
+          { type: "link", label: "Daily Market", href: "/market/kr/daily-market" },
+          {
+            type: "link",
+            label: "Sector ETF Trend",
+            href: "/market/kr/sector-etf-trend",
+          },
+          {
+            type: "link",
+            label: "Sector ETF Momentum",
+            href: "/market/kr/sector-etf-momentum",
+          },
+        ],
+      },
+      {
+        type: "subgroup",
+        label: "US",
+        items: [
+          { type: "link", label: "Daily Market", href: "/market/us/daily-market" },
+          {
+            type: "link",
+            label: "Sector ETF Trend",
+            href: "/market/us/sector-etf-trend",
+          },
+          {
+            type: "link",
+            label: "Sector ETF Momentum",
+            href: "/market/us/sector-etf-momentum",
+          },
+        ],
+      },
+      { type: "link", label: "Crypto", href: "/market/crypto" },
+    ],
+  },
+  {
+    label: "Membership",
+    items: [{ type: "link", label: "Membership", href: "/membership" }],
+  },
+];
 
 export function NavMenu() {
   const pathname = usePathname();

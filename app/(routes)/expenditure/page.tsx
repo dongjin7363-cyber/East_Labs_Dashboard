@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SectionCard } from "@/components/common/SectionCard";
 import { ExpenseCellModal } from "@/components/ExpenseCellModal";
-import { ExpenditureChartsSection } from "@/components/expenditure/ExpenditureChartsSection";
-import { ExpenditureHeaderBar } from "@/components/expenditure/ExpenditureHeaderBar";
-import { ExpenditureMonthCalendar } from "@/components/expenditure/ExpenditureMonthCalendar";
-import { ExpenditureWeekSection } from "@/components/expenditure/ExpenditureWeekSection";
-import type { MonthlyBucketBarPoint } from "@/components/MonthlyBucketBarChart";
-import type { MonthlySubcategoryPiePoint } from "@/components/MonthlySubcategoryPieChart";
+import { ExpenditureCalendar } from "@/components/expenditure/ExpenditureCalendar";
+import { ExpenditureWeekTable } from "@/components/expenditure/ExpenditureWeekTable";
+import {
+  MonthlyBucketBarChart,
+  type MonthlyBucketBarPoint,
+} from "@/components/MonthlyBucketBarChart";
+import {
+  MonthlySubcategoryPieChart,
+  type MonthlySubcategoryPiePoint,
+} from "@/components/MonthlySubcategoryPieChart";
+import { PageHeader } from "@/components/PageHeader";
 import { useExpenses } from "@/lib/hooks/useExpenses";
 import {
   ExpenseBucket,
@@ -24,13 +28,13 @@ import {
   summarizeExpenseSubcategories,
 } from "@/lib/services/expenseService";
 import {
-  formatWeekRangeCompact,
-  getDayOfWeekKST,
   getDatesInRange,
-  getMonthStartEnd,
+  getMonthRangeFromYm,
   getWeekRangeSundayStart,
-} from "@/lib/date/calendar";
-import { getCurrentMonthKST, getTodayKST } from "@/lib/date/kst";
+  todayKstYmd,
+  toYm,
+} from "@/lib/utils/date";
+import { moneyFormat } from "@/lib/utils/money";
 
 interface SelectedCell {
   date: string;
@@ -58,12 +62,42 @@ interface CalendarDayInfo {
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
+function dayOfWeekFromDateString(date: string): number {
+  const matched = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!matched) {
+    return 0;
+  }
+
+  const year = Number.parseInt(matched[1], 10);
+  const month = Number.parseInt(matched[2], 10);
+  const day = Number.parseInt(matched[3], 10);
+  const utcDate = new Date(Date.UTC(year, month - 1, day));
+
+  return utcDate.getUTCDay();
+}
+
 function weekdayLabel(dayOfWeek: number): string {
   return WEEKDAY_LABELS[dayOfWeek] ?? WEEKDAY_LABELS[0];
 }
 
+function formatWeekRangeLabel(from: string, to: string): string {
+  const [fromYear, fromMonth] = from.split("-");
+  const [toYear, toMonth, toDay] = to.split("-");
+
+  if (fromYear === toYear && fromMonth === toMonth) {
+    return `${from} ~ ${toDay}`;
+  }
+
+  if (fromYear === toYear) {
+    return `${from} ~ ${to}`;
+  }
+
+  return `${from} ~ ${to}`;
+}
+
 function defaultSelectedDateForMonth(month: string, todayKst: string): string {
-  const monthRange = getMonthStartEnd(month);
+  const monthRange = getMonthRangeFromYm(month);
 
   if (todayKst.startsWith(`${month}-`)) {
     return todayKst;
@@ -101,16 +135,16 @@ export default function ExpenditurePage() {
     update,
     remove,
   } = useExpenses();
-  const [selectedMonth, setSelectedMonth] = useState(() => getCurrentMonthKST());
-  const todayKst = useMemo(() => getTodayKST(), []);
+  const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
+  const todayKst = useMemo(() => todayKstYmd(), []);
   const [selectedDate, setSelectedDate] = useState(() =>
-    defaultSelectedDateForMonth(getCurrentMonthKST(), todayKst),
+    defaultSelectedDateForMonth(toYm(new Date()), todayKst),
   );
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
   const isAuthed = isAuthenticated;
-  const monthRange = useMemo(() => getMonthStartEnd(selectedMonth), [selectedMonth]);
+  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
   const calendarFetchRange = useMemo(() => {
     const startOfGrid = getWeekRangeSundayStart(monthRange.from).from;
     const endOfGrid = getWeekRangeSundayStart(monthRange.to).to;
@@ -178,7 +212,7 @@ export default function ExpenditurePage() {
     () =>
       selectedWeekDates.map((date) => {
         const info = calendarMap[date];
-        const dayOfWeek = info?.dow ?? getDayOfWeekKST(date);
+        const dayOfWeek = info?.dow ?? dayOfWeekFromDateString(date);
         const isHoliday = info?.isHoliday ?? false;
         const isSunday = info ? info.dow === 0 : false;
         const isSaturday = info ? info.dow === 6 : false;
@@ -371,50 +405,97 @@ export default function ExpenditurePage() {
 
   return (
     <>
-      <ExpenditureHeaderBar
-        loading={loading}
-        monthlyTotalSpendInt={monthlyTotalSpendInt}
-        selectedMonth={selectedMonth}
-        selectedDate={selectedDate}
-        selectedWeekLabel={formatWeekRangeCompact(selectedWeekRange.from, selectedWeekRange.to)}
-        onMonthChange={(value) => {
-          const nextMonth = value || getCurrentMonthKST();
-          setSelectedMonth(nextMonth);
-          setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
-        }}
+      <PageHeader
+        title="Expenditure"
+        titleMeta={
+          <span className="inline-title-metric">
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 소비(월)</span>
+            <strong>{loading ? "—" : moneyFormat("KRW", monthlyTotalSpendInt)}</strong>
+          </span>
+        }
       />
 
       {!authLoading && !isAuthed ? (
-        <SectionCard>
+        <section className="panel">
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </SectionCard>
+        </section>
       ) : null}
 
-      <ExpenditureMonthCalendar
-        month={selectedMonth}
-        selectedDate={selectedDate}
-        selectedWeekDates={selectedWeekDates}
-        today={todayKst}
-        calendarMap={calendarMap}
-        dailyBreakdowns={monthDailyBreakdowns}
-        onSelectDate={setSelectedDate}
-      />
+      <section className="panel">
+        <div className="filter-row expense-calendar-controls">
+          <label>
+            월 선택
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => {
+                const nextMonth = event.target.value || toYm(new Date());
+                setSelectedMonth(nextMonth);
+                setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
+              }}
+            />
+          </label>
+          <div className="expense-selected-meta">
+            <span className="expense-selected-meta-label">선택 날짜</span>
+            <strong>{selectedDate}</strong>
+          </div>
+          <div className="expense-selected-meta">
+            <span className="expense-selected-meta-label">선택 주</span>
+            <strong>{formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}</strong>
+          </div>
+        </div>
 
-      <ExpenditureWeekSection
-        rangeLabel={formatWeekRangeCompact(selectedWeekRange.from, selectedWeekRange.to)}
-        rows={weekRows}
-        loading={loading}
-        isAuthed={isAuthed}
-        weeklyTotals={weeklyTotals}
-        monthlyTotals={monthlySplitTotals}
-        onSelectCell={(cell) => setSelectedCell(cell)}
-      />
+        <ExpenditureCalendar
+          month={selectedMonth}
+          selectedDate={selectedDate}
+          selectedWeekDates={selectedWeekDates}
+          today={todayKst}
+          calendarMap={calendarMap}
+          dailyBreakdowns={monthDailyBreakdowns}
+          onSelectDate={setSelectedDate}
+        />
+      </section>
 
-      <ExpenditureChartsSection
-        monthlyBucketChartData={monthlyBucketChartData}
-        monthlySubcategoryPieData={monthlySubcategoryPieData}
-        monthlyTotalSpendInt={monthlyTotalSpendInt}
-      />
+      <section className="panel">
+        <div className="panel-header-inline">
+          <h3>주간 입력</h3>
+          <span className="expense-week-range-label">
+            {formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
+          </span>
+        </div>
+        <ExpenditureWeekTable
+          rows={weekRows}
+          loading={loading}
+          isAuthed={isAuthed}
+          weeklyTotals={weeklyTotals}
+          monthlyTotals={monthlySplitTotals}
+          onSelectCell={(cell) => setSelectedCell(cell)}
+        />
+      </section>
+
+      <section className="panel">
+        <div className="expense-chart-grid">
+          <article className="expense-chart-card">
+            <div className="expense-chart-header">
+              <h3 className="expense-chart-title">월 카테고리 합계</h3>
+            </div>
+            <MonthlyBucketBarChart data={monthlyBucketChartData} />
+          </article>
+          <article className="expense-chart-card">
+            <div className="expense-chart-header">
+              <h3 className="expense-chart-title">월 세부항목 비중</h3>
+              <div className="expense-chart-total-spend">
+                <span className="expense-total-spend-label">총 소비</span>
+                <strong className="expense-total-spend-value">
+                  {moneyFormat("KRW", monthlyTotalSpendInt)}
+                </strong>
+              </div>
+            </div>
+            <MonthlySubcategoryPieChart data={monthlySubcategoryPieData} />
+          </article>
+        </div>
+      </section>
 
       <ExpenseCellModal
         open={Boolean(selectedCell)}

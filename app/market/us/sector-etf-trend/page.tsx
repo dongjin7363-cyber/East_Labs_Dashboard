@@ -1,6 +1,11 @@
 import { MarketSnapshotViewer } from "@/components/market/MarketSnapshotViewer";
-import { MARKET_SNAPSHOT_PAGES } from "@/lib/market/marketPages";
 
 export default function MarketUsSectorTrendPage() {
-  return <MarketSnapshotViewer {...MARKET_SNAPSHOT_PAGES.usSectorEtfTrend} />;
+  return (
+    <MarketSnapshotViewer
+      title="US Sector ETF Trend"
+      marketRegion="us"
+      pageSlug="sector-etf-trend"
+    />
+  );
 }

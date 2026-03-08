@@ -1,6 +1,5 @@
 "use client";
 
-import { EmptyChartState } from "@/components/common/EmptyChartState";
 import {
   Bar,
   BarChart,
@@ -24,7 +23,7 @@ const NEGATIVE_BAR = "#d94848";
 
 export function DailyNetChart({ data }: DailyNetChartProps) {
   if (data.length === 0) {
-    return <EmptyChartState />;
+    return <div className="empty-state">차트 데이터가 없습니다.</div>;
   }
 
   return (

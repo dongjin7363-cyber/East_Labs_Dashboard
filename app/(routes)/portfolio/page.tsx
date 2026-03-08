@@ -8,19 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
+import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
-import { SectionCard } from "@/components/common/SectionCard";
-import { PortfolioAllocationSection } from "@/components/portfolio/PortfolioAllocationSection";
-import { PortfolioCashInputs } from "@/components/portfolio/PortfolioCashInputs";
+import { PageHeader } from "@/components/PageHeader";
+import { PortfolioAllocationDonut } from "@/components/portfolio/PortfolioAllocationDonut";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
-import {
-  PortfolioHeaderBar,
-} from "@/components/portfolio/PortfolioHeaderBar";
-import {
-  PortfolioHoldingsSection,
-  PortfolioSortKey,
-  PortfolioTableRow,
-} from "@/components/portfolio/PortfolioHoldingsSection";
+import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
 import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
@@ -34,6 +27,7 @@ import {
 import {
   moneyFormatParts,
   parsePriceInputToInt,
+  percentFormat,
   usdCentsToUsdFloat,
   usdToKrw,
 } from "@/lib/utils/money";
@@ -101,6 +95,24 @@ type QuoteFetchResult =
       status?: number;
       message?: string;
     };
+
+type PortfolioSortKey =
+  | "ticker"
+  | "dailyChangeRate"
+  | "avgPrice"
+  | "currentPrice"
+  | "qty"
+  | "marketValue"
+  | "pnl"
+  | "pnlRate"
+  | "comment";
+
+interface PortfolioTableRow {
+  holding: PortfolioHolding;
+  computed: ReturnType<typeof calcHoldingComputed>;
+  dailyChangeRate: number | null;
+  defaultIndex: number;
+}
 
 const US_DISPLAY_NAME_FALLBACK: Record<string, string> = {
   RKLB: "Rocket Lab",
@@ -175,6 +187,18 @@ function formatKstDate(isoLike?: string | null): string {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+}
+
+function formatDailyChangeLabel(rate: number): string {
+  if (rate > 0) {
+    return `↑ ${percentFormat(rate)}`;
+  }
+
+  if (rate < 0) {
+    return `↓ ${percentFormat(rate)}`;
+  }
+
+  return percentFormat(rate);
 }
 
 function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
@@ -772,6 +796,32 @@ export default function PortfolioPage() {
               if (result.ok) {
                 updates.push(result.update);
 
+                if (process.env.NODE_ENV === "development") {
+                  const prevCloseInt =
+                    typeof result.update.prevClose === "number" &&
+                    Number.isFinite(result.update.prevClose)
+                      ? result.update.prevClose
+                      : null;
+                  const dayChangePct =
+                    typeof result.update.dayChangePct === "number" &&
+                    Number.isFinite(result.update.dayChangePct)
+                      ? result.update.dayChangePct
+                      : null;
+
+                  console.debug("[quote-refresh]", {
+                    ticker: targetHolding.ticker,
+                    current_price_int: result.update.currentPrice,
+                    prev_close_int: prevCloseInt,
+                    day_change_pct: dayChangePct,
+                  });
+
+                  if (prevCloseInt === null && dayChangePct === null) {
+                    console.debug("[quote-refresh raw payload]", {
+                      ticker: targetHolding.ticker,
+                      payload: result.debugRaw ?? null,
+                    });
+                  }
+                }
               } else {
                 failedItems.push({ ticker: result.ticker, reason: result.reason });
 
@@ -1055,6 +1105,65 @@ export default function PortfolioPage() {
   const totalPnlPct =
     accountBaseKrw > 0 ? (accountPnlKrw / accountBaseKrw) * 100 : null;
 
+  const tableUsdMvCents = useMemo(
+    () =>
+      tableRows.reduce(
+        (sum, row) =>
+          row.holding.market === "US" ? sum + row.computed.marketValue : sum,
+        0,
+      ),
+    [tableRows],
+  );
+  const tableKrwMvWon = useMemo(
+    () =>
+      tableRows.reduce(
+        (sum, row) =>
+          row.holding.market === "KR" ? sum + row.computed.marketValue : sum,
+        0,
+      ),
+    [tableRows],
+  );
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || loading) {
+      return;
+    }
+
+    const sumTableUsdMv = tableUsdMvCents / 100;
+    const totalUsdMv = totalAsset.usdHoldingsMarketValueCents / 100;
+    const sumTableKrwMv = tableKrwMvWon;
+    const totalKrwMvWithoutDeposit = totalAsset.totalKrwEval - Math.max(depositKrw, 0);
+    const totalAssetKrwWon = totalAsset.totalAssetKrw;
+    const formulaTotalAssetKrw =
+      totalAsset.totalKrwEval + totalAsset.usdTotalKrw + Math.max(cashKrw, 0);
+
+    console.log(
+      "[portfolio-debug]",
+      {
+        sumTableUsdMv,
+        totalUsdMv,
+        usdMatch: sumTableUsdMv === totalUsdMv,
+      },
+      {
+        sumTableKrwMv,
+        totalKrwMvWithoutDeposit,
+        krwMatch: sumTableKrwMv === totalKrwMvWithoutDeposit,
+      },
+      {
+        totalAssetKrwWon,
+        formulaTotalAssetKrw,
+        totalMatch: totalAssetKrwWon === formulaTotalAssetKrw,
+      },
+    );
+  }, [
+    cashKrw,
+    depositKrw,
+    loading,
+    tableKrwMvWon,
+    tableUsdMvCents,
+    totalAsset,
+  ]);
+
   const renderMoney = (
     currency: Currency,
     amountInt: number,
@@ -1210,6 +1319,7 @@ export default function PortfolioPage() {
       return;
     }
 
+    console.log("[quote-refresh] manual refresh clicked");
     await refreshQuotesForVisible({ staleOnly: false, force: true });
   };
 
@@ -1383,40 +1493,146 @@ export default function PortfolioPage() {
     void refreshQuotesForVisible({ staleOnly: false, force: true });
   };
 
+  const sortIndicator = (key: PortfolioSortKey): string => {
+    if (sortState.key !== key || !sortState.mode) {
+      return "↑↓";
+    }
+
+    return sortState.mode === "DESC" ? "▼" : "▲";
+  };
+
+  const sortIndicatorClassName = (key: PortfolioSortKey): string =>
+    `sort-indicator${sortState.key === key && sortState.mode ? " is-active" : " is-hint"}`;
+  const sortButtonClassName = (key: PortfolioSortKey): string =>
+    `table-sort-button${sortState.key === key && sortState.mode ? " is-active" : ""}`;
+
   return (
     <>
-      <PortfolioHeaderBar
-        totalAssetKrw={totalAssetKrw}
-        totalPnlPct={totalPnlPct}
-        accountPnlKrw={accountPnlKrw}
-        renderMoney={renderMoney}
-        isAuthed={isAuthed}
-        isRefreshingQuotes={isRefreshingQuotes}
-        onRefreshQuotes={handleManualQuoteRefresh}
-        onCreate={handleCreate}
+      <PageHeader
+        title="Portfolio"
+        titleMeta={
+          <span className="inline-title-metric">
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 자산(KRW)</span>
+            {renderMoney("KRW", totalAssetKrw)}
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 PNL %</span>
+            <strong
+              style={{
+                color:
+                  totalPnlPct === null
+                    ? "var(--muted)"
+                    : totalPnlPct >= 0
+                      ? "var(--positive)"
+                      : "var(--negative)",
+              }}
+            >
+              {totalPnlPct === null ? "—" : percentFormat(totalPnlPct)}
+            </strong>
+            <span className="inline-title-divider">|</span>
+            <span className="inline-title-metric-label">총 계좌 손익(KRW)</span>
+            <span
+              style={{
+                color:
+                  accountPnlKrw >= 0 ? "var(--positive)" : "var(--negative)",
+              }}
+            >
+              {renderMoney("KRW", accountPnlKrw)}
+            </span>
+          </span>
+        }
+        actions={
+          <>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                void handleManualQuoteRefresh();
+              }}
+              disabled={!isAuthed || isRefreshingQuotes}
+            >
+              {isRefreshingQuotes ? "현재가 갱신 중..." : "현재가 갱신"}
+            </button>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleCreate}
+              disabled={!isAuthed}
+            >
+              추가
+            </button>
+          </>
+        }
       />
 
       {!authLoading && !isAuthed ? (
-        <SectionCard>
+        <section className="panel">
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </SectionCard>
+        </section>
       ) : null}
 
-      <PortfolioCashInputs
-        depositKrwInput={depositKrwInput}
-        depositUsdInput={depositUsdInput}
-        cashInput={cashInput}
-        onDepositKrwChange={handleDepositKrwInputChange}
-        onDepositUsdChange={handleDepositUsdInputChange}
-        onCashChange={handleCashInputChange}
-        isAuthed={isAuthed}
-        fxSummaryText={fxSummaryText}
-        quoteWarningLine={quoteWarningLine}
-        unmatchedKrDisplayTickers={unmatchedKrDisplayTickers}
-        onOpenManualKrCodeModal={openManualKrCodeModal}
-      />
+      <section className="panel cash-panel">
+        <div className="filter-row cash-row">
+          <label>
+            예수금 (KRW)
+            <FormattedNumberInput
+              className="cash-input"
+              placeholder="예: 1,000,000"
+              value={depositKrwInput}
+              onValueChange={handleDepositKrwInputChange}
+              disabled={!isAuthed}
+            />
+          </label>
+          <label>
+            예수금 (USD)
+            <FormattedNumberInput
+              className="cash-input"
+              placeholder="예: 1,250.75"
+              value={depositUsdInput}
+              onValueChange={handleDepositUsdInputChange}
+              allowDecimal
+              maxDecimals={2}
+              disabled={!isAuthed}
+            />
+          </label>
+          <label>
+            현금 (KRW)
+            <FormattedNumberInput
+              className="cash-input"
+              placeholder="예: 500,000"
+              value={cashInput}
+              onValueChange={handleCashInputChange}
+              disabled={!isAuthed}
+            />
+          </label>
+          <div className="fx-meta">
+            <div className="fx-meta-line">
+              <strong>{fxSummaryText}</strong>
+            </div>
+            {quoteWarningLine ? (
+              <div className="quote-warning">
+                <span>{quoteWarningLine}</span>
+                {unmatchedKrDisplayTickers.length > 0 ? (
+                  <span className="quote-warning-links">
+                    {unmatchedKrDisplayTickers.map((ticker) => (
+                      <button
+                        key={ticker}
+                        type="button"
+                        className="quote-unmatched-link"
+                        onClick={() => openManualKrCodeModal(ticker)}
+                      >
+                        {ticker}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
 
-      <PortfolioAllocationSection
+      <PortfolioAllocationDonut
         holdings={holdings}
         fxRate={fxRate}
         krNavKrw={totalAsset.krHoldingsMarketValueKrw}
@@ -1429,23 +1645,297 @@ export default function PortfolioPage() {
         cashKrw={cashKrw}
       />
 
-      <PortfolioHoldingsSection
-        market={market}
-        search={search}
-        onMarketChange={setMarket}
-        onSearchChange={setSearch}
-        sortState={sortState}
-        onSortClick={handleSortClick}
-        loading={loading}
-        rows={sortedTableRows}
-        onEdit={handleEdit}
-        renderMoney={renderMoney}
-        resolveHoldingDisplayName={resolveHoldingDisplayName}
-        commentDrafts={commentDrafts}
-        onCommentDraftChange={handleCommentDraftChange}
-        onCommitComment={commitComment}
-        isAuthed={isAuthed}
-      />
+      <section className="panel">
+        <div className="filter-row">
+          <label>
+            Market
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                type="button"
+                className={market === "ALL" ? "primary-button" : "secondary-button"}
+                onClick={() => setMarket("ALL")}
+              >
+                ALL
+              </button>
+              <button
+                type="button"
+                className={market === "KR" ? "primary-button" : "secondary-button"}
+                onClick={() => setMarket("KR")}
+              >
+                KR
+              </button>
+              <button
+                type="button"
+                className={market === "US" ? "primary-button" : "secondary-button"}
+                onClick={() => setMarket("US")}
+              >
+                US
+              </button>
+            </div>
+          </label>
+
+          <label>
+            검색
+            <input
+              placeholder="Ticker"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+        </div>
+
+        <div className="table-wrap portfolio-table-wrap">
+          <table className="portfolio-holdings-table">
+            <colgroup>
+              <col className="portfolio-col-holding" />
+              <col className="portfolio-col-change" />
+              <col className="portfolio-col-price" />
+              <col className="portfolio-col-price" />
+              <col className="portfolio-col-qty" />
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-rate" />
+              <col className="portfolio-col-comment" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("ticker")}
+                    onClick={() => handleSortClick("ticker")}
+                  >
+                    종목
+                    <span className={sortIndicatorClassName("ticker")}>
+                      {sortIndicator("ticker")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("dailyChangeRate")}
+                    onClick={() => handleSortClick("dailyChangeRate")}
+                  >
+                    1일 등락률
+                    <span className={sortIndicatorClassName("dailyChangeRate")}>
+                      {sortIndicator("dailyChangeRate")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("avgPrice")}
+                    onClick={() => handleSortClick("avgPrice")}
+                  >
+                    Avg Price
+                    <span className={sortIndicatorClassName("avgPrice")}>
+                      {sortIndicator("avgPrice")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("currentPrice")}
+                    onClick={() => handleSortClick("currentPrice")}
+                  >
+                    Current Price
+                    <span className={sortIndicatorClassName("currentPrice")}>
+                      {sortIndicator("currentPrice")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("qty")}
+                    onClick={() => handleSortClick("qty")}
+                  >
+                    Qty
+                    <span className={sortIndicatorClassName("qty")}>
+                      {sortIndicator("qty")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("marketValue")}
+                    onClick={() => handleSortClick("marketValue")}
+                  >
+                    Market Value
+                    <span className={sortIndicatorClassName("marketValue")}>
+                      {sortIndicator("marketValue")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("pnl")}
+                    onClick={() => handleSortClick("pnl")}
+                  >
+                    PnL
+                    <span className={sortIndicatorClassName("pnl")}>
+                      {sortIndicator("pnl")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("pnlRate")}
+                    onClick={() => handleSortClick("pnlRate")}
+                  >
+                    PnL%
+                    <span className={sortIndicatorClassName("pnlRate")}>
+                      {sortIndicator("pnlRate")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("comment")}
+                    onClick={() => handleSortClick("comment")}
+                  >
+                    Comment
+                    <span className={sortIndicatorClassName("comment")}>
+                      {sortIndicator("comment")}
+                    </span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9}>로딩 중...</td>
+                </tr>
+              ) : sortedTableRows.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="empty-state">
+                    데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                sortedTableRows.map((row) => {
+                  const { holding, computed } = row;
+                  const displayName = resolveHoldingDisplayName(holding);
+                  const tickerMeta =
+                    holding.market === "US"
+                      ? holding.ticker.trim().toUpperCase()
+                      : holding.tickerCode?.trim()
+                        ? holding.tickerCode.trim().toUpperCase()
+                        : holding.krCode?.trim()
+                          ? holding.krCode.trim().toUpperCase()
+                        : /^\d{4,12}$/.test(holding.ticker.trim())
+                          ? holding.ticker.trim()
+                          : "-";
+
+                  return (
+                    <tr
+                      key={holding.id}
+                      className="clickable-row"
+                      onClick={() => handleEdit(holding)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          handleEdit(holding);
+                        }
+                      }}
+                      tabIndex={0}
+                    >
+                      <td>
+                        <div className="holding-info-cell">
+                          <HoldingAvatar
+                            market={holding.market}
+                            ticker={holding.ticker}
+                            logoUrl={holding.logoUrl}
+                            label={displayName}
+                          />
+                          <div className="holding-info-text">
+                            <strong className="holding-display-name">
+                              {displayName}
+                            </strong>
+                            <span className="holding-ticker-meta">
+                              {tickerMeta}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        {row.dailyChangeRate === null ? (
+                          <span className="daily-change-pill is-muted">—</span>
+                        ) : (
+                          <span
+                            className={`daily-change-pill ${
+                              row.dailyChangeRate > 0
+                                ? "is-positive"
+                                : row.dailyChangeRate < 0
+                                  ? "is-negative"
+                                  : "is-neutral"
+                            }`}
+                          >
+                            {formatDailyChangeLabel(row.dailyChangeRate)}
+                          </span>
+                        )}
+                      </td>
+                      <td>{renderMoney(holding.currency, holding.avgPrice, "table")}</td>
+                      <td>{renderMoney(holding.currency, holding.currentPrice, "table")}</td>
+                      <td>{holding.qty}</td>
+                      <td>{renderMoney(holding.currency, computed.marketValue, "table")}</td>
+                      <td
+                        style={{
+                          color: computed.pnl >= 0 ? "var(--positive)" : "var(--negative)",
+                        }}
+                      >
+                        {renderMoney(holding.currency, computed.pnl, "table")}
+                      </td>
+                      <td
+                        style={{
+                          color:
+                            computed.pnlRate >= 0
+                              ? "var(--positive)"
+                              : "var(--negative)",
+                        }}
+                      >
+                        {percentFormat(computed.pnlRate)}
+                      </td>
+                      <td
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <input
+                          className="portfolio-comment-input"
+                          value={commentDrafts[holding.id] ?? holding.comment ?? ""}
+                          placeholder="메모"
+                          onChange={(event) =>
+                            handleCommentDraftChange(holding.id, event.target.value)
+                          }
+                          onBlur={() => commitComment(holding)}
+                          onKeyDown={(event) => {
+                            event.stopPropagation();
+
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              commitComment(holding);
+                              event.currentTarget.blur();
+                            }
+                          }}
+                          disabled={!isAuthed}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <Modal
         open={Boolean(manualKrTicker)}

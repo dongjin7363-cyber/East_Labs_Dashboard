@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CalendarHeaderBar } from "@/components/common/CalendarHeaderBar";
-import { ChartSectionCard } from "@/components/common/ChartSectionCard";
-import { EmptyChartState } from "@/components/common/EmptyChartState";
+import { PageHeader } from "@/components/PageHeader";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
@@ -20,8 +18,7 @@ import {
   readPortfolioCashSettings,
   readStoredFxRate,
 } from "@/lib/services/totalAssetService";
-import { getMonthStartEnd } from "@/lib/date/calendar";
-import { getCurrentKstHour, getCurrentMonthKST, getTodayKST } from "@/lib/date/kst";
+import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm } from "@/lib/utils/date";
 import { moneyFormat } from "@/lib/utils/money";
 
 interface QuoteApiResponse {
@@ -89,13 +86,13 @@ export function TotalAssetClient() {
   const loading = portfolioLoading || snapshotLoading || authLoading;
 
   useEffect(() => {
-    const initialMonth = getCurrentMonthKST();
-    const initialToday = getTodayKST();
+    const initialMonth = toYm(new Date());
+    const initialToday = todayKstYmd();
 
     setSelectedMonth(initialMonth);
     setSelectedDate(initialToday);
     setTodayKst(initialToday);
-    setNowKstHour(getCurrentKstHour());
+    setNowKstHour(currentKstHour());
     setFxRate(readStoredFxRate());
     setMounted(true);
   }, []);
@@ -105,7 +102,7 @@ export function TotalAssetClient() {
       return;
     }
 
-    const range = getMonthStartEnd(selectedMonth);
+    const range = getMonthRangeFromYm(selectedMonth);
 
     if (selectedDate < range.from || selectedDate > range.to) {
       setSelectedDate(range.from);
@@ -130,7 +127,7 @@ export function TotalAssetClient() {
 
     setCalendarMap({});
 
-    const monthRange = getMonthStartEnd(selectedMonth);
+    const monthRange = getMonthRangeFromYm(selectedMonth);
 
     const loadCalendarDays = async () => {
       try {
@@ -189,7 +186,7 @@ export function TotalAssetClient() {
     setMemoInput(selectedSnapshot?.memo ?? "");
   }, [selectedSnapshot?.id, selectedSnapshot?.memo]);
 
-  const monthRange = useMemo(() => getMonthStartEnd(selectedMonth), [selectedMonth]);
+  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
 
   const monthSnapshots = useMemo(
     () =>
@@ -434,20 +431,8 @@ export function TotalAssetClient() {
 
   return (
     <>
-      <CalendarHeaderBar
+      <PageHeader
         title="Asset Trend"
-        monthValue={selectedMonth}
-        onMonthChange={(value) =>
-          setSelectedMonth(value || (mounted ? getCurrentMonthKST() : SSR_SAFE_MONTH))
-        }
-        dateValue={selectedDate}
-        onDateChange={(value) => setSelectedDate(value || SSR_SAFE_DATE)}
-        rightExtra={
-          <div className="fx-meta">
-            최근 환율(USD→KRW): <strong>{fxRate.toLocaleString("ko-KR")}</strong>
-            {fxAsOf ? ` (${fxAsOf})` : ""}
-          </div>
-        }
         actions={
           <button
             type="button"
@@ -486,6 +471,33 @@ export function TotalAssetClient() {
       ) : null}
 
       <section className="panel">
+        <div className="filter-row">
+          <label>
+            월 선택
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(event) =>
+                setSelectedMonth(event.target.value || (mounted ? toYm(new Date()) : SSR_SAFE_MONTH))
+              }
+            />
+          </label>
+
+          <label>
+            선택 날짜
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(event) => setSelectedDate(event.target.value || SSR_SAFE_DATE)}
+            />
+          </label>
+
+          <div className="fx-meta" style={{ marginLeft: "auto" }}>
+            최근 환율(USD→KRW): <strong>{fxRate.toLocaleString("ko-KR")}</strong>
+            {fxAsOf ? ` (${fxAsOf})` : ""}
+          </div>
+        </div>
+
         <div className="ta-layout">
           <TotalAssetCalendar
             month={selectedMonth}
@@ -561,16 +573,17 @@ export function TotalAssetClient() {
         </div>
       </section>
 
-      <ChartSectionCard
-        title={`일별 총자산 추이 (${selectedMonth})`}
-        rightSlot={<div className="panel-submetric">스냅샷 없는 날짜는 공백으로 표시됩니다.</div>}
-      >
+      <section className="panel">
+        <div className="panel-header-inline">
+          <h3>일별 총자산 추이 ({selectedMonth})</h3>
+          <div className="panel-submetric">스냅샷 없는 날짜는 공백으로 표시됩니다.</div>
+        </div>
         {mounted ? (
           <TotalAssetTrendChart data={trendData} calendarMap={calendarMap} />
         ) : (
-          <EmptyChartState title="차트 데이터 로딩 중..." />
+          <div className="empty-state">차트 데이터 로딩 중...</div>
         )}
-      </ChartSectionCard>
+      </section>
     </>
   );
 }

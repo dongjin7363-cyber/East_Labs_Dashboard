@@ -6,15 +6,21 @@ import {
   getWeekRangeSundayStart as getCalendarWeekRangeSundayStart,
   isDateInRange as isCalendarDateInRange,
   resolveDateRange as resolveCalendarDateRange,
-  toYm,
-  toYmd,
+  toYm as toCalendarYm,
+  toYmd as toCalendarYmd,
 } from "@/lib/date/calendar";
 import {
   getCurrentKstHour,
   getTodayKST,
 } from "@/lib/date/kst";
 
-export { toYmd, toYm } from "@/lib/date/calendar";
+export function toYmd(date: Date): string {
+  return toCalendarYmd(date);
+}
+
+export function toYm(date: Date): string {
+  return toCalendarYm(date);
+}
 
 export function todayYmd(): string {
   return toYmd(new Date());

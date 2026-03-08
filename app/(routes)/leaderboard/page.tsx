@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { SectionCard } from "@/components/common/SectionCard";
-import { LeaderboardChartsSection } from "@/components/leaderboard/LeaderboardChartsSection";
-import { LeaderboardHeaderBar } from "@/components/leaderboard/LeaderboardHeaderBar";
-import {
-  LeaderboardSortKey,
-  LeaderboardTradesTable,
-} from "@/components/leaderboard/LeaderboardTradesTable";
+import { DailyNetChart } from "@/components/DailyNetChart";
 import { Modal } from "@/components/Modal";
+import { MonthlyNetChart } from "@/components/MonthlyNetChart";
+import { PageHeader } from "@/components/PageHeader";
 import { RealizedTradeModal } from "@/components/RealizedTradeModal";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
 import { Market, RealizedTrade } from "@/lib/models/types";
@@ -27,6 +23,17 @@ import { SortState, sortRows, toggleSort } from "@/lib/utils/sort";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const DEFAULT_FX_RATE = 1350;
+
+type LeaderboardSortKey =
+  | "date"
+  | "market"
+  | "ticker"
+  | "qty"
+  | "buyPriceInt"
+  | "sellPriceInt"
+  | "returnPct"
+  | "pnlInt"
+  | "rating";
 
 interface FxApiResponse {
   rate: number;
@@ -276,6 +283,15 @@ export default function LeaderboardPage() {
     [filtered, fxRate],
   );
 
+  const sumDailyBars = useMemo(
+    () =>
+      dailyNet.reduce(
+        (sum, point) => sum + (typeof point.netPnlInt === "number" ? point.netPnlInt : 0),
+        0,
+      ),
+    [dailyNet],
+  );
+
   const monthlyNet = useMemo(
     () =>
       buildMonthlyNetSeriesByYear(filteredForYearlyMonthly, selectedYear, {
@@ -289,6 +305,17 @@ export default function LeaderboardPage() {
     () => monthlyNet.reduce((sum, point) => sum + point.netPnlInt, 0),
     [monthlyNet],
   );
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+
+    const diff = monthlyTotal - sumDailyBars;
+    console.log("monthlyTotal", monthlyTotal);
+    console.log("sumDailyBars", sumDailyBars);
+    console.log("diff", diff);
+  }, [monthlyTotal, sumDailyBars]);
 
   const openCreate = () => {
     if (!isAuthed) {
@@ -324,44 +351,272 @@ export default function LeaderboardPage() {
     setSortState((prev) => toggleSort(prev, key));
   };
 
+  const sortIndicator = (key: LeaderboardSortKey): string => {
+    if (sortState.key !== key || !sortState.mode) {
+      return "";
+    }
+
+    return sortState.mode === "DESC" ? "▼" : "▲";
+  };
+
   return (
     <>
-      <LeaderboardHeaderBar
-        selectedMonth={selectedMonth}
-        market={market}
-        search={search}
-        onMonthChange={(value) => setSelectedMonth(value || toYm(new Date()))}
-        onMarketChange={setMarket}
-        onSearchChange={setSearch}
-        totalCount={summary.totalCount}
-        winCount={summary.winCount}
-        winRate={summary.winRate}
-        monthlyTotal={monthlyTotal}
-        isAuthed={isAuthed}
-        onCreate={openCreate}
+      <PageHeader
+        title="Leaderboard"
+        actions={
+          <button
+            type="button"
+            className="primary-button"
+            onClick={openCreate}
+            disabled={!isAuthed}
+          >
+            거래 추가
+          </button>
+        }
       />
 
       {!authLoading && !isAuthed ? (
-        <SectionCard>
+        <section className="panel">
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </SectionCard>
+        </section>
       ) : null}
 
-      <LeaderboardTradesTable
-        loading={loading}
-        trades={sortedFiltered}
-        sortState={sortState}
-        onSortClick={handleSortClick}
-        onSelectTrade={setSelected}
-      />
+      <section className="panel">
+        <div className="leaderboard-toolbar">
+          <div className="filter-row leaderboard-toolbar-controls">
+            <label className="leaderboard-control">
+              월 선택
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={(event) =>
+                  setSelectedMonth(event.target.value || toYm(new Date()))
+                }
+              />
+            </label>
 
-      <LeaderboardChartsSection
-        dailyNet={dailyNet}
-        monthlyTotal={monthlyTotal}
-        monthlyNet={monthlyNet}
-        selectedYear={selectedYear}
-        yearlyCumulative={yearlyCumulative}
-      />
+            <label className="leaderboard-control leaderboard-control-market">
+              Market
+              <select
+                value={market}
+                onChange={(event) => setMarket(event.target.value as "ALL" | Market)}
+                className="leaderboard-market-select"
+              >
+                <option value="ALL">ALL</option>
+                <option value="KR">KR</option>
+                <option value="US">US</option>
+              </select>
+            </label>
+
+            <label className="leaderboard-control leaderboard-control-search">
+              Search
+              <input
+                placeholder="ticker / content"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="leaderboard-toolbar-summary">
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">총 거래 수</span>
+              <strong className="leaderboard-summary-value">{summary.totalCount}건</strong>
+            </div>
+
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">수익 거래</span>
+              <strong className="leaderboard-summary-value">
+                {summary.winCount}건 ({percentFormat(summary.winRate)})
+              </strong>
+            </div>
+
+            <div className="leaderboard-summary-block">
+              <span className="leaderboard-summary-label">순수익</span>
+              <strong
+                className={`leaderboard-summary-value ${
+                  monthlyTotal > 0
+                    ? "is-positive"
+                    : monthlyTotal < 0
+                      ? "is-negative"
+                      : ""
+                }`}
+              >
+                {moneyFormat("KRW", monthlyTotal)}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("date")}
+                  >
+                    Date
+                    <span className="sort-indicator">{sortIndicator("date")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("market")}
+                  >
+                    Market
+                    <span className="sort-indicator">{sortIndicator("market")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("ticker")}
+                  >
+                    Ticker
+                    <span className="sort-indicator">{sortIndicator("ticker")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("qty")}
+                  >
+                    Qty
+                    <span className="sort-indicator">{sortIndicator("qty")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("buyPriceInt")}
+                  >
+                    BuyPrice
+                    <span className="sort-indicator">{sortIndicator("buyPriceInt")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("sellPriceInt")}
+                  >
+                    SellPrice
+                    <span className="sort-indicator">{sortIndicator("sellPriceInt")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("returnPct")}
+                  >
+                    Return%
+                    <span className="sort-indicator">{sortIndicator("returnPct")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("pnlInt")}
+                  >
+                    PnL
+                    <span className="sort-indicator">{sortIndicator("pnlInt")}</span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className="table-sort-button"
+                    onClick={() => handleSortClick("rating")}
+                  >
+                    Rating
+                    <span className="sort-indicator">{sortIndicator("rating")}</span>
+                  </button>
+                </th>
+                <th>Content</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={10}>로딩 중...</td>
+                </tr>
+              ) : sortedFiltered.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="empty-state">
+                    데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                sortedFiltered.map((trade) => {
+                  const currency = resolveTradeCurrency(trade.market);
+
+                  return (
+                    <tr
+                      key={trade.id}
+                      className="clickable-row"
+                      onClick={() => setSelected(trade)}
+                    >
+                      <td>{trade.date}</td>
+                      <td>{trade.market}</td>
+                      <td>{trade.ticker}</td>
+                      <td>{trade.qty}</td>
+                      <td>{moneyFormat(currency, trade.buyPriceInt)}</td>
+                      <td>{moneyFormat(currency, trade.sellPriceInt)}</td>
+                      <td
+                        style={{
+                          color:
+                            trade.returnPct >= 0 ? "var(--positive)" : "var(--negative)",
+                        }}
+                      >
+                        {percentFormat(trade.returnPct)}
+                      </td>
+                      <td
+                        style={{
+                          color: trade.pnlInt >= 0 ? "var(--positive)" : "var(--negative)",
+                        }}
+                      >
+                        {moneyFormat(currency, trade.pnlInt)}
+                      </td>
+                      <td>{trade.rating || "-"}</td>
+                      <td>{trade.content || "-"}</td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header-inline">
+          <h3>일별 순수익</h3>
+          <div className="panel-submetric">
+            월 누적 순수익(KRW 환산): {moneyFormat("KRW", monthlyTotal)}
+          </div>
+        </div>
+        <DailyNetChart data={dailyNet} />
+      </section>
+
+      <section className="panel">
+        <div className="panel-header-inline">
+          <h3>월별 순수익 ({selectedYear})</h3>
+          <div className="panel-submetric">
+            연 누적 순수익: {moneyFormat("KRW", yearlyCumulative)}
+          </div>
+        </div>
+        <MonthlyNetChart data={monthlyNet} />
+      </section>
 
       <RealizedTradeModal
         open={isFormOpen}

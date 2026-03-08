@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { TotalAssetSnapshot } from "@/lib/models/types";
-import { getDayOfWeekKST, getMonthDays, getMonthStartEnd } from "@/lib/date/calendar";
+import { getDatesInMonthFromYm, getMonthRangeFromYm } from "@/lib/utils/date";
 import { moneyFormat } from "@/lib/utils/money";
 
 interface CalendarDayInfo {
@@ -39,8 +39,8 @@ export function TotalAssetCalendar({
   calendarMap,
   onSelectDate,
 }: TotalAssetCalendarProps) {
-  const monthRange = useMemo(() => getMonthStartEnd(month), [month]);
-  const dates = useMemo(() => getMonthDays(month), [month]);
+  const monthRange = useMemo(() => getMonthRangeFromYm(month), [month]);
+  const dates = useMemo(() => getDatesInMonthFromYm(month), [month]);
 
   const monthLabel = useMemo(() => {
     const [year, monthNum] = monthRange.from.split("-");
@@ -55,7 +55,18 @@ export function TotalAssetCalendar({
       return firstDayInfo.dow;
     }
 
-    return getDayOfWeekKST(monthRange.from);
+    const matched = monthRange.from.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!matched) {
+      return 0;
+    }
+
+    const year = Number.parseInt(matched[1], 10);
+    const monthNum = Number.parseInt(matched[2], 10);
+    const day = Number.parseInt(matched[3], 10);
+    const utcDate = new Date(Date.UTC(year, monthNum - 1, day));
+
+    return utcDate.getUTCDay();
   }, [calendarMap, monthRange.from]);
 
   const snapshotByDate = useMemo(
