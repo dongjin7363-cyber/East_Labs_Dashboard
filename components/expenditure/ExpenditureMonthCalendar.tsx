@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionCard } from "@/components/common/SectionCard";
 import { ExpenditureCalendar } from "@/components/expenditure/ExpenditureCalendar";
 import { ComponentProps } from "react";
 
@@ -19,7 +20,7 @@ export function ExpenditureMonthCalendar({
   ...calendarProps
 }: ExpenditureMonthCalendarProps) {
   return (
-    <section className="panel">
+    <SectionCard>
       <div className="filter-row expense-calendar-controls">
         <label>
           월 선택
@@ -44,7 +45,7 @@ export function ExpenditureMonthCalendar({
         month={selectedMonth}
         selectedDate={selectedDate}
       />
-    </section>
+    </SectionCard>
   );
 }
 

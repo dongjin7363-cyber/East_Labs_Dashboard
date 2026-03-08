@@ -480,6 +480,28 @@ textarea {
   margin-top: 12px;
 }
 
+.inline-filter-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.inline-filter-row-left,
+.inline-filter-row-right {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inline-filter-row-right {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
 .panel-header-inline {
   display: flex;
   align-items: center;
@@ -2031,6 +2053,15 @@ table tfoot td {
   text-align: center;
   color: var(--muted);
   padding: 20px 10px;
+}
+
+.empty-state.is-compact {
+  padding: 12px 8px;
+}
+
+.empty-state-description {
+  margin-top: 4px;
+  font-size: 12px;
 }
 
 .badge {

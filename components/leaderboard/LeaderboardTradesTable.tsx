@@ -1,5 +1,7 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
+import { SectionCard } from "@/components/common/SectionCard";
 import { RealizedTrade } from "@/lib/models/types";
 import { resolveTradeCurrency } from "@/lib/services/realizedTradeService";
 import { moneyFormat, percentFormat } from "@/lib/utils/money";
@@ -66,7 +68,7 @@ export function LeaderboardTradesTable({
   onSelectTrade,
 }: LeaderboardTradesTableProps) {
   return (
-    <section className="panel">
+    <SectionCard>
       <div className="table-wrap">
         <table>
           <thead>
@@ -153,8 +155,8 @@ export function LeaderboardTradesTable({
               </tr>
             ) : trades.length === 0 ? (
               <tr>
-                <td colSpan={10} className="empty-state">
-                  데이터가 없습니다.
+                <td colSpan={10}>
+                  <EmptyState title="데이터가 없습니다." compact />
                 </td>
               </tr>
             ) : (
@@ -200,7 +202,7 @@ export function LeaderboardTradesTable({
           </tbody>
         </table>
       </div>
-    </section>
+    </SectionCard>
   );
 }
 

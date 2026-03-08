@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import { MarketSnapshot } from "@/lib/models/types";
 import { formatKST } from "@/lib/utils/time";
 
@@ -15,7 +16,7 @@ export function MarketSnapshotDetailPanel({
   if (!item) {
     return (
       <section className="market-detail-panel">
-        <p className="empty-state">선택된 항목이 없습니다.</p>
+        <EmptyState title="선택된 항목이 없습니다." compact />
       </section>
     );
   }

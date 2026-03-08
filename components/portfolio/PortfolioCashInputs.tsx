@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionCard } from "@/components/common/SectionCard";
 import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 
 interface PortfolioCashInputsProps {
@@ -30,7 +31,7 @@ export function PortfolioCashInputs({
   onOpenManualKrCodeModal,
 }: PortfolioCashInputsProps) {
   return (
-    <section className="panel cash-panel">
+    <SectionCard className="cash-panel">
       <div className="filter-row cash-row">
         <label>
           예수금 (KRW)
@@ -89,7 +90,7 @@ export function PortfolioCashInputs({
           ) : null}
         </div>
       </div>
-    </section>
+    </SectionCard>
   );
 }
 

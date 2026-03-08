@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { EmptyState } from "@/components/common/EmptyState";
+import { SectionCard } from "@/components/common/SectionCard";
 import { PortfolioHolding } from "@/lib/models/types";
 import { calcHoldingComputed } from "@/lib/services/portfolioService";
 import {
@@ -208,9 +210,10 @@ export function PortfolioAllocationDonut({
   const total = useMemo(() => data.reduce((sum, row) => sum + row.amountKrw, 0), [data]);
 
   return (
-    <section className="panel portfolio-donut-panel">
-      <div className="panel-header-inline">
-        <h3>투자 현황</h3>
+    <SectionCard
+      className="portfolio-donut-panel"
+      title="투자 현황"
+      rightSlot={
         <div className="portfolio-donut-toggle">
           <button
             type="button"
@@ -234,7 +237,8 @@ export function PortfolioAllocationDonut({
             국가별
           </button>
         </div>
-      </div>
+      }
+    >
 
       <div className="portfolio-donut-layout">
         <div className="portfolio-donut-summary-column">
@@ -275,7 +279,7 @@ export function PortfolioAllocationDonut({
 
         <div className="portfolio-donut-chart-wrap">
           {data.length === 0 ? (
-            <div className="empty-state">데이터가 없습니다.</div>
+            <EmptyState title="데이터가 없습니다." compact />
           ) : (
             <div className="portfolio-donut-chart-row">
               <div className="portfolio-donut-chart">
@@ -332,7 +336,7 @@ export function PortfolioAllocationDonut({
           )}
         </div>
       </div>
-    </section>
+    </SectionCard>
   );
 }
 

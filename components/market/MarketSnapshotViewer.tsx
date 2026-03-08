@@ -1,5 +1,8 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
+import { InlineFilterRow } from "@/components/common/InlineFilterRow";
+import { SectionCard } from "@/components/common/SectionCard";
 import { useEffect, useMemo, useState } from "react";
 import { MarketSnapshotFilters } from "@/components/market/MarketSnapshotFilters";
 import { MarketSnapshotGridView } from "@/components/market/MarketSnapshotGridView";
@@ -197,22 +200,29 @@ export function MarketSnapshotViewer({
         onDateChange={setSelectedDate}
       />
 
-      <section className="panel">
-        <MarketSnapshotFilters
-          sectionFilter={sectionFilter}
-          sectionOptions={sectionOptions}
-          searchedItemsCount={searchedItems.length}
-          sectionCounts={sectionCounts}
-          search={search}
-          viewMode={viewMode}
-          onSectionFilterChange={setSectionFilter}
-          onSearchChange={setSearch}
-          onViewModeChange={setViewMode}
+      <SectionCard>
+        <InlineFilterRow
+          className="market-toolbar-row"
+          leftClassName="market-toolbar-left"
+          rightClassName="market-toolbar-right"
+          leftControls={
+            <MarketSnapshotFilters
+              sectionFilter={sectionFilter}
+              sectionOptions={sectionOptions}
+              searchedItemsCount={searchedItems.length}
+              sectionCounts={sectionCounts}
+              search={search}
+              viewMode={viewMode}
+              onSectionFilterChange={setSectionFilter}
+              onSearchChange={setSearch}
+              onViewModeChange={setViewMode}
+            />
+          }
         />
 
-        {loading ? <p className="empty-state">로딩 중...</p> : null}
+        {loading ? <EmptyState title="로딩 중..." compact /> : null}
         {!loading && filteredItems.length === 0 ? (
-          <p className="market-etf-empty-state">No snapshot for this date.</p>
+          <EmptyState title="No snapshot for this date." compact className="market-etf-empty-state" />
         ) : null}
 
         {!loading && filteredItems.length > 0 && viewMode === "grid" ? (
@@ -239,7 +249,7 @@ export function MarketSnapshotViewer({
             onZoomImage={setZoomImageUrl}
           />
         ) : null}
-      </section>
+      </SectionCard>
 
       <Modal
         open={Boolean(zoomImageUrl)}

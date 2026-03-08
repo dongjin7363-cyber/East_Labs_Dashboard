@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import { MemoEntry } from "@/lib/models/types";
 import { formatKST } from "@/lib/utils/time";
 
@@ -29,9 +30,9 @@ export function MemoEntriesList({
 
       <div className="memo-day-list">
         {loading ? (
-          <div className="empty-state">로딩 중...</div>
+          <EmptyState title="로딩 중..." compact />
         ) : entries.length === 0 ? (
-          <div className="empty-state">해당 날짜 메모가 없습니다.</div>
+          <EmptyState title="해당 날짜 메모가 없습니다." compact />
         ) : (
           entries.map((entry) => (
             <div

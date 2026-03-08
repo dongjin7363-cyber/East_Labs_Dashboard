@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SectionCard } from "@/components/common/SectionCard";
 import { MemoCalendarSection } from "@/components/memo/MemoCalendarSection";
 import { MemoEntriesList } from "@/components/memo/MemoEntriesList";
 import { MemoEntryForm } from "@/components/memo/MemoEntryForm";
@@ -209,12 +210,12 @@ export default function MemoPage() {
       />
 
       {!authLoading && !isAuthed ? (
-        <section className="panel">
+        <SectionCard>
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
+        </SectionCard>
       ) : null}
 
-      <section className="panel memo-layout">
+      <SectionCard className="memo-layout">
         <MemoCalendarSection
           selectedMonth={selectedMonth}
           monthDates={monthDates}
@@ -259,7 +260,7 @@ export default function MemoPage() {
             onZoomImage={setZoomImageUrl}
           />
         </section>
-      </section>
+      </SectionCard>
 
       <Modal
         open={Boolean(zoomImageUrl)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
 import { moneyFormat } from "@/lib/utils/money";
 
 interface ExpenditureHeaderBarProps {
@@ -13,7 +13,7 @@ export function ExpenditureHeaderBar({
   monthlyTotalSpendInt,
 }: ExpenditureHeaderBarProps) {
   return (
-    <PageHeader
+    <PageHeaderBar
       title="Expenditure"
       titleMeta={
         <span className="inline-title-metric">

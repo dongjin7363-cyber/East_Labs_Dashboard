@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionCard } from "@/components/common/SectionCard";
 import { DailyNetChart } from "@/components/DailyNetChart";
 import { MonthlyNetChart } from "@/components/MonthlyNetChart";
 import {
@@ -25,25 +26,27 @@ export function LeaderboardChartsSection({
 }: LeaderboardChartsSectionProps) {
   return (
     <>
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>일별 순수익</h3>
+      <SectionCard
+        title="일별 순수익"
+        rightSlot={
           <div className="panel-submetric">
             월 누적 순수익(KRW 환산): {moneyFormat("KRW", monthlyTotal)}
           </div>
-        </div>
+        }
+      >
         <DailyNetChart data={dailyNet} />
-      </section>
+      </SectionCard>
 
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>월별 순수익 ({selectedYear})</h3>
+      <SectionCard
+        title={`월별 순수익 (${selectedYear})`}
+        rightSlot={
           <div className="panel-submetric">
             연 누적 순수익: {moneyFormat("KRW", yearlyCumulative)}
           </div>
-        </div>
+        }
+      >
         <MonthlyNetChart data={monthlyNet} />
-      </section>
+      </SectionCard>
     </>
   );
 }

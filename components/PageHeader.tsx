@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
 
 interface PageHeaderProps {
   title: string;
@@ -14,15 +15,11 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <section className="page-header">
-      <div className="page-title-group">
-        <div className="page-title-row">
-          <h1>{title}</h1>
-          {titleMeta ? <div className="page-title-meta">{titleMeta}</div> : null}
-        </div>
-        {description ? <p>{description}</p> : null}
-      </div>
-      {actions ? <div className="page-actions">{actions}</div> : null}
-    </section>
+    <PageHeaderBar
+      title={title}
+      titleMeta={titleMeta}
+      description={description}
+      rightSlot={actions}
+    />
   );
 }

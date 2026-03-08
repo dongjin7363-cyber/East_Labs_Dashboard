@@ -1,6 +1,8 @@
 "use client";
 
-import { PageHeader } from "@/components/PageHeader";
+import { InlineFilterRow } from "@/components/common/InlineFilterRow";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
+import { SectionCard } from "@/components/common/SectionCard";
 import { Market } from "@/lib/models/types";
 import { LeaderboardSummaryInline } from "@/components/leaderboard/LeaderboardSummaryInline";
 
@@ -35,9 +37,9 @@ export function LeaderboardHeaderBar({
 }: LeaderboardHeaderBarProps) {
   return (
     <>
-      <PageHeader
+      <PageHeaderBar
         title="Leaderboard"
-        actions={
+        rightSlot={
           <button
             type="button"
             className="primary-button"
@@ -49,49 +51,55 @@ export function LeaderboardHeaderBar({
         }
       />
 
-      <section className="panel">
-        <div className="leaderboard-toolbar">
-          <div className="filter-row leaderboard-toolbar-controls">
-            <label className="leaderboard-control">
-              월 선택
-              <input
-                type="month"
-                value={selectedMonth}
-                onChange={(event) => onMonthChange(event.target.value)}
-              />
-            </label>
+      <SectionCard>
+        <InlineFilterRow
+          className="leaderboard-toolbar"
+          leftClassName="filter-row leaderboard-toolbar-controls"
+          rightClassName="leaderboard-toolbar-summary"
+          leftControls={
+            <>
+              <label className="leaderboard-control">
+                월 선택
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(event) => onMonthChange(event.target.value)}
+                />
+              </label>
 
-            <label className="leaderboard-control leaderboard-control-market">
-              Market
-              <select
-                value={market}
-                onChange={(event) => onMarketChange(event.target.value as "ALL" | Market)}
-                className="leaderboard-market-select"
-              >
-                <option value="ALL">ALL</option>
-                <option value="KR">KR</option>
-                <option value="US">US</option>
-              </select>
-            </label>
+              <label className="leaderboard-control leaderboard-control-market">
+                Market
+                <select
+                  value={market}
+                  onChange={(event) => onMarketChange(event.target.value as "ALL" | Market)}
+                  className="leaderboard-market-select"
+                >
+                  <option value="ALL">ALL</option>
+                  <option value="KR">KR</option>
+                  <option value="US">US</option>
+                </select>
+              </label>
 
-            <label className="leaderboard-control leaderboard-control-search">
-              Search
-              <input
-                placeholder="ticker / content"
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <LeaderboardSummaryInline
-            totalCount={totalCount}
-            winCount={winCount}
-            winRate={winRate}
-            monthlyTotal={monthlyTotal}
-          />
-        </div>
-      </section>
+              <label className="leaderboard-control leaderboard-control-search">
+                Search
+                <input
+                  placeholder="ticker / content"
+                  value={search}
+                  onChange={(event) => onSearchChange(event.target.value)}
+                />
+              </label>
+            </>
+          }
+          rightSummary={
+            <LeaderboardSummaryInline
+              totalCount={totalCount}
+              winCount={winCount}
+              winRate={winRate}
+              monthlyTotal={monthlyTotal}
+            />
+          }
+        />
+      </SectionCard>
     </>
   );
 }

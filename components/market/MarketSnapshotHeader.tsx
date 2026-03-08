@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
 import { todayKstYmd } from "@/lib/utils/date";
 
 interface MarketSnapshotHeaderProps {
@@ -15,9 +15,9 @@ export function MarketSnapshotHeader({
   onDateChange,
 }: MarketSnapshotHeaderProps) {
   return (
-    <PageHeader
+    <PageHeaderBar
       title={title}
-      actions={
+      rightSlot={
         <div className="market-date-picker">
           <span>Date</span>
           <input

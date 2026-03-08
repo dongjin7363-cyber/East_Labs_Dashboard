@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SectionCard } from "@/components/common/SectionCard";
 import { ExpenseCellModal } from "@/components/ExpenseCellModal";
 import { ExpenditureChartsSection } from "@/components/expenditure/ExpenditureChartsSection";
 import { ExpenditureHeaderBar } from "@/components/expenditure/ExpenditureHeaderBar";
@@ -405,9 +406,9 @@ export default function ExpenditurePage() {
       />
 
       {!authLoading && !isAuthed ? (
-        <section className="panel">
+        <SectionCard>
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
+        </SectionCard>
       ) : null}
 
       <ExpenditureMonthCalendar

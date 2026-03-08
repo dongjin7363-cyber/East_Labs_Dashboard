@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/common/EmptyState";
 import {
   Cell,
   Pie,
@@ -36,7 +37,7 @@ export function MonthlySubcategoryPieChart({
 
   return (
     filteredData.length === 0 ? (
-      <div className="empty-state">지출 세부항목 데이터가 없습니다.</div>
+      <EmptyState title="지출 세부항목 데이터가 없습니다." compact />
     ) : (
       <div className="expense-pie-layout">
         <div className="chart-wrap expense-subcategory-pie-chart">

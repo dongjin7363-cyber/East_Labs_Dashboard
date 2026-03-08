@@ -26,7 +26,7 @@ export function MarketSnapshotFilters({
   onViewModeChange,
 }: MarketSnapshotFiltersProps) {
   return (
-    <div className="market-toolbar-row">
+    <>
       <div className="market-toolbar-left">
         <label className="market-section-select">
           <span>Section</span>
@@ -80,7 +80,7 @@ export function MarketSnapshotFilters({
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { ReactNode } from "react";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
 import { Currency } from "@/lib/models/types";
 import { percentFormat } from "@/lib/utils/money";
-import { PageHeader } from "@/components/PageHeader";
 
 type RenderMoney = (
   currency: Currency,
@@ -33,7 +33,7 @@ export function PortfolioHeaderBar({
   onCreate,
 }: PortfolioHeaderBarProps) {
   return (
-    <PageHeader
+    <PageHeaderBar
       title="Portfolio"
       titleMeta={
         <span className="inline-title-metric">
@@ -66,7 +66,7 @@ export function PortfolioHeaderBar({
           </span>
         </span>
       }
-      actions={
+      rightSlot={
         <>
           <button
             type="button"

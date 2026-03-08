@@ -1,4 +1,5 @@
-import { PageHeader } from "@/components/PageHeader";
+import { PageHeaderBar } from "@/components/common/PageHeaderBar";
+import { SectionCard } from "@/components/common/SectionCard";
 import { MarketPlaceholderCard } from "@/lib/market/marketPages";
 
 interface MarketPlaceholderPageProps {
@@ -12,8 +13,8 @@ export function MarketPlaceholderPage({
 }: MarketPlaceholderPageProps) {
   return (
     <section>
-      <PageHeader title={title} />
-      <section className="panel market-news-list">
+      <PageHeaderBar title={title} />
+      <SectionCard className="market-news-list">
         {cards.map((item) => (
           <article key={item.id} className="market-news-card">
             <h4>{item.title}</h4>
@@ -21,7 +22,7 @@ export function MarketPlaceholderPage({
             <span className="market-news-meta">{item.meta}</span>
           </article>
         ))}
-      </section>
+      </SectionCard>
     </section>
   );
 }

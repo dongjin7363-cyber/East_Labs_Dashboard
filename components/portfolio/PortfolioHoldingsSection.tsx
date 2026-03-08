@@ -1,6 +1,9 @@
 "use client";
 
 import { ReactNode } from "react";
+import { EmptyState } from "@/components/common/EmptyState";
+import { InlineFilterRow } from "@/components/common/InlineFilterRow";
+import { SectionCard } from "@/components/common/SectionCard";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
 import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
 import { percentFormat } from "@/lib/utils/money";
@@ -152,44 +155,49 @@ export function PortfolioHoldingsSection({
   isAuthed,
 }: PortfolioHoldingsSectionProps) {
   return (
-    <section className="panel">
-      <div className="filter-row">
-        <label>
-          Market
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              type="button"
-              className={market === "ALL" ? "primary-button" : "secondary-button"}
-              onClick={() => onMarketChange("ALL")}
-            >
-              ALL
-            </button>
-            <button
-              type="button"
-              className={market === "KR" ? "primary-button" : "secondary-button"}
-              onClick={() => onMarketChange("KR")}
-            >
-              KR
-            </button>
-            <button
-              type="button"
-              className={market === "US" ? "primary-button" : "secondary-button"}
-              onClick={() => onMarketChange("US")}
-            >
-              US
-            </button>
-          </div>
-        </label>
+    <SectionCard>
+      <InlineFilterRow
+        leftClassName="filter-row"
+        leftControls={
+          <>
+            <label>
+              Market
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  className={market === "ALL" ? "primary-button" : "secondary-button"}
+                  onClick={() => onMarketChange("ALL")}
+                >
+                  ALL
+                </button>
+                <button
+                  type="button"
+                  className={market === "KR" ? "primary-button" : "secondary-button"}
+                  onClick={() => onMarketChange("KR")}
+                >
+                  KR
+                </button>
+                <button
+                  type="button"
+                  className={market === "US" ? "primary-button" : "secondary-button"}
+                  onClick={() => onMarketChange("US")}
+                >
+                  US
+                </button>
+              </div>
+            </label>
 
-        <label>
-          검색
-          <input
-            placeholder="Ticker"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </label>
-      </div>
+            <label>
+              검색
+              <input
+                placeholder="Ticker"
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+              />
+            </label>
+          </>
+        }
+      />
 
       <div className="table-wrap portfolio-table-wrap">
         <table className="portfolio-holdings-table">
@@ -287,8 +295,8 @@ export function PortfolioHoldingsSection({
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="empty-state">
-                  데이터가 없습니다.
+                <td colSpan={9}>
+                  <EmptyState title="데이터가 없습니다." compact />
                 </td>
               </tr>
             ) : (
@@ -396,7 +404,7 @@ export function PortfolioHoldingsSection({
           </tbody>
         </table>
       </div>
-    </section>
+    </SectionCard>
   );
 }
 

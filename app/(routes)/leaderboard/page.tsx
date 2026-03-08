@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SectionCard } from "@/components/common/SectionCard";
 import { LeaderboardChartsSection } from "@/components/leaderboard/LeaderboardChartsSection";
 import { LeaderboardHeaderBar } from "@/components/leaderboard/LeaderboardHeaderBar";
 import {
@@ -361,9 +362,9 @@ export default function LeaderboardPage() {
       />
 
       {!authLoading && !isAuthed ? (
-        <section className="panel">
+        <SectionCard>
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
+        </SectionCard>
       ) : null}
 
       <LeaderboardTradesTable

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { Modal } from "@/components/Modal";
+import { SectionCard } from "@/components/common/SectionCard";
 import { PortfolioAllocationSection } from "@/components/portfolio/PortfolioAllocationSection";
 import { PortfolioCashInputs } from "@/components/portfolio/PortfolioCashInputs";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
@@ -1482,9 +1483,9 @@ export default function PortfolioPage() {
       />
 
       {!authLoading && !isAuthed ? (
-        <section className="panel">
+        <SectionCard>
           <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
+        </SectionCard>
       ) : null}
 
       <PortfolioCashInputs

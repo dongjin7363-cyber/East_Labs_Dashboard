@@ -1,5 +1,6 @@
 "use client";
 
+import { SectionCard } from "@/components/common/SectionCard";
 import { ComponentProps } from "react";
 import { ExpenditureWeekTable } from "@/components/expenditure/ExpenditureWeekTable";
 
@@ -14,13 +15,12 @@ export function ExpenditureWeekSection({
   ...tableProps
 }: ExpenditureWeekSectionProps) {
   return (
-    <section className="panel">
-      <div className="panel-header-inline">
-        <h3>주간 입력</h3>
-        <span className="expense-week-range-label">{rangeLabel}</span>
-      </div>
+    <SectionCard
+      title="주간 입력"
+      rightSlot={<span className="expense-week-range-label">{rangeLabel}</span>}
+    >
       <ExpenditureWeekTable {...tableProps} />
-    </section>
+    </SectionCard>
   );
 }
 
