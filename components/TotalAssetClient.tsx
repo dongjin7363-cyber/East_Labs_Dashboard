@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PageHeader } from "@/components/PageHeader";
+import { CalendarHeaderBar } from "@/components/common/CalendarHeaderBar";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
@@ -18,7 +18,8 @@ import {
   readPortfolioCashSettings,
   readStoredFxRate,
 } from "@/lib/services/totalAssetService";
-import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm } from "@/lib/utils/date";
+import { getMonthStartEnd } from "@/lib/date/calendar";
+import { getCurrentKstHour, getCurrentMonthKST, getTodayKST } from "@/lib/date/kst";
 import { moneyFormat } from "@/lib/utils/money";
 
 interface QuoteApiResponse {
@@ -86,13 +87,13 @@ export function TotalAssetClient() {
   const loading = portfolioLoading || snapshotLoading || authLoading;
 
   useEffect(() => {
-    const initialMonth = toYm(new Date());
-    const initialToday = todayKstYmd();
+    const initialMonth = getCurrentMonthKST();
+    const initialToday = getTodayKST();
 
     setSelectedMonth(initialMonth);
     setSelectedDate(initialToday);
     setTodayKst(initialToday);
-    setNowKstHour(currentKstHour());
+    setNowKstHour(getCurrentKstHour());
     setFxRate(readStoredFxRate());
     setMounted(true);
   }, []);
@@ -102,7 +103,7 @@ export function TotalAssetClient() {
       return;
     }
 
-    const range = getMonthRangeFromYm(selectedMonth);
+    const range = getMonthStartEnd(selectedMonth);
 
     if (selectedDate < range.from || selectedDate > range.to) {
       setSelectedDate(range.from);
@@ -127,7 +128,7 @@ export function TotalAssetClient() {
 
     setCalendarMap({});
 
-    const monthRange = getMonthRangeFromYm(selectedMonth);
+    const monthRange = getMonthStartEnd(selectedMonth);
 
     const loadCalendarDays = async () => {
       try {
@@ -186,7 +187,7 @@ export function TotalAssetClient() {
     setMemoInput(selectedSnapshot?.memo ?? "");
   }, [selectedSnapshot?.id, selectedSnapshot?.memo]);
 
-  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
+  const monthRange = useMemo(() => getMonthStartEnd(selectedMonth), [selectedMonth]);
 
   const monthSnapshots = useMemo(
     () =>
@@ -431,8 +432,20 @@ export function TotalAssetClient() {
 
   return (
     <>
-      <PageHeader
+      <CalendarHeaderBar
         title="Asset Trend"
+        monthValue={selectedMonth}
+        onMonthChange={(value) =>
+          setSelectedMonth(value || (mounted ? getCurrentMonthKST() : SSR_SAFE_MONTH))
+        }
+        dateValue={selectedDate}
+        onDateChange={(value) => setSelectedDate(value || SSR_SAFE_DATE)}
+        rightExtra={
+          <div className="fx-meta">
+            최근 환율(USD→KRW): <strong>{fxRate.toLocaleString("ko-KR")}</strong>
+            {fxAsOf ? ` (${fxAsOf})` : ""}
+          </div>
+        }
         actions={
           <button
             type="button"
@@ -471,33 +484,6 @@ export function TotalAssetClient() {
       ) : null}
 
       <section className="panel">
-        <div className="filter-row">
-          <label>
-            월 선택
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) =>
-                setSelectedMonth(event.target.value || (mounted ? toYm(new Date()) : SSR_SAFE_MONTH))
-              }
-            />
-          </label>
-
-          <label>
-            선택 날짜
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(event) => setSelectedDate(event.target.value || SSR_SAFE_DATE)}
-            />
-          </label>
-
-          <div className="fx-meta" style={{ marginLeft: "auto" }}>
-            최근 환율(USD→KRW): <strong>{fxRate.toLocaleString("ko-KR")}</strong>
-            {fxAsOf ? ` (${fxAsOf})` : ""}
-          </div>
-        </div>
-
         <div className="ta-layout">
           <TotalAssetCalendar
             month={selectedMonth}

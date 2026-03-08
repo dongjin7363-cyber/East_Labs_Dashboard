@@ -24,12 +24,13 @@ import {
   summarizeExpenseSubcategories,
 } from "@/lib/services/expenseService";
 import {
+  formatWeekRangeCompact,
+  getDayOfWeekKST,
   getDatesInRange,
-  getMonthRangeFromYm,
+  getMonthStartEnd,
   getWeekRangeSundayStart,
-  todayKstYmd,
-  toYm,
-} from "@/lib/utils/date";
+} from "@/lib/date/calendar";
+import { getCurrentMonthKST, getTodayKST } from "@/lib/date/kst";
 
 interface SelectedCell {
   date: string;
@@ -57,42 +58,12 @@ interface CalendarDayInfo {
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
-function dayOfWeekFromDateString(date: string): number {
-  const matched = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-
-  if (!matched) {
-    return 0;
-  }
-
-  const year = Number.parseInt(matched[1], 10);
-  const month = Number.parseInt(matched[2], 10);
-  const day = Number.parseInt(matched[3], 10);
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-
-  return utcDate.getUTCDay();
-}
-
 function weekdayLabel(dayOfWeek: number): string {
   return WEEKDAY_LABELS[dayOfWeek] ?? WEEKDAY_LABELS[0];
 }
 
-function formatWeekRangeLabel(from: string, to: string): string {
-  const [fromYear, fromMonth] = from.split("-");
-  const [toYear, toMonth, toDay] = to.split("-");
-
-  if (fromYear === toYear && fromMonth === toMonth) {
-    return `${from} ~ ${toDay}`;
-  }
-
-  if (fromYear === toYear) {
-    return `${from} ~ ${to}`;
-  }
-
-  return `${from} ~ ${to}`;
-}
-
 function defaultSelectedDateForMonth(month: string, todayKst: string): string {
-  const monthRange = getMonthRangeFromYm(month);
+  const monthRange = getMonthStartEnd(month);
 
   if (todayKst.startsWith(`${month}-`)) {
     return todayKst;
@@ -130,16 +101,16 @@ export default function ExpenditurePage() {
     update,
     remove,
   } = useExpenses();
-  const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
-  const todayKst = useMemo(() => todayKstYmd(), []);
+  const [selectedMonth, setSelectedMonth] = useState(() => getCurrentMonthKST());
+  const todayKst = useMemo(() => getTodayKST(), []);
   const [selectedDate, setSelectedDate] = useState(() =>
-    defaultSelectedDateForMonth(toYm(new Date()), todayKst),
+    defaultSelectedDateForMonth(getCurrentMonthKST(), todayKst),
   );
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
   const isAuthed = isAuthenticated;
-  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
+  const monthRange = useMemo(() => getMonthStartEnd(selectedMonth), [selectedMonth]);
   const calendarFetchRange = useMemo(() => {
     const startOfGrid = getWeekRangeSundayStart(monthRange.from).from;
     const endOfGrid = getWeekRangeSundayStart(monthRange.to).to;
@@ -207,7 +178,7 @@ export default function ExpenditurePage() {
     () =>
       selectedWeekDates.map((date) => {
         const info = calendarMap[date];
-        const dayOfWeek = info?.dow ?? dayOfWeekFromDateString(date);
+        const dayOfWeek = info?.dow ?? getDayOfWeekKST(date);
         const isHoliday = info?.isHoliday ?? false;
         const isSunday = info ? info.dow === 0 : false;
         const isSaturday = info ? info.dow === 6 : false;
@@ -403,6 +374,14 @@ export default function ExpenditurePage() {
       <ExpenditureHeaderBar
         loading={loading}
         monthlyTotalSpendInt={monthlyTotalSpendInt}
+        selectedMonth={selectedMonth}
+        selectedDate={selectedDate}
+        selectedWeekLabel={formatWeekRangeCompact(selectedWeekRange.from, selectedWeekRange.to)}
+        onMonthChange={(value) => {
+          const nextMonth = value || getCurrentMonthKST();
+          setSelectedMonth(nextMonth);
+          setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
+        }}
       />
 
       {!authLoading && !isAuthed ? (
@@ -412,15 +391,8 @@ export default function ExpenditurePage() {
       ) : null}
 
       <ExpenditureMonthCalendar
-        selectedMonth={selectedMonth}
-        selectedDate={selectedDate}
-        selectedWeekLabel={formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
-        onMonthChange={(value) => {
-          const nextMonth = value || toYm(new Date());
-          setSelectedMonth(nextMonth);
-          setSelectedDate(defaultSelectedDateForMonth(nextMonth, todayKst));
-        }}
         month={selectedMonth}
+        selectedDate={selectedDate}
         selectedWeekDates={selectedWeekDates}
         today={todayKst}
         calendarMap={calendarMap}
@@ -429,7 +401,7 @@ export default function ExpenditurePage() {
       />
 
       <ExpenditureWeekSection
-        rangeLabel={formatWeekRangeLabel(selectedWeekRange.from, selectedWeekRange.to)}
+        rangeLabel={formatWeekRangeCompact(selectedWeekRange.from, selectedWeekRange.to)}
         rows={weekRows}
         loading={loading}
         isAuthed={isAuthed}

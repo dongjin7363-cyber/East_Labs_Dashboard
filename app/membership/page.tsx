@@ -1,11 +1,11 @@
 import { EmptyState } from "@/components/common/EmptyState";
-import { PageHeaderBar } from "@/components/common/PageHeaderBar";
+import { CalendarHeaderBar } from "@/components/common/CalendarHeaderBar";
 import { SectionCard } from "@/components/common/SectionCard";
 
 export default function MembershipPage() {
   return (
     <section>
-      <PageHeaderBar title="Membership" />
+      <CalendarHeaderBar title="Membership" />
       <SectionCard>
         {/* Route shell intentionally kept in place until Membership CRUD is restored. */}
         <EmptyState

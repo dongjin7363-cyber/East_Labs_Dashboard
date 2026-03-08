@@ -8,7 +8,8 @@ import { MemoEntryForm } from "@/components/memo/MemoEntryForm";
 import { MemoHeaderBar } from "@/components/memo/MemoHeaderBar";
 import { Modal } from "@/components/Modal";
 import { useMemos } from "@/lib/hooks/useMemos";
-import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
+import { getDayOfWeekKST, getMonthDays, getMonthStartEnd } from "@/lib/date/calendar";
+import { getCurrentMonthKST, getTodayKST } from "@/lib/date/kst";
 
 interface CalendarDayMeta {
   date: string;
@@ -27,8 +28,8 @@ interface CalendarDayInfo {
 
 export default function MemoPage() {
   const { entries, loading, authLoading, isAuthenticated, create, update, remove } = useMemos();
-  const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
-  const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
+  const [selectedMonth, setSelectedMonth] = useState(() => getCurrentMonthKST());
+  const [selectedDate, setSelectedDate] = useState(() => getTodayKST());
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [buyTickersInput, setBuyTickersInput] = useState("");
@@ -37,8 +38,9 @@ export default function MemoPage() {
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const isAuthed = isAuthenticated;
 
-  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
-  const monthDates = useMemo(() => getDatesInMonthFromYm(selectedMonth), [selectedMonth]);
+  const monthRange = useMemo(() => getMonthStartEnd(selectedMonth), [selectedMonth]);
+  const monthDates = useMemo(() => getMonthDays(selectedMonth), [selectedMonth]);
+  const todayKst = useMemo(() => getTodayKST(), []);
   const monthEntries = useMemo(
     () => entries.filter((entry) => entry.date >= monthRange.from && entry.date <= monthRange.to),
     [entries, monthRange.from, monthRange.to],
@@ -75,11 +77,11 @@ export default function MemoPage() {
       return 0;
     }
 
-    return new Date(`${firstDate}T00:00:00`).getDay();
+    return getDayOfWeekKST(firstDate);
   }, [monthDates]);
 
   useEffect(() => {
-    const range = getMonthRangeFromYm(selectedMonth);
+    const range = getMonthStartEnd(selectedMonth);
 
     if (selectedDate < range.from || selectedDate > range.to) {
       setSelectedDate(range.from);
@@ -206,7 +208,7 @@ export default function MemoPage() {
       <MemoHeaderBar
         selectedMonth={selectedMonth}
         selectedDate={selectedDate}
-        onMonthChange={(value) => setSelectedMonth(value || toYm(new Date()))}
+        onMonthChange={(value) => setSelectedMonth(value || getCurrentMonthKST())}
       />
 
       {!authLoading && !isAuthed ? (
@@ -228,7 +230,7 @@ export default function MemoPage() {
             ]),
           )}
           selectedDate={selectedDate}
-          today={todayKstYmd()}
+          today={todayKst}
           onSelectDate={(date) => {
             setSelectedDate(date);
             setEditingId(null);

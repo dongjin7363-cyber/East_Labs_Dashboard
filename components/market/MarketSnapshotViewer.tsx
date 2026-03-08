@@ -9,9 +9,9 @@ import { MarketSnapshotGridView } from "@/components/market/MarketSnapshotGridVi
 import { MarketSnapshotHeader } from "@/components/market/MarketSnapshotHeader";
 import { MarketSnapshotListView } from "@/components/market/MarketSnapshotListView";
 import { Modal } from "@/components/Modal";
+import { getTodayKST } from "@/lib/date/kst";
 import { MarketRegion, MarketSnapshot } from "@/lib/models/types";
 import { createMarketSnapshotRepository } from "@/lib/repository/marketSnapshotRepository";
-import { todayKstYmd } from "@/lib/utils/date";
 
 type ViewMode = "grid" | "list";
 
@@ -27,7 +27,7 @@ export function MarketSnapshotViewer({
   pageSlug,
 }: MarketSnapshotViewerProps) {
   const repository = useMemo(() => createMarketSnapshotRepository(), []);
-  const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
+  const [selectedDate, setSelectedDate] = useState(() => getTodayKST());
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [search, setSearch] = useState("");
   const [sectionFilter, setSectionFilter] = useState("ALL");

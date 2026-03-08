@@ -1,7 +1,7 @@
 "use client";
 
 import { PageHeaderBar } from "@/components/common/PageHeaderBar";
-import { todayKstYmd } from "@/lib/utils/date";
+import { getTodayKST } from "@/lib/date/kst";
 
 interface MarketSnapshotHeaderProps {
   title: string;
@@ -23,7 +23,7 @@ export function MarketSnapshotHeader({
           <input
             type="date"
             value={selectedDate}
-            onChange={(event) => onDateChange(event.target.value || todayKstYmd())}
+            onChange={(event) => onDateChange(event.target.value || getTodayKST())}
           />
         </div>
       }

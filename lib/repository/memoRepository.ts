@@ -4,7 +4,7 @@ import {
   serializeMemoEntryRow,
 } from "@/lib/repository/mappers/memoEntryMapper";
 import { supabase } from "@/lib/supabaseClient";
-import { getMonthRangeFromYm } from "@/lib/utils/date";
+import { getMonthStartEnd } from "@/lib/date/calendar";
 
 const MEMO_STORAGE_KEY = "pf_memo_entries_v1";
 export const MEMO_ENTRIES_SYNCED_FLAG_KEY = "pf_synced_memo_entries_v1";
@@ -35,7 +35,7 @@ function filterByDate(entries: MemoEntry[], date: string): MemoEntry[] {
 }
 
 function filterByMonth(entries: MemoEntry[], ym: string): MemoEntry[] {
-  const range = getMonthRangeFromYm(ym);
+  const range = getMonthStartEnd(ym);
   return entries.filter((entry) => entry.date >= range.from && entry.date <= range.to);
 }
 
