@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MemoCalendarSection } from "@/components/memo/MemoCalendarSection";
+import { MemoEntriesList } from "@/components/memo/MemoEntriesList";
+import { MemoEntryForm } from "@/components/memo/MemoEntryForm";
+import { MemoHeaderBar } from "@/components/memo/MemoHeaderBar";
 import { Modal } from "@/components/Modal";
 import { useMemos } from "@/lib/hooks/useMemos";
 import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
-import { formatKST } from "@/lib/utils/time";
 
 interface CalendarDayMeta {
   date: string;
@@ -20,8 +23,6 @@ interface CalendarDayInfo {
   dow: number;
   isHoliday: boolean;
 }
-
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function MemoPage() {
   const { entries, loading, authLoading, isAuthenticated, create, update, remove } = useMemos();
@@ -201,25 +202,11 @@ export default function MemoPage() {
 
   return (
     <>
-      <section className="memo-page-header">
-        <h1>Memo</h1>
-        <div className="filter-row memo-header-row memo-page-actions">
-          <label>
-            월 선택
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={(event) =>
-                setSelectedMonth(event.target.value || toYm(new Date()))
-              }
-            />
-          </label>
-          <div className="memo-selected-date">
-            <span>선택 날짜</span>
-            <strong>{selectedDate}</strong>
-          </div>
-        </div>
-      </section>
+      <MemoHeaderBar
+        selectedMonth={selectedMonth}
+        selectedDate={selectedDate}
+        onMonthChange={(value) => setSelectedMonth(value || toYm(new Date()))}
+      />
 
       {!authLoading && !isAuthed ? (
         <section className="panel">
@@ -228,194 +215,49 @@ export default function MemoPage() {
       ) : null}
 
       <section className="panel memo-layout">
-        <section className="memo-calendar-wrap">
-          <div className="memo-calendar-caption">{selectedMonth}</div>
-          <div className="memo-calendar-grid memo-calendar-weekdays">
-            {WEEKDAY_LABELS.map((label, index) => {
-              const isRed = index === 0;
-              const isBlue = index === 6;
-
-              return (
-                <div
-                  key={label}
-                  className={`memo-calendar-weekday${isRed ? " is-red" : isBlue ? " is-blue" : ""}`}
-                >
-                  {label}
-                </div>
-              );
-            })}
-          </div>
-          <div className="memo-calendar-grid">
-            {Array.from({ length: leadingBlankCount }).map((_, index) => (
-              <div key={`blank-${index}`} className="memo-calendar-day blank" />
-            ))}
-
-            {monthDates.map((date) => {
-              const info = calendarMap[date];
-              const isToday = date === todayKstYmd();
-              const isSelected = date === selectedDate;
-              const isRed = Boolean(info?.isHoliday) || info?.dow === 0;
-              const isBlue = !isRed && info?.dow === 6;
-              const count = entriesByDate.get(date)?.length ?? 0;
-
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  className={`memo-calendar-day${isToday ? " is-today" : ""}${isSelected ? " selected" : ""}`}
-                  onClick={() => {
-                    setSelectedDate(date);
-                    setEditingId(null);
-                  }}
-                >
-                  <span
-                    className={`memo-day-number${isRed ? " is-red" : isBlue ? " is-blue" : ""}`}
-                  >
-                    {date.slice(-2)}
-                  </span>
-                  {count > 0 ? <span className="memo-day-badge">{count}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <MemoCalendarSection
+          selectedMonth={selectedMonth}
+          monthDates={monthDates}
+          leadingBlankCount={leadingBlankCount}
+          calendarMap={calendarMap}
+          entriesCountByDate={new Map(
+            Array.from(entriesByDate.entries()).map(([date, dayEntries]) => [
+              date,
+              dayEntries.length,
+            ]),
+          )}
+          selectedDate={selectedDate}
+          today={todayKstYmd()}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            setEditingId(null);
+          }}
+        />
 
         <section className="memo-right-panel">
-          <section className="memo-form-wrap">
-            <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-              <h3>{editingId ? "메모 수정" : "새 메모"}</h3>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleNew}
-                disabled={!isAuthed}
-              >
-                New
-              </button>
-            </div>
-            <div className="form-grid">
-              <label className="full">
-                매수 종목 (Buy Tickers)
-                <input
-                  value={buyTickersInput}
-                  onChange={(event) => setBuyTickersInput(event.target.value)}
-                  placeholder="AAPL, NVDA"
-                  disabled={!isAuthed}
-                />
-              </label>
-              <label className="full">
-                매도 종목 (Sell Tickers)
-                <input
-                  value={sellTickersInput}
-                  onChange={(event) => setSellTickersInput(event.target.value)}
-                  placeholder="TSLA"
-                  disabled={!isAuthed}
-                />
-              </label>
-              <label className="full">
-                코멘트 (Comment)
-                <textarea
-                  rows={6}
-                  value={commentInput}
-                  onChange={(event) => setCommentInput(event.target.value)}
-                  placeholder="매매 회고/시장 대응 기록"
-                  disabled={!isAuthed}
-                />
-              </label>
-            </div>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleSave}
-                disabled={!isAuthed}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                onClick={handleDelete}
-                disabled={!isAuthed || !editingId}
-              >
-                Delete
-              </button>
-            </div>
-          </section>
+          <MemoEntryForm
+            isEditing={Boolean(editingId)}
+            buyTickersInput={buyTickersInput}
+            sellTickersInput={sellTickersInput}
+            commentInput={commentInput}
+            onBuyTickersChange={setBuyTickersInput}
+            onSellTickersChange={setSellTickersInput}
+            onCommentChange={setCommentInput}
+            onNew={handleNew}
+            onSave={handleSave}
+            onDelete={handleDelete}
+            isAuthed={isAuthed}
+            canDelete={Boolean(editingId)}
+          />
 
-          <section className="memo-day-panel">
-            <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-              <h3>{selectedDate} 메모</h3>
-              <span className="panel-submetric">
-                {selectedDateEntries.length}건
-              </span>
-            </div>
-
-            <div className="memo-day-list">
-              {loading ? (
-                <div className="empty-state">로딩 중...</div>
-              ) : selectedDateEntries.length === 0 ? (
-                <div className="empty-state">해당 날짜 메모가 없습니다.</div>
-              ) : (
-                selectedDateEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    role="button"
-                    tabIndex={0}
-                    className={`memo-day-card${editingId === entry.id ? " is-selected" : ""}`}
-                    onClick={() => setEditingId(entry.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setEditingId(entry.id);
-                      }
-                    }}
-                  >
-                    <div className="memo-day-card-line">
-                      <strong>Buy</strong>
-                      <span>{entry.buyTickers || "-"}</span>
-                    </div>
-                    <div className="memo-day-card-line">
-                      <strong>Sell</strong>
-                      <span>{entry.sellTickers || "-"}</span>
-                    </div>
-                    <div className="memo-day-card-comment">{entry.comment || "-"}</div>
-                    {entry.imagePaths.length > 0 ? (
-                      <div className="memo-day-thumb-strip">
-                        {entry.imagePaths.map((path) => {
-                          const signed = entry.imageSignedUrls?.[path] ?? null;
-
-                          return (
-                            <button
-                              key={`${entry.id}-${path}`}
-                              type="button"
-                              className="memo-day-thumb"
-                              onClick={(event) => {
-                                event.stopPropagation();
-
-                                if (signed) {
-                                  setZoomImageUrl(signed);
-                                }
-                              }}
-                            >
-                              {signed ? (
-                                <img src={signed} alt="memo attachment" />
-                              ) : (
-                                <span className="memo-day-thumb-fallback">이미지</span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    <div className="memo-day-card-time">
-                      Updated {formatKST(entry.updatedAt)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
+          <MemoEntriesList
+            loading={loading}
+            selectedDate={selectedDate}
+            entries={selectedDateEntries}
+            editingId={editingId}
+            onSelectEntry={setEditingId}
+            onZoomImage={setZoomImageUrl}
+          />
         </section>
       </section>
 
