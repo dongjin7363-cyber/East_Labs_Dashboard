@@ -1,14 +1,25 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
+import Image from "next/image";
 import { Modal } from "@/components/Modal";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 type AuthMode = "login" | "signup";
+type SignUpStep = "method" | "email";
 
 export function AuthMenu() {
-  const { isAuthenticated, loading, email, signIn, signOut, signUp } = useAuth();
+  const {
+    isAuthenticated,
+    loading,
+    email,
+    signIn,
+    signInWithKakao,
+    signOut,
+    signUp,
+  } = useAuth();
   const [mode, setMode] = useState<AuthMode>("login");
+  const [signUpStep, setSignUpStep] = useState<SignUpStep>("method");
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formEmail, setFormEmail] = useState("");
@@ -23,6 +34,9 @@ export function AuthMenu() {
 
   const openModal = (nextMode: AuthMode) => {
     setMode(nextMode);
+    setSignUpStep(nextMode === "signup" ? "method" : "email");
+    setFormEmail("");
+    setFormPassword("");
     setErrorMessage("");
     setInfoMessage("");
     setOpen(true);
@@ -34,6 +48,7 @@ export function AuthMenu() {
     }
 
     setOpen(false);
+    setSignUpStep("method");
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -88,6 +103,33 @@ export function AuthMenu() {
     }
   };
 
+  const handleKakaoLogin = async () => {
+    setSubmitting(true);
+    setErrorMessage("");
+    setInfoMessage("");
+
+    try {
+      const result = await signInWithKakao();
+
+      if (!result.ok) {
+        setErrorMessage(result.message ?? "카카오 로그인에 실패했습니다.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderAuthMessages = () => (
+    <>
+      {errorMessage ? (
+        <p className="auth-message auth-message-error">{errorMessage}</p>
+      ) : null}
+      {infoMessage ? (
+        <p className="auth-message auth-message-info">{infoMessage}</p>
+      ) : null}
+    </>
+  );
+
   if (loading) {
     return <div className="auth-wrap">...</div>;
   }
@@ -117,52 +159,142 @@ export function AuthMenu() {
           onClose={closeModal}
           cardClassName="auth-modal-card"
         >
-          <form className="auth-modal-form" onSubmit={handleSubmit}>
-            <label>
-              Email
-              <input
-                className="auth-modal-input"
-                type="email"
-                autoComplete="email"
-                value={formEmail}
-                onChange={(event) => setFormEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                className="auth-modal-input"
-                type="password"
-                autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                value={formPassword}
-                onChange={(event) => setFormPassword(event.target.value)}
-                placeholder="Password"
-                minLength={6}
-                required
-              />
-            </label>
-            {errorMessage ? (
-              <p className="auth-message auth-message-error">{errorMessage}</p>
-            ) : null}
-            {infoMessage ? (
-              <p className="auth-message auth-message-info">{infoMessage}</p>
-            ) : null}
-            <div className="form-actions">
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={closeModal}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
-              <button type="submit" className="primary-button" disabled={submitting}>
-                {submitting ? "처리 중..." : modalTitle}
-              </button>
+          {mode === "signup" && signUpStep === "method" ? (
+            <div className="auth-choice-shell">
+              <p className="auth-choice-description">가입 방식을 선택하세요</p>
+              {renderAuthMessages()}
+              <div className="auth-choice-buttons">
+                <button
+                  type="button"
+                  className="auth-provider-button auth-provider-button-dark"
+                  onClick={handleKakaoLogin}
+                  disabled={submitting}
+                >
+                  <span className="auth-provider-button-mark auth-provider-button-mark-kakao">
+                    <Image
+                      src="/icons/kakao-talk.svg"
+                      alt=""
+                      width={24}
+                      height={24}
+                    />
+                  </span>
+                  <span className="auth-provider-button-text">카카오로 시작하기</span>
+                  <span className="auth-provider-button-spacer" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="auth-provider-button auth-provider-button-dark auth-choice-email-button"
+                  onClick={() => {
+                    setErrorMessage("");
+                    setInfoMessage("");
+                    setSignUpStep("email");
+                  }}
+                  disabled={submitting}
+                >
+                  <span className="auth-provider-button-mark auth-provider-button-mark-email">
+                    <Image
+                      src="/icons/email.svg"
+                      alt=""
+                      width={24}
+                      height={24}
+                    />
+                  </span>
+                  <span className="auth-provider-button-text">이메일로 시작하기</span>
+                  <span className="auth-provider-button-spacer" aria-hidden="true" />
+                </button>
+              </div>
             </div>
-          </form>
+          ) : (
+            <form className="auth-modal-form" onSubmit={handleSubmit}>
+              <div className="auth-form-shell">
+                <label className="auth-field">
+                  <span>Email</span>
+                  <input
+                    className="auth-modal-input"
+                    type="email"
+                    autoComplete="email"
+                    value={formEmail}
+                    onChange={(event) => setFormEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
+                </label>
+                <label className="auth-field">
+                  <span>Password</span>
+                  <input
+                    className="auth-modal-input"
+                    type="password"
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    value={formPassword}
+                    onChange={(event) => setFormPassword(event.target.value)}
+                    placeholder="Password"
+                    minLength={6}
+                    required
+                  />
+                </label>
+                {renderAuthMessages()}
+                {mode === "login" ? (
+                  <>
+                    <div className="auth-divider" aria-hidden="true">
+                      <span className="auth-divider-line" />
+                      <span className="auth-divider-text">또는</span>
+                      <span className="auth-divider-line" />
+                    </div>
+                    <div className="auth-oauth-block">
+                      <button
+                        type="button"
+                        className="auth-provider-button auth-provider-button-dark"
+                        onClick={handleKakaoLogin}
+                        disabled={submitting}
+                      >
+                        <span className="auth-provider-button-mark auth-provider-button-mark-kakao">
+                          <Image
+                            src="/icons/kakao-talk.svg"
+                            alt=""
+                            width={24}
+                            height={24}
+                          />
+                        </span>
+                        <span className="auth-provider-button-text">카카오로 로그인</span>
+                        <span className="auth-provider-button-spacer" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              <div className="form-actions">
+                {mode === "signup" ? (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => {
+                      if (submitting) {
+                        return;
+                      }
+
+                      setErrorMessage("");
+                      setInfoMessage("");
+                      setSignUpStep("method");
+                    }}
+                    disabled={submitting}
+                  >
+                    Back
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={closeModal}
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="primary-button" disabled={submitting}>
+                  {submitting ? "처리 중..." : modalTitle}
+                </button>
+              </div>
+            </form>
+          )}
         </Modal>
       </div>
     );

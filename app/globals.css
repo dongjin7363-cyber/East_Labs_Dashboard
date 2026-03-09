@@ -294,15 +294,141 @@ textarea {
 .auth-modal-form {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+
+.auth-form-shell,
+.auth-choice-shell {
+  width: min(332px, 100%);
+  margin: 0 auto;
+}
+
+.auth-form-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-choice-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+}
+
+.auth-choice-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.auth-choice-buttons {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+}
+
+.auth-choice-email-button {
+  width: 100%;
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-oauth-block {
+  display: flex;
+}
+
+.auth-provider-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  padding: 12px 14px;
+  min-height: 56px;
+  background: #111827;
+  color: #f8fafc;
+  font-weight: 700;
+  text-align: left;
+}
+
+.auth-provider-button-dark {
+  background: #111827;
+  border-color: #1f2937;
+  color: #f8fafc;
+}
+
+.auth-provider-button-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-provider-button-mark-kakao {
+  background: #0f172a;
+}
+
+.auth-provider-button-mark-email {
+  background: #1e293b;
+  border: 1px solid #334155;
+}
+
+.auth-provider-button-text {
+  text-align: center;
+  font-size: 15px;
+}
+
+.auth-provider-button-spacer {
+  width: 44px;
+  height: 44px;
+}
+
+.auth-provider-button:hover:not(:disabled) {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.auth-divider-line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: #dbe4ef;
+}
+
+.auth-divider-text {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.auth-provider-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .auth-modal-input {
   width: 100%;
-  margin-top: 6px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
   background: #fff;
   color: var(--text);
 }
@@ -314,7 +440,7 @@ textarea {
 }
 
 .auth-modal-card {
-  width: min(520px, 92vw);
+  width: min(440px, calc(100vw - 32px));
 }
 
 .page-header {

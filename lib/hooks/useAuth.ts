@@ -122,6 +122,31 @@ export function useAuth() {
     [],
   );
 
+  const signInWithKakao = useCallback(async (): Promise<AuthActionResult> => {
+    const redirectTo =
+      typeof window !== "undefined" ? window.location.origin : undefined;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: redirectTo
+        ? {
+            redirectTo,
+          }
+        : undefined,
+    });
+
+    if (error) {
+      return {
+        ok: false,
+        message: error.message,
+      };
+    }
+
+    return {
+      ok: true,
+    };
+  }, []);
+
   const signOut = useCallback(async (): Promise<AuthActionResult> => {
     const { error } = await supabase.auth.signOut();
 
@@ -147,6 +172,7 @@ export function useAuth() {
     email: session?.user?.email ?? null,
     signUp,
     signIn,
+    signInWithKakao,
     signOut,
   };
 }
