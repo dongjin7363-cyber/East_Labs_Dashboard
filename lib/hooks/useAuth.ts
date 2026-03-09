@@ -123,8 +123,18 @@ export function useAuth() {
   );
 
   const signInWithKakao = useCallback(async (): Promise<AuthActionResult> => {
-    const redirectTo =
-      typeof window !== "undefined" ? window.location.origin : undefined;
+    let redirectTo: string | undefined;
+
+    if (typeof window !== "undefined") {
+      const callbackUrl = new URL("/auth/callback", window.location.origin);
+      const nextPath = `${window.location.pathname}${window.location.search}`;
+
+      if (nextPath && nextPath !== "/auth/callback") {
+        callbackUrl.searchParams.set("next", nextPath);
+      }
+
+      redirectTo = callbackUrl.toString();
+    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
