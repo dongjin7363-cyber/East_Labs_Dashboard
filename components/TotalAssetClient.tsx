@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChartSectionCard } from "@/components/common/ChartSectionCard";
+import { AssetTrendBenchmarkChart } from "@/components/asset-trend/AssetTrendBenchmarkChart";
 import { PageHeader } from "@/components/PageHeader";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
+import {
+  AssetTrendBenchmarkKey,
+  buildAssetTrendBenchmarkData,
+  createEmptyIndexHistorySeries,
+  IndexHistorySeriesMap,
+} from "@/lib/asset-trend/benchmark";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { PortfolioHolding } from "@/lib/models/types";
@@ -18,7 +26,7 @@ import {
   readPortfolioCashSettings,
   readStoredFxRate,
 } from "@/lib/services/totalAssetService";
-import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm } from "@/lib/utils/date";
+import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm, toYmd } from "@/lib/utils/date";
 import { moneyFormat } from "@/lib/utils/money";
 
 interface QuoteApiResponse {
@@ -32,6 +40,11 @@ interface QuoteApiResponse {
 interface FxApiResponse {
   rate: number;
   asOf: string;
+}
+
+interface IndexHistoryApiResponse {
+  series?: Partial<IndexHistorySeriesMap>;
+  errors?: string[];
 }
 
 interface CalendarDayMeta {
@@ -54,6 +67,12 @@ interface CalendarDayInfo {
 const QUOTE_MAX_CONCURRENCY = 3;
 const SSR_SAFE_MONTH = "1970-01";
 const SSR_SAFE_DATE = "1970-01-01";
+const DEFAULT_BENCHMARK_VISIBILITY: Record<AssetTrendBenchmarkKey, boolean> = {
+  portfolio: true,
+  kospi: true,
+  kosdaq: true,
+  sp500: true,
+};
 
 export function TotalAssetClient() {
   const {
@@ -82,8 +101,29 @@ export function TotalAssetClient() {
   const [fxRate, setFxRate] = useState(DEFAULT_USDKRW_FX_RATE);
   const [fxAsOf, setFxAsOf] = useState("");
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
+  const [indexSeries, setIndexSeries] = useState<IndexHistorySeriesMap>(
+    createEmptyIndexHistorySeries,
+  );
+  const [benchmarkError, setBenchmarkError] = useState("");
+  const [visibleBenchmarks, setVisibleBenchmarks] = useState(
+    DEFAULT_BENCHMARK_VISIBILITY,
+  );
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
+  const benchmarkMonthCacheRef = useRef<
+    Record<string, { series: IndexHistorySeriesMap; errors: string[] }>
+  >({});
   const loading = portfolioLoading || snapshotLoading || authLoading;
+  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
+  const benchmarkEndDate = useMemo(
+    () => (selectedMonth === todayKst.slice(0, 7) ? todayKst : monthRange.to),
+    [monthRange.to, selectedMonth, todayKst],
+  );
+  const benchmarkFetchFrom = useMemo(() => {
+    const baseDate = new Date(`${monthRange.from}T00:00:00`);
+    baseDate.setDate(baseDate.getDate() - 14);
+
+    return toYmd(baseDate);
+  }, [monthRange.from]);
 
   useEffect(() => {
     const initialMonth = toYm(new Date());
@@ -172,6 +212,77 @@ export function TotalAssetClient() {
     };
   }, [mounted, selectedMonth]);
 
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
+    let cancelled = false;
+    const benchmarkCacheKey = `${selectedMonth}:${benchmarkEndDate}`;
+    const cached = benchmarkMonthCacheRef.current[benchmarkCacheKey];
+
+    if (cached) {
+      setIndexSeries(cached.series);
+      setBenchmarkError(
+        cached.errors.length > 0
+          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${cached.errors.join(", ")}`
+          : "",
+      );
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIndexSeries(createEmptyIndexHistorySeries());
+    setBenchmarkError("");
+
+    const loadIndexHistory = async () => {
+      try {
+        const response = await fetch(
+          `/api/index-history?from=${benchmarkFetchFrom}&to=${benchmarkEndDate}`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error(`index-history API error: ${response.status}`);
+        }
+
+        const data = (await response.json()) as IndexHistoryApiResponse;
+        const nextSeries: IndexHistorySeriesMap = {
+          kospi: Array.isArray(data.series?.kospi) ? data.series.kospi : [],
+          kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
+          sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
+        };
+        const errors = Array.isArray(data.errors) ? data.errors : [];
+
+        if (!cancelled) {
+          benchmarkMonthCacheRef.current[benchmarkCacheKey] = {
+            series: nextSeries,
+            errors,
+          };
+          setIndexSeries(nextSeries);
+          setBenchmarkError(
+            errors.length > 0
+              ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
+              : "",
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setIndexSeries(createEmptyIndexHistorySeries());
+          setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
+        }
+      }
+    };
+
+    void loadIndexHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [benchmarkEndDate, benchmarkFetchFrom, mounted, selectedMonth]);
+
   const snapshotsByDate = useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.date, snapshot])),
     [snapshots],
@@ -186,8 +297,6 @@ export function TotalAssetClient() {
     setMemoInput(selectedSnapshot?.memo ?? "");
   }, [selectedSnapshot?.id, selectedSnapshot?.memo]);
 
-  const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
-
   const monthSnapshots = useMemo(
     () =>
       snapshots.filter(
@@ -199,6 +308,16 @@ export function TotalAssetClient() {
   const trendData = useMemo(
     () => buildTotalAssetTrendByMonth(snapshots, selectedMonth),
     [selectedMonth, snapshots],
+  );
+  const benchmarkData = useMemo(
+    () =>
+      buildAssetTrendBenchmarkData({
+        snapshots,
+        ym: selectedMonth,
+        indexSeries,
+        endDate: benchmarkEndDate,
+      }),
+    [benchmarkEndDate, indexSeries, selectedMonth, snapshots],
   );
 
   const shouldShowMorningReminder = useMemo(
@@ -429,6 +548,13 @@ export function TotalAssetClient() {
     setStatusMessage(`${selectedDate} 스냅샷을 삭제했습니다.`);
   };
 
+  const handleToggleBenchmark = (key: AssetTrendBenchmarkKey) => {
+    setVisibleBenchmarks((current) => ({
+      ...current,
+      [key]: !current[key],
+    }));
+  };
+
   return (
     <>
       <PageHeader
@@ -584,6 +710,22 @@ export function TotalAssetClient() {
           <div className="empty-state">차트 데이터 로딩 중...</div>
         )}
       </section>
+
+      <ChartSectionCard
+        title={`포트폴리오 vs 지수 비교 (${selectedMonth})`}
+      >
+        {mounted ? (
+          <AssetTrendBenchmarkChart
+            data={benchmarkData}
+            calendarMap={calendarMap}
+            visibleSeries={visibleBenchmarks}
+            onToggleSeries={handleToggleBenchmark}
+            errorMessage={benchmarkError}
+          />
+        ) : (
+          <div className="empty-state">비교 차트 데이터 로딩 중...</div>
+        )}
+      </ChartSectionCard>
     </>
   );
 }
