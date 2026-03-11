@@ -61,6 +61,41 @@ function formatPct(value: number): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+function getLastNumericEntry(
+  data: AssetTrendBenchmarkPoint[],
+  key: AssetTrendBenchmarkKey,
+): { index: number; value: number } | null {
+  for (let index = data.length - 1; index >= 0; index -= 1) {
+    const value = data[index]?.[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return { index, value };
+    }
+  }
+
+  return null;
+}
+
+function getPreviousNumericValue(
+  data: AssetTrendBenchmarkPoint[],
+  key: AssetTrendBenchmarkKey,
+  beforeIndex: number,
+): number | null {
+  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+    const value = data[index]?.[key];
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function convertCumulativeReturnToDailyReturn(currentPct: number, previousPct: number): number {
+  return (((1 + currentPct / 100) / (1 + previousPct / 100)) - 1) * 100;
+}
+
 export function AssetTrendBenchmarkChart({
   data,
   calendarMap,
@@ -75,15 +110,13 @@ export function AssetTrendBenchmarkChart({
   const summaryRows = seriesKeys
     .map((key) => {
       const meta = ASSET_TREND_BENCHMARK_META[key];
-      const lastValue = [...data]
-        .reverse()
-        .find((point) => typeof point[key] === "number")?.[key];
+      const lastEntry = getLastNumericEntry(data, key);
 
       return {
         key,
         label: meta.label,
         color: meta.color,
-        value: typeof lastValue === "number" ? lastValue : null,
+        value: lastEntry?.value ?? null,
       };
     })
     .sort((a, b) => {
@@ -101,6 +134,37 @@ export function AssetTrendBenchmarkChart({
 
       return b.value - a.value;
     });
+  const dailyRows = summaryRows.map((row) => {
+    if (row.value === null) {
+      return {
+        ...row,
+        value: null,
+      };
+    }
+
+    const lastEntry = getLastNumericEntry(data, row.key);
+
+    if (!lastEntry) {
+      return {
+        ...row,
+        value: null,
+      };
+    }
+
+    const previousValue = getPreviousNumericValue(data, row.key, lastEntry.index);
+
+    if (previousValue === null) {
+      return {
+        ...row,
+        value: null,
+      };
+    }
+
+    return {
+      ...row,
+      value: convertCumulativeReturnToDailyReturn(lastEntry.value, previousValue),
+    };
+  });
 
   const renderDateTick = (props: DateTickProps) => {
     const { x = 0, y = 0, payload } = props;
@@ -148,35 +212,68 @@ export function AssetTrendBenchmarkChart({
           })}
         </div>
 
-        <div className="ta-benchmark-summary">
-          <div className="ta-benchmark-summary-title">기간 수익률</div>
-          <ul className="ta-benchmark-summary-list">
-            {summaryRows.map((row) => (
-              <li key={row.key}>
-                <div className="ta-benchmark-summary-left">
-                  <span
-                    className="ta-benchmark-summary-dot"
-                    style={{ backgroundColor: row.color }}
-                    aria-hidden="true"
-                  />
-                  <span>{row.label}</span>
-                </div>
-                <strong
-                  className={
-                    row.value === null
-                      ? ""
-                      : row.value > 0
-                        ? "is-positive"
-                        : row.value < 0
-                          ? "is-negative"
-                          : ""
-                  }
-                >
-                  {row.value === null ? "-" : formatPct(row.value)}
-                </strong>
-              </li>
-            ))}
-          </ul>
+        <div className="ta-benchmark-summary-row">
+          <div className="ta-benchmark-summary ta-benchmark-summary-daily">
+            <div className="ta-benchmark-summary-title">당일 수익률</div>
+            <ul className="ta-benchmark-summary-list">
+              {dailyRows.map((row) => (
+                <li key={row.key}>
+                  <div className="ta-benchmark-summary-left">
+                    <span
+                      className="ta-benchmark-summary-dot"
+                      style={{ backgroundColor: row.color }}
+                      aria-hidden="true"
+                    />
+                    <span>{row.label}</span>
+                  </div>
+                  <strong
+                    className={
+                      row.value === null
+                        ? ""
+                        : row.value > 0
+                          ? "is-positive"
+                          : row.value < 0
+                            ? "is-negative"
+                            : ""
+                    }
+                  >
+                    {row.value === null ? "—" : formatPct(row.value)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="ta-benchmark-summary">
+            <div className="ta-benchmark-summary-title">기간 수익률</div>
+            <ul className="ta-benchmark-summary-list">
+              {summaryRows.map((row) => (
+                <li key={row.key}>
+                  <div className="ta-benchmark-summary-left">
+                    <span
+                      className="ta-benchmark-summary-dot"
+                      style={{ backgroundColor: row.color }}
+                      aria-hidden="true"
+                    />
+                    <span>{row.label}</span>
+                  </div>
+                  <strong
+                    className={
+                      row.value === null
+                        ? ""
+                        : row.value > 0
+                          ? "is-positive"
+                          : row.value < 0
+                            ? "is-negative"
+                            : ""
+                    }
+                  >
+                    {row.value === null ? "—" : formatPct(row.value)}
+                  </strong>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 

@@ -969,7 +969,7 @@ textarea {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ta-benchmark-toggle-row {
@@ -1013,6 +1013,13 @@ textarea {
   font-size: 12px;
 }
 
+.ta-benchmark-summary-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: -6px;
+}
+
 .ta-benchmark-summary {
   flex: 0 0 178px;
   align-self: flex-start;
@@ -1020,7 +1027,7 @@ textarea {
   border-radius: 12px;
   background: #fbfdff;
   padding: 9px 10px;
-  margin-top: -2px;
+  margin-top: 0;
 }
 
 .ta-benchmark-summary-title {
@@ -3183,6 +3190,12 @@ table tfoot td {
   .ta-benchmark-top-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .ta-benchmark-summary-row {
+    width: 100%;
+    flex-direction: column;
+    margin-top: 0;
   }
 
   .ta-benchmark-summary {
