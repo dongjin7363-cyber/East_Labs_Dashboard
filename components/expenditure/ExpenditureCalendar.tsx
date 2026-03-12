@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import CalendarDayNumber from "@/components/common/CalendarDayNumber";
 import { getDatesInMonthFromYm, getMonthRangeFromYm } from "@/lib/utils/date";
 
 interface CalendarDayInfo {
@@ -117,9 +118,11 @@ export function ExpenditureCalendar({
               onClick={() => onSelectDate(date)}
               title={dayInfo?.holidayName}
             >
-              <span className={`ta-day-number ${isRed ? "is-red" : isBlue ? "is-blue" : ""}`}>
-                {day}
-              </span>
+              <CalendarDayNumber
+                value={day}
+                isToday={isToday}
+                tone={isRed ? "red" : isBlue ? "blue" : "default"}
+              />
               <div className="expense-calendar-breakdown">
                 {breakdown && breakdown.income > 0 ? (
                   <span className="expense-calendar-total is-positive">

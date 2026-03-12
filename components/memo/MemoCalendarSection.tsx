@@ -1,5 +1,7 @@
 "use client";
 
+import CalendarDayNumber from "@/components/common/CalendarDayNumber";
+
 interface CalendarDayInfo {
   dow: number;
   isHoliday: boolean;
@@ -66,11 +68,13 @@ export function MemoCalendarSection({
               className={`memo-calendar-day${isToday ? " is-today" : ""}${isSelected ? " selected" : ""}`}
               onClick={() => onSelectDate(date)}
             >
-              <span
-                className={`memo-day-number${isRed ? " is-red" : isBlue ? " is-blue" : ""}`}
-              >
-                {date.slice(-2)}
-              </span>
+              <div className="memo-day-header">
+                <CalendarDayNumber
+                  value={date.slice(-2)}
+                  isToday={isToday}
+                  tone={isRed ? "red" : isBlue ? "blue" : "default"}
+                />
+              </div>
               {count > 0 ? <span className="memo-day-badge">{count}</span> : null}
             </button>
           );

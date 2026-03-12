@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
+import MemoCalendarSection from "@/components/memo/MemoCalendarSection";
 import { useMemos } from "@/lib/hooks/useMemos";
 import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
 import { formatKST } from "@/lib/utils/time";
@@ -21,8 +22,6 @@ interface CalendarDayInfo {
   isHoliday: boolean;
 }
 
-const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
-
 export default function MemoPage() {
   const { entries, loading, authLoading, isAuthenticated, create, update, remove } = useMemos();
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
@@ -34,6 +33,7 @@ export default function MemoPage() {
   const [commentInput, setCommentInput] = useState("");
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const isAuthed = isAuthenticated;
+  const today = useMemo(() => todayKstYmd(), []);
 
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
   const monthDates = useMemo(() => getDatesInMonthFromYm(selectedMonth), [selectedMonth]);
@@ -228,57 +228,21 @@ export default function MemoPage() {
       ) : null}
 
       <section className="panel memo-layout">
-        <section className="memo-calendar-wrap">
-          <div className="memo-calendar-caption">{selectedMonth}</div>
-          <div className="memo-calendar-grid memo-calendar-weekdays">
-            {WEEKDAY_LABELS.map((label, index) => {
-              const isRed = index === 0;
-              const isBlue = index === 6;
-
-              return (
-                <div
-                  key={label}
-                  className={`memo-calendar-weekday${isRed ? " is-red" : isBlue ? " is-blue" : ""}`}
-                >
-                  {label}
-                </div>
-              );
-            })}
-          </div>
-          <div className="memo-calendar-grid">
-            {Array.from({ length: leadingBlankCount }).map((_, index) => (
-              <div key={`blank-${index}`} className="memo-calendar-day blank" />
-            ))}
-
-            {monthDates.map((date) => {
-              const info = calendarMap[date];
-              const isToday = date === todayKstYmd();
-              const isSelected = date === selectedDate;
-              const isRed = Boolean(info?.isHoliday) || info?.dow === 0;
-              const isBlue = !isRed && info?.dow === 6;
-              const count = entriesByDate.get(date)?.length ?? 0;
-
-              return (
-                <button
-                  key={date}
-                  type="button"
-                  className={`memo-calendar-day${isToday ? " is-today" : ""}${isSelected ? " selected" : ""}`}
-                  onClick={() => {
-                    setSelectedDate(date);
-                    setEditingId(null);
-                  }}
-                >
-                  <span
-                    className={`memo-day-number${isRed ? " is-red" : isBlue ? " is-blue" : ""}`}
-                  >
-                    {date.slice(-2)}
-                  </span>
-                  {count > 0 ? <span className="memo-day-badge">{count}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        <MemoCalendarSection
+          selectedMonth={selectedMonth}
+          monthDates={monthDates}
+          leadingBlankCount={leadingBlankCount}
+          calendarMap={calendarMap}
+          entriesCountByDate={new Map(
+            Array.from(entriesByDate.entries()).map(([date, items]) => [date, items.length]),
+          )}
+          selectedDate={selectedDate}
+          today={today}
+          onSelectDate={(date) => {
+            setSelectedDate(date);
+            setEditingId(null);
+          }}
+        />
 
         <section className="memo-right-panel">
           <section className="memo-form-wrap">

@@ -1,8 +1,10 @@
 import { DateRange, DatePreset } from "@/lib/models/types";
 import {
   getDatesInRange as getCalendarDatesInRange,
+  getDayOfWeekKST as getCalendarDayOfWeekKST,
   getMonthDays,
   getMonthStartEnd,
+  formatWeekRangeCompact as formatCalendarWeekRangeCompact,
   getWeekRangeSundayStart as getCalendarWeekRangeSundayStart,
   isDateInRange as isCalendarDateInRange,
   resolveDateRange as resolveCalendarDateRange,
@@ -52,6 +54,14 @@ export function getDatesInRange(from: string, to: string): string[] {
 
 export function getWeekRangeSundayStart(dateYmd: string): DateRange {
   return getCalendarWeekRangeSundayStart(dateYmd);
+}
+
+export function formatWeekRangeCompact(from: string, to: string): string {
+  return formatCalendarWeekRangeCompact(from, to);
+}
+
+export function getDayOfWeekKST(dateYmd: string): number {
+  return getCalendarDayOfWeekKST(dateYmd);
 }
 
 export function resolveDateRange(

@@ -25,7 +25,9 @@ export const NAV_GROUPS: NavigationGroup[] = [
     items: [
       { type: "link", label: "Portfolio", href: "/portfolio" },
       { type: "link", label: "Leaderboard", href: "/leaderboard" },
+      { type: "link", label: "Asset Trend", href: "/asset-trend" },
       { type: "link", label: "Memo", href: "/memo" },
+      { type: "link", label: "Schedule", href: "/schedule" },
     ],
   },
   {
@@ -33,7 +35,6 @@ export const NAV_GROUPS: NavigationGroup[] = [
     items: [
       { type: "link", label: "Expenditure", href: "/expenditure" },
       { type: "link", label: "Salary", href: "/salary" },
-      { type: "link", label: "Asset Trend", href: "/asset-trend" },
     ],
   },
   {
