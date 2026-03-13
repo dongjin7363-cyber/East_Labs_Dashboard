@@ -4,6 +4,7 @@ import {
   HoldingComputed,
   Market,
   PortfolioHolding,
+  PortfolioPosition,
   PORTFOLIO_SECTORS,
   PortfolioSector,
 } from "@/lib/models/types";
@@ -22,6 +23,7 @@ export interface PortfolioInput {
   krCode?: string;
   quoteDisabled?: boolean;
   sector?: PortfolioSector;
+  position?: PortfolioPosition;
   qty: number;
   avgPrice: number;
   currentPrice: number;
@@ -174,6 +176,7 @@ export function addHolding(input: PortfolioInput): PortfolioHolding[] {
     krCode: normalizedKrCode,
     quoteDisabled: input.quoteDisabled ? true : undefined,
     sector: resolveSector(input.sector),
+    position: input.position ?? "N",
     qty: input.qty,
     avgPrice: input.avgPrice,
     currentPrice: input.currentPrice,
@@ -225,6 +228,7 @@ export function updateHolding(
         krCode: normalizedKrCode,
         quoteDisabled: input.quoteDisabled ? true : undefined,
         sector: resolveSector(input.sector),
+        position: input.position ?? item.position ?? "N",
         qty: input.qty,
         avgPrice: input.avgPrice,
         currentPrice: input.currentPrice,

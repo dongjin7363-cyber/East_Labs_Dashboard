@@ -60,6 +60,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
         day_change_pct,
         comment,
         sector,
+        position,
         updated_at
       `)
       .eq("user_id", this.userId);

@@ -16,7 +16,12 @@ import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
 import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
-import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
+import {
+  Currency,
+  Market,
+  PortfolioHolding,
+  PortfolioPosition,
+} from "@/lib/models/types";
 import {
   calcHoldingComputed,
   calculatePortfolioTotalAsset,
@@ -111,12 +116,14 @@ interface PortfolioTableRow {
   holding: PortfolioHolding;
   computed: ReturnType<typeof calcHoldingComputed>;
   dailyChangeRate: number | null;
+  marketValueComparableKrw: number;
   defaultIndex: number;
 }
 
 const US_DISPLAY_NAME_FALLBACK: Record<string, string> = {
   RKLB: "Rocket Lab",
 };
+const POSITION_OPTIONS: PortfolioPosition[] = ["OW", "N", "UW"];
 
 function parseStoredTimestamp(raw: string | null): number | null {
   if (!raw) {
@@ -993,14 +1000,40 @@ export default function PortfolioPage() {
     [cashKrw, depositKrw, depositUsdCents, fxRate, holdings],
   );
   const tableRows = useMemo<PortfolioTableRow[]>(
-    () =>
-      filtered.map((holding, index) => ({
-        holding,
-        computed: calcHoldingComputed(holding),
-        dailyChangeRate: resolveHoldingDayChangePct(holding),
-        defaultIndex: index,
-      })),
-    [filtered],
+    () => {
+      const rows = filtered.map((holding) => {
+        const computed = calcHoldingComputed(holding);
+        const marketValueComparableKrw =
+          holding.market === "US"
+            ? usdToKrw(usdCentsToUsdFloat(computed.marketValue), fxRate)
+            : computed.marketValue;
+
+        return {
+          holding,
+          computed,
+          dailyChangeRate: resolveHoldingDayChangePct(holding),
+          marketValueComparableKrw,
+          defaultIndex: 0,
+        };
+      });
+
+      return rows
+        .sort((a, b) => {
+          if (b.marketValueComparableKrw !== a.marketValueComparableKrw) {
+            return b.marketValueComparableKrw - a.marketValueComparableKrw;
+          }
+
+          return a.holding.ticker.localeCompare(b.holding.ticker, "ko-KR", {
+            numeric: true,
+            sensitivity: "base",
+          });
+        })
+        .map((row, index) => ({
+          ...row,
+          defaultIndex: index,
+        }));
+    },
+    [filtered, fxRate],
   );
   const sortedTableRows = useMemo(
     () =>
@@ -1029,7 +1062,7 @@ export default function PortfolioPage() {
           }
 
           if (key === "marketValue") {
-            return row.computed.marketValue;
+            return row.marketValueComparableKrw;
           }
 
           if (key === "pnl") {
@@ -1271,6 +1304,7 @@ export default function PortfolioPage() {
       krCode: holding.krCode,
       quoteDisabled: holding.quoteDisabled,
       sector: holding.sector,
+      position: holding.position,
       qty: holding.qty,
       avgPrice: holding.avgPrice,
       currentPrice: holding.currentPrice,
@@ -1306,6 +1340,25 @@ export default function PortfolioPage() {
     update(holding.id, {
       ...holdingToInput(holding),
       comment: nextComment,
+    });
+  };
+
+  const commitPosition = (
+    holding: PortfolioHolding,
+    nextPosition: PortfolioPosition,
+  ) => {
+    if (!isAuthed) {
+      window.alert("로그인 후 사용 가능합니다.");
+      return;
+    }
+
+    if (nextPosition === holding.position) {
+      return;
+    }
+
+    update(holding.id, {
+      ...holdingToInput(holding),
+      position: nextPosition,
     });
   };
 
@@ -1692,11 +1745,12 @@ export default function PortfolioPage() {
               <col className="portfolio-col-price" />
               <col className="portfolio-col-price" />
               <col className="portfolio-col-qty" />
-              <col className="portfolio-col-value" />
-              <col className="portfolio-col-value" />
-              <col className="portfolio-col-rate" />
-              <col className="portfolio-col-comment" />
-            </colgroup>
+            <col className="portfolio-col-value" />
+            <col className="portfolio-col-value" />
+            <col className="portfolio-col-rate" />
+            <col className="portfolio-col-position" />
+            <col className="portfolio-col-comment" />
+          </colgroup>
             <thead>
               <tr>
                 <th>
@@ -1795,6 +1849,7 @@ export default function PortfolioPage() {
                     </span>
                   </button>
                 </th>
+                <th>Position</th>
                 <th>
                   <button
                     type="button"
@@ -1812,11 +1867,11 @@ export default function PortfolioPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9}>로딩 중...</td>
+                  <td colSpan={10}>로딩 중...</td>
                 </tr>
               ) : sortedTableRows.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="empty-state">
+                  <td colSpan={10} className="empty-state">
                     데이터가 없습니다.
                   </td>
                 </tr>
@@ -1903,6 +1958,30 @@ export default function PortfolioPage() {
                         }}
                       >
                         {percentFormat(computed.pnlRate)}
+                      </td>
+                      <td
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <select
+                          className={`portfolio-position-select is-${(
+                            holding.position ?? "N"
+                          ).toLowerCase()}`}
+                          value={holding.position ?? "N"}
+                          onChange={(event) =>
+                            commitPosition(
+                              holding,
+                              event.target.value as PortfolioPosition,
+                            )
+                          }
+                          disabled={!isAuthed}
+                        >
+                          {POSITION_OPTIONS.map((position) => (
+                            <option key={position} value={position}>
+                              {position}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                       <td
                         onClick={(event) => event.stopPropagation()}

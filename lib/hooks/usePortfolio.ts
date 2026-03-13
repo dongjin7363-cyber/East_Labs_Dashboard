@@ -77,6 +77,10 @@ function mergeHoldingsWithLocalMetadata(
         (holding.market === "KR" ? localMatched.krCode : undefined),
       logoUrl: holding.logoUrl ?? localMatched.logoUrl,
       comment: holding.comment ?? localMatched.comment,
+      position:
+        holding.position === "N" && localMatched.position && localMatched.position !== "N"
+          ? localMatched.position
+          : holding.position,
       prevClose: holding.prevClose ?? localMatched.prevClose,
       dayChangePct: holding.dayChangePct ?? localMatched.dayChangePct,
       priceUpdatedAt: holding.priceUpdatedAt ?? localMatched.priceUpdatedAt,
@@ -93,6 +97,7 @@ function mergeHoldingsWithLocalMetadata(
       next.tickerCode !== holding.tickerCode ||
       next.logoUrl !== holding.logoUrl ||
       next.comment !== holding.comment ||
+      next.position !== holding.position ||
       next.prevClose !== holding.prevClose ||
       next.dayChangePct !== holding.dayChangePct ||
       next.priceUpdatedAt !== holding.priceUpdatedAt ||
@@ -345,6 +350,7 @@ export function usePortfolio() {
             krCode: normalizedKrCode,
             quoteDisabled: input.quoteDisabled ? true : undefined,
             sector: resolveSector(input.sector),
+            position: input.position ?? "N",
             qty: input.qty,
             avgPrice: input.avgPrice,
             currentPrice: input.currentPrice,
@@ -405,6 +411,7 @@ export function usePortfolio() {
             krCode: normalizedKrCode,
             quoteDisabled: input.quoteDisabled ? true : undefined,
             sector: resolveSector(input.sector),
+            position: input.position ?? target.position ?? "N",
             qty: input.qty,
             avgPrice: input.avgPrice,
             currentPrice: input.currentPrice,

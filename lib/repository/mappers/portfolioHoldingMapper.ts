@@ -2,7 +2,9 @@ import {
   Currency,
   Market,
   PortfolioHolding,
+  PORTFOLIO_POSITIONS,
   PORTFOLIO_SECTORS,
+  PortfolioPosition,
   PortfolioSector,
 } from "@/lib/models/types";
 import {
@@ -28,6 +30,7 @@ export interface PortfolioHoldingRow {
   day_change_pct?: number | null;
   comment: string | null;
   sector: string | null;
+  position?: string | null;
   updated_at: string;
 }
 
@@ -53,6 +56,18 @@ function normalizeSector(value: unknown): PortfolioSector {
   }
 
   return "Other";
+}
+
+function normalizePosition(value: unknown): PortfolioPosition {
+  if (typeof value === "string") {
+    const matched = PORTFOLIO_POSITIONS.find((position) => position === value);
+
+    if (matched) {
+      return matched;
+    }
+  }
+
+  return "N";
 }
 
 function resolveTicker(raw: Record<string, unknown>): string | undefined {
@@ -120,6 +135,7 @@ export function deserializePortfolioHolding(
         ? true
         : undefined,
     sector: normalizeSector(input.sector),
+    position: normalizePosition(input.position),
     qty: toNonNegativeInt(input.qty),
     avgPrice: toNonNegativeInt(input.avgPrice ?? input.avg_price_int),
     currentPrice: toNonNegativeInt(input.currentPrice ?? input.current_price_int),
@@ -156,6 +172,7 @@ export function serializePortfolioHoldingForStorage(
         : undefined,
     quoteDisabled: holding.quoteDisabled ? true : undefined,
     sector: normalizeSector(holding.sector),
+    position: normalizePosition(holding.position),
     qty: toNonNegativeInt(holding.qty),
     avgPrice: toNonNegativeInt(holding.avgPrice),
     currentPrice: toNonNegativeInt(holding.currentPrice),
@@ -198,6 +215,7 @@ export function serializePortfolioHoldingRow(
         : null,
     comment: normalizeOptionalText(holding.comment) ?? null,
     sector: normalizeOptionalText(holding.sector) ?? "Other",
+    position: normalizePosition(holding.position),
     updated_at: normalizeIsoString(holding.updatedAt),
   };
 

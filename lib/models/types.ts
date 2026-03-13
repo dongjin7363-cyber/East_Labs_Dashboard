@@ -14,6 +14,8 @@ export const PORTFOLIO_SECTORS = [
   "Other",
 ] as const;
 export type PortfolioSector = (typeof PORTFOLIO_SECTORS)[number];
+export const PORTFOLIO_POSITIONS = ["OW", "N", "UW"] as const;
+export type PortfolioPosition = (typeof PORTFOLIO_POSITIONS)[number];
 
 export interface PortfolioHolding {
   id: string;
@@ -29,6 +31,7 @@ export interface PortfolioHolding {
   krCode?: string;
   quoteDisabled?: boolean;
   sector: PortfolioSector;
+  position: PortfolioPosition;
   qty: number;
   // Integer price units:
   // - KRW: won

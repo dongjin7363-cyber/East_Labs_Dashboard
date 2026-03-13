@@ -1685,8 +1685,12 @@ th {
   width: 86px;
 }
 
+.portfolio-col-position {
+  width: 84px;
+}
+
 .portfolio-col-comment {
-  width: 148px;
+  width: 136px;
 }
 
 .holding-info-cell {
@@ -1760,6 +1764,51 @@ th {
   outline: none;
   border-color: #9ec2e6;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.08);
+}
+
+.portfolio-position-select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-align-last: center;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: none;
+  cursor: pointer;
+}
+
+.portfolio-position-select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.08);
+}
+
+.portfolio-position-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.portfolio-position-select.is-ow {
+  background: #fdecec;
+  color: #c94a4a;
+  border-color: #f5cccc;
+}
+
+.portfolio-position-select.is-n {
+  background: #eaf7ee;
+  color: #2f855a;
+  border-color: #cfe8d7;
+}
+
+.portfolio-position-select.is-uw {
+  background: #eaf2ff;
+  color: #3b6fb6;
+  border-color: #d3e2ff;
 }
 
 .muted-placeholder {
