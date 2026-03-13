@@ -1162,12 +1162,8 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 12px;
-  align-items: start;
-}
-
-.memo-right-panel {
-  display: grid;
-  gap: 12px;
+  align-items: stretch;
+  margin-bottom: 12px;
 }
 
 .memo-calendar-wrap {
@@ -1290,7 +1286,8 @@ textarea {
 
 .memo-day-list {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .memo-day-card {
@@ -1299,7 +1296,10 @@ textarea {
   background: #f8fafc;
   text-align: left;
   padding: 10px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: 6px;
   cursor: pointer;
 }
@@ -1328,6 +1328,7 @@ textarea {
 }
 
 .memo-day-card-time {
+  margin-top: auto;
   font-size: 11px;
   color: var(--muted);
 }
@@ -1411,6 +1412,24 @@ textarea {
   border-radius: 12px;
   padding: 12px;
   background: #fff;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.memo-form-grid {
+  flex: 1 1 auto;
+  align-content: start;
+}
+
+.memo-form-comment-label {
+  min-height: 0;
+}
+
+.memo-form-comment-textarea {
+  min-height: 220px;
+  height: 220px;
+  resize: vertical;
 }
 
 .memo-image-section {
@@ -3863,12 +3882,24 @@ table tfoot td {
 }
 
 @media (max-width: 1100px) {
+  .memo-day-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .schedule-week-board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 900px) {
+  .memo-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .memo-day-list {
+    grid-template-columns: 1fr;
+  }
+
   .schedule-event-modal-body {
     grid-template-columns: 1fr;
   }

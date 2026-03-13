@@ -42,7 +42,7 @@ export function MemoEntryForm({
           New
         </button>
       </div>
-      <div className="form-grid">
+      <div className="form-grid memo-form-grid">
         <label className="full">
           매수 종목 (Buy Tickers)
           <input
@@ -61,9 +61,10 @@ export function MemoEntryForm({
             disabled={!isAuthed}
           />
         </label>
-        <label className="full">
+        <label className="full memo-form-comment-label">
           코멘트 (Comment)
           <textarea
+            className="memo-form-comment-textarea"
             rows={6}
             value={commentInput}
             onChange={(event) => onCommentChange(event.target.value)}

@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import MemoCalendarSection from "@/components/memo/MemoCalendarSection";
+import MemoEntriesList from "@/components/memo/MemoEntriesList";
+import MemoEntryForm from "@/components/memo/MemoEntryForm";
 import { useMemos } from "@/lib/hooks/useMemos";
 import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
-import { formatKST } from "@/lib/utils/time";
 
 interface CalendarDayMeta {
   date: string;
@@ -56,7 +57,7 @@ export default function MemoPage() {
   const selectedDateEntries = useMemo(
     () =>
       [...(entriesByDate.get(selectedDate) ?? [])].sort((a, b) =>
-        b.updatedAt.localeCompare(a.updatedAt),
+        (a.updatedAt || a.createdAt || "").localeCompare(b.updatedAt || b.createdAt || ""),
       ),
     [entriesByDate, selectedDate],
   );
@@ -227,7 +228,7 @@ export default function MemoPage() {
         </section>
       ) : null}
 
-      <section className="panel memo-layout">
+      <section className="memo-layout">
         <MemoCalendarSection
           selectedMonth={selectedMonth}
           monthDates={monthDates}
@@ -244,144 +245,30 @@ export default function MemoPage() {
           }}
         />
 
-        <section className="memo-right-panel">
-          <section className="memo-form-wrap">
-            <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-              <h3>{editingId ? "메모 수정" : "새 메모"}</h3>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleNew}
-                disabled={!isAuthed}
-              >
-                New
-              </button>
-            </div>
-            <div className="form-grid">
-              <label className="full">
-                매수 종목 (Buy Tickers)
-                <input
-                  value={buyTickersInput}
-                  onChange={(event) => setBuyTickersInput(event.target.value)}
-                  placeholder="AAPL, NVDA"
-                  disabled={!isAuthed}
-                />
-              </label>
-              <label className="full">
-                매도 종목 (Sell Tickers)
-                <input
-                  value={sellTickersInput}
-                  onChange={(event) => setSellTickersInput(event.target.value)}
-                  placeholder="TSLA"
-                  disabled={!isAuthed}
-                />
-              </label>
-              <label className="full">
-                코멘트 (Comment)
-                <textarea
-                  rows={6}
-                  value={commentInput}
-                  onChange={(event) => setCommentInput(event.target.value)}
-                  placeholder="매매 회고/시장 대응 기록"
-                  disabled={!isAuthed}
-                />
-              </label>
-            </div>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleSave}
-                disabled={!isAuthed}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                onClick={handleDelete}
-                disabled={!isAuthed || !editingId}
-              >
-                Delete
-              </button>
-            </div>
-          </section>
-
-          <section className="memo-day-panel">
-            <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-              <h3>{selectedDate} 메모</h3>
-              <span className="panel-submetric">
-                {selectedDateEntries.length}건
-              </span>
-            </div>
-
-            <div className="memo-day-list">
-              {loading ? (
-                <div className="empty-state">로딩 중...</div>
-              ) : selectedDateEntries.length === 0 ? (
-                <div className="empty-state">해당 날짜 메모가 없습니다.</div>
-              ) : (
-                selectedDateEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    role="button"
-                    tabIndex={0}
-                    className={`memo-day-card${editingId === entry.id ? " is-selected" : ""}`}
-                    onClick={() => setEditingId(entry.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        setEditingId(entry.id);
-                      }
-                    }}
-                  >
-                    <div className="memo-day-card-line">
-                      <strong>Buy</strong>
-                      <span>{entry.buyTickers || "-"}</span>
-                    </div>
-                    <div className="memo-day-card-line">
-                      <strong>Sell</strong>
-                      <span>{entry.sellTickers || "-"}</span>
-                    </div>
-                    <div className="memo-day-card-comment">{entry.comment || "-"}</div>
-                    {entry.imagePaths.length > 0 ? (
-                      <div className="memo-day-thumb-strip">
-                        {entry.imagePaths.map((path) => {
-                          const signed = entry.imageSignedUrls?.[path] ?? null;
-
-                          return (
-                            <button
-                              key={`${entry.id}-${path}`}
-                              type="button"
-                              className="memo-day-thumb"
-                              onClick={(event) => {
-                                event.stopPropagation();
-
-                                if (signed) {
-                                  setZoomImageUrl(signed);
-                                }
-                              }}
-                            >
-                              {signed ? (
-                                <img src={signed} alt="memo attachment" />
-                              ) : (
-                                <span className="memo-day-thumb-fallback">이미지</span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                    <div className="memo-day-card-time">
-                      Updated {formatKST(entry.updatedAt)}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </section>
+        <MemoEntryForm
+          isEditing={Boolean(editingId)}
+          buyTickersInput={buyTickersInput}
+          sellTickersInput={sellTickersInput}
+          commentInput={commentInput}
+          onBuyTickersChange={setBuyTickersInput}
+          onSellTickersChange={setSellTickersInput}
+          onCommentChange={setCommentInput}
+          onNew={handleNew}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          isAuthed={isAuthed}
+          canDelete={Boolean(editingId)}
+        />
       </section>
+
+      <MemoEntriesList
+        loading={loading}
+        selectedDate={selectedDate}
+        entries={selectedDateEntries}
+        editingId={editingId}
+        onSelectEntry={setEditingId}
+        onZoomImage={setZoomImageUrl}
+      />
 
       <Modal
         open={Boolean(zoomImageUrl)}
