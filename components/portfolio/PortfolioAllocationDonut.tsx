@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { CurrencyAmount } from "@/components/common/CurrencyAmount";
 import { PortfolioHolding } from "@/lib/models/types";
 import { calcHoldingComputed } from "@/lib/services/portfolioService";
 import {
@@ -178,7 +179,7 @@ function PnlText({
       <span>계좌 손익</span>
       <span className="portfolio-donut-mini-pnl-values">
         <strong className={amount >= 0 ? "is-positive" : "is-negative"}>
-          {moneyFormat(currency, amount)}
+          <CurrencyAmount currency={currency} amountInt={amount} />
         </strong>
         <span className={pct === null ? "" : pct >= 0 ? "is-positive" : "is-negative"}>
           ({pct === null ? "—" : percentFormat(pct)})
@@ -242,14 +243,18 @@ export function PortfolioAllocationDonut({
             <div className="portfolio-donut-mini-block">
               <div className="portfolio-donut-mini-row">
                 <h4>KR NAV</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", krNavKrw)}</div>
+                <div className="portfolio-donut-mini-nav">
+                  <CurrencyAmount currency="KRW" amountInt={krNavKrw} />
+                </div>
               </div>
               <PnlText amount={krAccountPnlKrw} pct={krPnlPct} currency="KRW" />
             </div>
             <div className="portfolio-donut-mini-block">
               <div className="portfolio-donut-mini-row">
                 <h4>US NAV</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("USD", usNavCents)}</div>
+                <div className="portfolio-donut-mini-nav">
+                  <CurrencyAmount currency="USD" amountInt={usNavCents} />
+                </div>
               </div>
               <PnlText amount={usAccountPnlCents} pct={usPnlPct} currency="USD" />
             </div>
@@ -260,14 +265,16 @@ export function PortfolioAllocationDonut({
               <div className="portfolio-donut-mini-row">
                 <h4>예수금</h4>
                 <div className="portfolio-donut-mini-nav">
-                  {moneyFormat("KRW", depositTotalKrw)}
+                  <CurrencyAmount currency="KRW" amountInt={depositTotalKrw} />
                 </div>
               </div>
             </div>
             <div className="portfolio-donut-mini-block">
               <div className="portfolio-donut-mini-row">
                 <h4>현금</h4>
-                <div className="portfolio-donut-mini-nav">{moneyFormat("KRW", cashKrw)}</div>
+                <div className="portfolio-donut-mini-nav">
+                  <CurrencyAmount currency="KRW" amountInt={cashKrw} />
+                </div>
               </div>
             </div>
           </div>
@@ -319,7 +326,7 @@ export function PortfolioAllocationDonut({
                     </div>
                     <div className="portfolio-donut-legend-right">
                       <span className="portfolio-donut-legend-value">
-                        {moneyFormat("KRW", row.amountKrw)}
+                        <CurrencyAmount currency="KRW" amountInt={row.amountKrw} />
                       </span>
                       <span className="portfolio-donut-legend-ratio">
                         {total > 0 ? `${((row.amountKrw / total) * 100).toFixed(2)}%` : "0.00%"}

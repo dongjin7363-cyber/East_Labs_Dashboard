@@ -11,6 +11,7 @@ import {
 import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/PageHeader";
+import { CurrencyAmount } from "@/components/common/CurrencyAmount";
 import { PortfolioAllocationDonut } from "@/components/portfolio/PortfolioAllocationDonut";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
@@ -30,7 +31,6 @@ import {
   PortfolioInput,
 } from "@/lib/services/portfolioService";
 import {
-  moneyFormatParts,
   parsePriceInputToInt,
   percentFormat,
   usdCentsToUsdFloat,
@@ -1203,14 +1203,7 @@ export default function PortfolioPage() {
     amountInt: number,
     mode: "default" | "table" = "default",
   ): ReactNode => {
-    const parts = moneyFormatParts(currency, amountInt);
-
-    return (
-      <span className={`money-inline ${mode === "table" ? "is-table" : ""}`}>
-        <span className="money-symbol">{parts.symbol}</span>
-        <span className="money-value">{parts.valueText}</span>
-      </span>
-    );
+    return <CurrencyAmount currency={currency} amountInt={amountInt} mode={mode} />;
   };
 
   const handleDepositKrwInputChange = (rawDigits: string) => {
