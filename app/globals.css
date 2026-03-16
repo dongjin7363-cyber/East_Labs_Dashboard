@@ -1661,6 +1661,20 @@ th {
   padding: 7px 8px;
 }
 
+.portfolio-holdings-table th:not(:first-child) {
+  text-align: center;
+}
+
+.portfolio-holdings-table th:not(:first-child) .table-sort-button {
+  width: 100%;
+  justify-content: center;
+}
+
+.portfolio-holdings-table td:not(:first-child) {
+  text-align: center;
+  vertical-align: middle;
+}
+
 .portfolio-col-holding {
   width: 228px;
 }
@@ -1691,6 +1705,15 @@ th {
 
 .portfolio-col-comment {
   width: 136px;
+}
+
+.portfolio-center-header {
+  text-align: center;
+}
+
+.portfolio-center-header .table-sort-button {
+  width: 100%;
+  justify-content: center;
 }
 
 .holding-info-cell {
@@ -1764,6 +1787,23 @@ th {
   outline: none;
   border-color: #9ec2e6;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.08);
+}
+
+.portfolio-center-cell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.portfolio-position-cell .portfolio-position-select {
+  display: block;
+  max-width: 70px;
+  margin: 0 auto;
+}
+
+.portfolio-comment-cell .portfolio-comment-input {
+  display: block;
+  max-width: 118px;
+  margin: 0 auto;
 }
 
 .portfolio-position-select {

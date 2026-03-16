@@ -283,6 +283,7 @@ export default function PortfolioPage() {
     loading,
     create,
     update,
+    setPosition,
     remove,
     updateQuotes,
     authLoading,
@@ -1356,10 +1357,7 @@ export default function PortfolioPage() {
       return;
     }
 
-    update(holding.id, {
-      ...holdingToInput(holding),
-      position: nextPosition,
-    });
+    setPosition(holding.id, nextPosition);
   };
 
   const handleSortClick = (key: PortfolioSortKey) => {
@@ -1825,7 +1823,7 @@ export default function PortfolioPage() {
                     </span>
                   </button>
                 </th>
-                <th>
+                <th className="portfolio-center-header">
                   <button
                     type="button"
                     className={sortButtonClassName("pnl")}
@@ -1837,7 +1835,7 @@ export default function PortfolioPage() {
                     </span>
                   </button>
                 </th>
-                <th>
+                <th className="portfolio-center-header">
                   <button
                     type="button"
                     className={sortButtonClassName("pnlRate")}
@@ -1849,8 +1847,8 @@ export default function PortfolioPage() {
                     </span>
                   </button>
                 </th>
-                <th>Position</th>
-                <th>
+                <th className="portfolio-center-header">Position</th>
+                <th className="portfolio-center-header">
                   <button
                     type="button"
                     className={sortButtonClassName("comment")}
@@ -1943,6 +1941,7 @@ export default function PortfolioPage() {
                       <td>{holding.qty}</td>
                       <td>{renderMoney(holding.currency, computed.marketValue, "table")}</td>
                       <td
+                        className="portfolio-center-cell"
                         style={{
                           color: computed.pnl >= 0 ? "var(--positive)" : "var(--negative)",
                         }}
@@ -1950,6 +1949,7 @@ export default function PortfolioPage() {
                         {renderMoney(holding.currency, computed.pnl, "table")}
                       </td>
                       <td
+                        className="portfolio-center-cell"
                         style={{
                           color:
                             computed.pnlRate >= 0
@@ -1960,6 +1960,7 @@ export default function PortfolioPage() {
                         {percentFormat(computed.pnlRate)}
                       </td>
                       <td
+                        className="portfolio-center-cell portfolio-position-cell"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
@@ -1968,6 +1969,8 @@ export default function PortfolioPage() {
                             holding.position ?? "N"
                           ).toLowerCase()}`}
                           value={holding.position ?? "N"}
+                          onClick={(event) => event.stopPropagation()}
+                          onMouseDown={(event) => event.stopPropagation()}
                           onChange={(event) =>
                             commitPosition(
                               holding,
@@ -1984,6 +1987,7 @@ export default function PortfolioPage() {
                         </select>
                       </td>
                       <td
+                        className="portfolio-center-cell portfolio-comment-cell"
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >

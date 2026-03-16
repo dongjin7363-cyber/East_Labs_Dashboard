@@ -434,6 +434,47 @@ export function usePortfolio() {
     [applyHoldings, isAuthenticated, repository],
   );
 
+  const setPosition = useCallback(
+    (id: string, position: PortfolioHolding["position"]) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      const currentHoldings = holdingsRef.current;
+      const target = currentHoldings.find((item) => item.id === id);
+
+      if (!target || target.position === position) {
+        return;
+      }
+
+      const nextUpdatedAt = new Date().toISOString();
+      const nextHolding: PortfolioHolding = {
+        ...target,
+        position,
+        updatedAt: nextUpdatedAt,
+      };
+      const nextHoldings = currentHoldings.map((item) =>
+        item.id === id ? nextHolding : item,
+      );
+
+      applyHoldings(nextHoldings);
+
+      void (async () => {
+        try {
+          await localRepository.upsertHolding(nextHolding);
+          await repository.upsertHolding(nextHolding);
+          notifyFinanceDataChanged();
+        } catch (error) {
+          applyHoldings(currentHoldings);
+          const message = errorMessage(error);
+          console.error("[portfolio] failed to update holding position", error);
+          window.alert(`Position 저장 실패: ${message}`);
+        }
+      })();
+    },
+    [applyHoldings, isAuthenticated, localRepository, repository],
+  );
+
   const remove = useCallback(
     (id: string) => {
       if (!isAuthenticated) {
@@ -571,6 +612,7 @@ export function usePortfolio() {
     refresh,
     create,
     update,
+    setPosition,
     remove,
     updateQuotes,
     authLoading,
