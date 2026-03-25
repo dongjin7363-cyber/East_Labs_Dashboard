@@ -2465,6 +2465,11 @@ table tfoot td {
   font-weight: 700;
 }
 
+.salary-table .salary-month-head,
+.salary-table .salary-month-cell {
+  text-align: center;
+}
+
 .expense-modal-meta {
   display: flex;
   justify-content: space-between;

@@ -5,6 +5,7 @@ import { EarningsChart } from "@/components/EarningsChart";
 import { PageHeader } from "@/components/PageHeader";
 import { SalaryChart } from "@/components/SalaryChart";
 import { YearPicker } from "@/components/YearPicker";
+import { CurrencyAmount } from "@/components/common/CurrencyAmount";
 import { useExpenses } from "@/lib/hooks/useExpenses";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
 import {
@@ -13,7 +14,6 @@ import {
   getYearSummary,
 } from "@/lib/services/salaryService";
 import type { SalaryMonthRow } from "@/lib/services/salaryService";
-import { moneyFormat } from "@/lib/utils/money";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const DEFAULT_FX_RATE = 1350;
@@ -22,12 +22,12 @@ interface FxApiResponse {
   rate: number;
 }
 
-function renderMonthAmount(value: number, hasData: boolean): string {
+function renderMoneyAmount(value: number, hasData: boolean) {
   if (!hasData) {
     return "-";
   }
 
-  return moneyFormat("KRW", value);
+  return <CurrencyAmount currency="KRW" amountInt={value} mode="table" />;
 }
 
 function renderRowAmount(
@@ -38,11 +38,16 @@ function renderRowAmount(
     | "earnings"
     | "rent"
     | "debt"
+    | "subscription"
     | "plus"
     | "spendingOnly"
     | "spending",
-): string {
-  return renderMonthAmount(row[key], row.presence[key]);
+) {
+  return renderMoneyAmount(row[key], row.presence[key]);
+}
+
+function renderTotalAmount(value: number) {
+  return <CurrencyAmount currency="KRW" amountInt={value} mode="table" />;
 }
 
 export default function SalaryPage() {
@@ -141,15 +146,16 @@ export default function SalaryPage() {
 
       <section className="panel">
         <div className="table-wrap">
-          <table>
+          <table className="salary-table">
             <thead>
               <tr>
-                <th>Month</th>
+                <th className="salary-month-head">Month</th>
                 <th>Income</th>
                 <th>Stock</th>
                 <th>Total Earnings</th>
                 <th>Rent</th>
                 <th>Debt</th>
+                <th>Subscription</th>
                 <th>Plus</th>
                 <th>Spending</th>
                 <th>Total Spending</th>
@@ -158,16 +164,17 @@ export default function SalaryPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9}>로딩 중...</td>
+                  <td colSpan={10}>로딩 중...</td>
                 </tr>
               ) : summary.months.map((row) => (
                 <tr key={row.month}>
-                  <td>{row.month}</td>
+                  <td className="salary-month-cell">{row.month}</td>
                   <td>{renderRowAmount(row, "income")}</td>
                   <td>{renderRowAmount(row, "stock")}</td>
                   <td style={{ fontWeight: 700 }}>{renderRowAmount(row, "earnings")}</td>
                   <td>{renderRowAmount(row, "rent")}</td>
                   <td>{renderRowAmount(row, "debt")}</td>
+                  <td>{renderRowAmount(row, "subscription")}</td>
                   <td>{renderRowAmount(row, "plus")}</td>
                   <td>{renderRowAmount(row, "spendingOnly")}</td>
                   <td style={{ fontWeight: 700 }}>{renderRowAmount(row, "spending")}</td>
@@ -177,17 +184,18 @@ export default function SalaryPage() {
             <tfoot>
               <tr>
                 <th>Total</th>
-                <td>{moneyFormat("KRW", summary.totals.income)}</td>
-                <td>{moneyFormat("KRW", summary.totals.stock)}</td>
+                <td>{renderTotalAmount(summary.totals.income)}</td>
+                <td>{renderTotalAmount(summary.totals.stock)}</td>
                 <td style={{ fontWeight: 700 }}>
-                  {moneyFormat("KRW", summary.totals.earnings)}
+                  {renderTotalAmount(summary.totals.earnings)}
                 </td>
-                <td>{moneyFormat("KRW", summary.totals.rent)}</td>
-                <td>{moneyFormat("KRW", summary.totals.debt)}</td>
-                <td>{moneyFormat("KRW", summary.totals.plus)}</td>
-                <td>{moneyFormat("KRW", summary.totals.spendingOnly)}</td>
+                <td>{renderTotalAmount(summary.totals.rent)}</td>
+                <td>{renderTotalAmount(summary.totals.debt)}</td>
+                <td>{renderTotalAmount(summary.totals.subscription)}</td>
+                <td>{renderTotalAmount(summary.totals.plus)}</td>
+                <td>{renderTotalAmount(summary.totals.spendingOnly)}</td>
                 <td style={{ fontWeight: 700 }}>
-                  {moneyFormat("KRW", summary.totals.spending)}
+                  {renderTotalAmount(summary.totals.spending)}
                 </td>
               </tr>
             </tfoot>

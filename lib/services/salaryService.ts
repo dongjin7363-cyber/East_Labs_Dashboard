@@ -8,6 +8,7 @@ export interface SalaryMonthRow {
   earnings: number;
   rent: number;
   debt: number;
+  subscription: number;
   plus: number;
   spendingOnly: number;
   spending: number;
@@ -20,6 +21,7 @@ export interface SalaryYearTotals {
   earnings: number;
   rent: number;
   debt: number;
+  subscription: number;
   plus: number;
   spendingOnly: number;
   spending: number;
@@ -37,6 +39,7 @@ export interface SalaryMonthPresence {
   earnings: boolean;
   rent: boolean;
   debt: boolean;
+  subscription: boolean;
   plus: boolean;
   spendingOnly: boolean;
   spending: boolean;
@@ -49,6 +52,7 @@ function createMonthPresence(): SalaryMonthPresence {
     earnings: false,
     rent: false,
     debt: false,
+    subscription: false,
     plus: false,
     spendingOnly: false,
     spending: false,
@@ -63,6 +67,7 @@ function createMonthRow(month: number): SalaryMonthRow {
     earnings: 0,
     rent: 0,
     debt: 0,
+    subscription: 0,
     plus: 0,
     spendingOnly: 0,
     spending: 0,
@@ -77,6 +82,7 @@ function createYearTotals(): SalaryYearTotals {
     earnings: 0,
     rent: 0,
     debt: 0,
+    subscription: 0,
     plus: 0,
     spendingOnly: 0,
     spending: 0,
@@ -119,6 +125,7 @@ function summarizeTotals(rows: SalaryMonthRow[]): SalaryYearTotals {
       earnings: acc.earnings + row.earnings,
       rent: acc.rent + row.rent,
       debt: acc.debt + row.debt,
+      subscription: acc.subscription + row.subscription,
       plus: acc.plus + row.plus,
       spendingOnly: acc.spendingOnly + row.spendingOnly,
       spending: acc.spending + row.spending,
@@ -181,6 +188,11 @@ export function getYearSummary(options: {
     if (entry.subcategory === "Debt") {
       target.debt += entry.amountInt;
       target.presence.debt = true;
+    }
+
+    if (entry.subcategory === "Subscription") {
+      target.subscription += entry.amountInt;
+      target.presence.subscription = true;
     }
   });
 
