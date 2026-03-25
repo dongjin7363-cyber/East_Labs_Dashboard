@@ -1,5 +1,6 @@
 "use client";
 
+import { ReactNode } from "react";
 import {
   CartesianGrid,
   Line,
@@ -15,6 +16,7 @@ import {
   ASSET_TREND_BENCHMARK_META,
   AssetTrendBenchmarkKey,
   AssetTrendBenchmarkPoint,
+  AssetTrendBenchmarkSummaryValue,
 } from "@/lib/asset-trend/benchmark";
 
 interface CalendarDayInfo {
@@ -23,7 +25,10 @@ interface CalendarDayInfo {
 }
 
 interface AssetTrendBenchmarkChartProps {
+  title?: ReactNode;
+  periodControls?: ReactNode;
   data: AssetTrendBenchmarkPoint[];
+  summary: Record<AssetTrendBenchmarkKey, AssetTrendBenchmarkSummaryValue>;
   calendarMap: Record<string, CalendarDayInfo>;
   visibleSeries: Record<AssetTrendBenchmarkKey, boolean>;
   onToggleSeries: (key: AssetTrendBenchmarkKey) => void;
@@ -61,43 +66,11 @@ function formatPct(value: number): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
-function getLastNumericEntry(
-  data: AssetTrendBenchmarkPoint[],
-  key: AssetTrendBenchmarkKey,
-): { index: number; value: number } | null {
-  for (let index = data.length - 1; index >= 0; index -= 1) {
-    const value = data[index]?.[key];
-
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return { index, value };
-    }
-  }
-
-  return null;
-}
-
-function getPreviousNumericValue(
-  data: AssetTrendBenchmarkPoint[],
-  key: AssetTrendBenchmarkKey,
-  beforeIndex: number,
-): number | null {
-  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
-    const value = data[index]?.[key];
-
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-  }
-
-  return null;
-}
-
-function convertCumulativeReturnToDailyReturn(currentPct: number, previousPct: number): number {
-  return (((1 + currentPct / 100) / (1 + previousPct / 100)) - 1) * 100;
-}
-
 export function AssetTrendBenchmarkChart({
+  title,
+  periodControls,
   data,
+  summary,
   calendarMap,
   visibleSeries,
   onToggleSeries,
@@ -110,13 +83,13 @@ export function AssetTrendBenchmarkChart({
   const summaryRows = seriesKeys
     .map((key) => {
       const meta = ASSET_TREND_BENCHMARK_META[key];
-      const lastEntry = getLastNumericEntry(data, key);
+      const summaryValue = summary[key];
 
       return {
         key,
         label: meta.label,
         color: meta.color,
-        value: lastEntry?.value ?? null,
+        value: summaryValue?.periodReturnPct ?? null,
       };
     })
     .sort((a, b) => {
@@ -135,34 +108,9 @@ export function AssetTrendBenchmarkChart({
       return b.value - a.value;
     });
   const dailyRows = summaryRows.map((row) => {
-    if (row.value === null) {
-      return {
-        ...row,
-        value: null,
-      };
-    }
-
-    const lastEntry = getLastNumericEntry(data, row.key);
-
-    if (!lastEntry) {
-      return {
-        ...row,
-        value: null,
-      };
-    }
-
-    const previousValue = getPreviousNumericValue(data, row.key, lastEntry.index);
-
-    if (previousValue === null) {
-      return {
-        ...row,
-        value: null,
-      };
-    }
-
     return {
       ...row,
-      value: convertCumulativeReturnToDailyReturn(lastEntry.value, previousValue),
+      value: summary[row.key]?.dailyReturnPct ?? null,
     };
   });
 
@@ -190,28 +138,12 @@ export function AssetTrendBenchmarkChart({
   return (
     <div className="ta-benchmark-chart-block">
       <div className="ta-benchmark-top-row">
-        <div className="ta-benchmark-toggle-row">
-          {seriesKeys.map((key) => {
-            const meta = ASSET_TREND_BENCHMARK_META[key];
-
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`ta-benchmark-toggle ${visibleSeries[key] ? "is-active" : ""}`}
-                onClick={() => onToggleSeries(key)}
-              >
-                <span
-                  className="ta-benchmark-toggle-dot"
-                  style={{ backgroundColor: meta.color }}
-                  aria-hidden="true"
-                />
-                {meta.label}
-              </button>
-            );
-          })}
+        <div className="ta-benchmark-heading-row">
+          <div className="ta-benchmark-heading-left">
+            {title ? <h3 className="ta-benchmark-title">{title}</h3> : null}
+            {periodControls ? <div className="ta-benchmark-heading-controls">{periodControls}</div> : null}
+          </div>
         </div>
-
         <div className="ta-benchmark-summary-row">
           <div className="ta-benchmark-summary ta-benchmark-summary-daily">
             <div className="ta-benchmark-summary-title">당일 수익률</div>
@@ -274,6 +206,27 @@ export function AssetTrendBenchmarkChart({
               ))}
             </ul>
           </div>
+        </div>
+        <div className="ta-benchmark-toggle-row">
+          {seriesKeys.map((key) => {
+            const meta = ASSET_TREND_BENCHMARK_META[key];
+
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`ta-benchmark-toggle ${visibleSeries[key] ? "is-active" : ""}`}
+                onClick={() => onToggleSeries(key)}
+              >
+                <span
+                  className="ta-benchmark-toggle-dot"
+                  style={{ backgroundColor: meta.color }}
+                  aria-hidden="true"
+                />
+                {meta.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -338,7 +291,7 @@ export function AssetTrendBenchmarkChart({
           </ResponsiveContainer>
         </div>
       ) : (
-        <EmptyChartState title="비교 지수 데이터를 불러오지 못했습니다." />
+        <EmptyChartState title={errorMessage || "선택한 기간의 비교 데이터가 없습니다."} />
       )}
     </div>
   );

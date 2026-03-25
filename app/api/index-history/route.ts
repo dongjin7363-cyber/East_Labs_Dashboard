@@ -7,6 +7,8 @@ import {
 import { getDatesInRange } from "@/lib/utils/date";
 
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
+const MAX_RANGE_DAYS = 370;
+const MAX_NAVER_PAGES = 30;
 const NAVER_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -90,7 +92,7 @@ async function fetchNaverIndexHistory(
   const collected: IndexHistoryPoint[] = [];
   const seen = new Set<string>();
 
-  for (let page = 1; page <= 10; page += 1) {
+  for (let page = 1; page <= MAX_NAVER_PAGES; page += 1) {
     const response = await fetch(
       `https://finance.naver.com/sise/sise_index_day.naver?code=${code}&page=${page}`,
       {
@@ -311,7 +313,7 @@ export async function GET(request: Request) {
 
   const dates = getDatesInRange(from, to);
 
-  if (dates.length === 0 || dates.length > 62) {
+  if (dates.length === 0 || dates.length > MAX_RANGE_DAYS) {
     return NextResponse.json({ error: "date range is too large" }, { status: 400 });
   }
 

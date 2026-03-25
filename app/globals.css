@@ -995,22 +995,98 @@ textarea {
 
 .ta-benchmark-chart-block {
   display: grid;
-  gap: 6px;
+  gap: 5px;
 }
 
-.ta-benchmark-top-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ta-benchmark-toggle-row {
+.ta-benchmark-period-controls {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+}
+
+.ta-benchmark-period-field {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 192px;
+  min-height: 36px;
+  padding: 0 10px 0 11px;
+  border: 1px solid #dbe3ec;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ta-benchmark-period-field span {
+  flex-shrink: 0;
+}
+
+.ta-benchmark-period-field input {
+  width: 112px;
+  min-width: 112px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ta-benchmark-period-field input:focus {
+  outline: none;
+}
+
+.ta-benchmark-period-reset {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ta-benchmark-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "heading summary"
+    "toggle summary";
+  align-items: flex-start;
+  gap: 4px 14px;
+}
+
+.ta-benchmark-heading-row {
+  grid-area: heading;
+  min-width: 0;
+}
+
+.ta-benchmark-heading-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ta-benchmark-heading-controls {
   flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ta-benchmark-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.ta-benchmark-toggle-row {
+  grid-area: toggle;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .ta-benchmark-toggle {
@@ -1047,10 +1123,11 @@ textarea {
 }
 
 .ta-benchmark-summary-row {
+  grid-area: summary;
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin-top: -6px;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
 .ta-benchmark-summary {
@@ -1059,7 +1136,7 @@ textarea {
   border: 1px solid #e4ebf2;
   border-radius: 12px;
   background: #fbfdff;
-  padding: 9px 10px;
+  padding: 8px 10px;
   margin-top: 0;
 }
 
@@ -3358,9 +3435,19 @@ table tfoot td {
     height: 280px;
   }
 
+  .ta-benchmark-period-controls {
+    width: 100%;
+  }
+
   .ta-benchmark-top-row {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .ta-benchmark-heading-left {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .ta-benchmark-summary-row {

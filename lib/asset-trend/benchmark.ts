@@ -1,4 +1,4 @@
-import { getMonthDays } from "@/lib/date/calendar";
+import { getDatesInRange } from "@/lib/date/calendar";
 import { TotalAssetSnapshot } from "@/lib/models/types";
 
 export type AssetTrendBenchmarkKey = "portfolio" | "kospi" | "kosdaq" | "sp500";
@@ -22,6 +22,22 @@ export interface AssetTrendBenchmarkPoint {
   sp500: number | null;
 }
 
+export interface AssetTrendBenchmarkSummaryValue {
+  periodReturnPct: number | null;
+  dailyReturnPct: number | null;
+}
+
+export interface AssetTrendBenchmarkBuildResult {
+  data: AssetTrendBenchmarkPoint[];
+  summary: Record<AssetTrendBenchmarkKey, AssetTrendBenchmarkSummaryValue>;
+  diagnostics: Record<AssetTrendBenchmarkKey, AssetTrendBenchmarkSeriesDiagnostics>;
+}
+
+export interface AssetTrendBenchmarkSeriesDiagnostics {
+  baseSource: "previous" | "fallback" | "none";
+  rawPointCount: number;
+}
+
 export const ASSET_TREND_BENCHMARK_META: Record<
   AssetTrendBenchmarkKey,
   { label: string; color: string }
@@ -36,10 +52,10 @@ function isFinitePositiveNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
-function findLatestValueBeforeDate(
+function findLatestEntryBeforeDate(
   valueByDate: Map<string, number>,
   targetDate: string,
-): number | null {
+): { date: string; value: number } | null {
   let latestDate: string | null = null;
   let latestValue: number | null = null;
 
@@ -54,38 +70,134 @@ function findLatestValueBeforeDate(
     }
   }
 
-  return latestValue;
+  if (latestDate === null || latestValue === null) {
+    return null;
+  }
+
+  return {
+    date: latestDate,
+    value: latestValue,
+  };
 }
 
-function buildNormalizedReturnMap(
+function findLatestEntryOnOrBeforeDate(
+  valueByDate: Map<string, number>,
+  targetDate: string,
+): { date: string; value: number } | null {
+  let latestDate: string | null = null;
+  let latestValue: number | null = null;
+
+  for (const [date, value] of valueByDate.entries()) {
+    if (!isFinitePositiveNumber(value) || date > targetDate) {
+      continue;
+    }
+
+    if (latestDate === null || date > latestDate) {
+      latestDate = date;
+      latestValue = value;
+    }
+  }
+
+  if (latestDate === null || latestValue === null) {
+    return null;
+  }
+
+  return {
+    date: latestDate,
+    value: latestValue,
+  };
+}
+
+function findFirstEntryOnOrAfterDate(
+  valueByDate: Map<string, number>,
+  targetDate: string,
+  endDate: string,
+): { date: string; value: number } | null {
+  let earliestDate: string | null = null;
+  let earliestValue: number | null = null;
+
+  for (const [date, value] of valueByDate.entries()) {
+    if (!isFinitePositiveNumber(value) || date < targetDate || date > endDate) {
+      continue;
+    }
+
+    if (earliestDate === null || date < earliestDate) {
+      earliestDate = date;
+      earliestValue = value;
+    }
+  }
+
+  if (earliestDate === null || earliestValue === null) {
+    return null;
+  }
+
+  return {
+    date: earliestDate,
+    value: earliestValue,
+  };
+}
+
+function emptySummaryValue(): AssetTrendBenchmarkSummaryValue {
+  return {
+    periodReturnPct: null,
+    dailyReturnPct: null,
+  };
+}
+
+function buildNormalizedSeriesResult(
   dates: string[],
   valueByDate: Map<string, number>,
-): Map<string, number | null> {
+  compareStartDate: string,
+  compareEndDate: string,
+): {
+  returnMap: Map<string, number | null>;
+  summary: AssetTrendBenchmarkSummaryValue;
+  diagnostics: AssetTrendBenchmarkSeriesDiagnostics;
+} {
+  const rawPointCount = Array.from(valueByDate.entries()).filter(
+    ([date, value]) =>
+      isFinitePositiveNumber(value) && date >= compareStartDate && date <= compareEndDate,
+  ).length;
+
   if (dates.length === 0) {
-    return new Map();
+    return {
+      returnMap: new Map(),
+      summary: emptySummaryValue(),
+      diagnostics: {
+        baseSource: "none",
+        rawPointCount,
+      },
+    };
   }
 
-  const monthStart = dates[0];
-  const priorBaseValue = findLatestValueBeforeDate(valueByDate, monthStart);
-  const firstInMonthDate = dates.find((date) => isFinitePositiveNumber(valueByDate.get(date)));
-  const fallbackBaseValue =
-    typeof firstInMonthDate === "string" ? valueByDate.get(firstInMonthDate) : null;
-  const baseValue = isFinitePositiveNumber(priorBaseValue)
-    ? priorBaseValue
-    : isFinitePositiveNumber(fallbackBaseValue)
-      ? fallbackBaseValue
-      : null;
-  const seriesStartDate =
-    isFinitePositiveNumber(priorBaseValue) ? monthStart : firstInMonthDate ?? null;
+  const previousBaseEntry = findLatestEntryBeforeDate(valueByDate, compareStartDate);
+  const fallbackBaseEntry = findFirstEntryOnOrAfterDate(
+    valueByDate,
+    compareStartDate,
+    compareEndDate,
+  );
+  const baseEntry = previousBaseEntry ?? fallbackBaseEntry;
+  const baseSource: AssetTrendBenchmarkSeriesDiagnostics["baseSource"] = previousBaseEntry
+    ? "previous"
+    : fallbackBaseEntry
+      ? "fallback"
+      : "none";
 
-  if (!isFinitePositiveNumber(baseValue) || !seriesStartDate) {
-    return new Map(dates.map((date) => [date, null]));
+  if (!baseEntry) {
+    return {
+      returnMap: new Map(dates.map((date) => [date, null])),
+      summary: emptySummaryValue(),
+      diagnostics: {
+        baseSource,
+        rawPointCount,
+      },
+    };
   }
-  let lastValue: number | null = isFinitePositiveNumber(priorBaseValue) ? priorBaseValue : null;
 
-  return new Map(
+  let lastValue: number | null = baseEntry.value;
+  const returnMap = new Map<string, number | null>(
     dates.map((date) => {
-      if (date < seriesStartDate) {
+      if (baseSource === "fallback" && date < baseEntry.date) {
         return [date, null] as const;
       }
 
@@ -98,9 +210,35 @@ function buildNormalizedReturnMap(
 
       lastValue = value;
 
-      return [date, ((value / baseValue) - 1) * 100] as const;
+      return [date, ((value / baseEntry.value) - 1) * 100] as const;
     }),
   );
+
+  const lastDate = dates[dates.length - 1];
+  const periodReturnPct = returnMap.get(lastDate) ?? null;
+
+  const currentEntry = findLatestEntryOnOrBeforeDate(valueByDate, compareEndDate);
+  let dailyReturnPct: number | null = null;
+
+  if (currentEntry && currentEntry.date >= compareStartDate) {
+    const previousEntry = findLatestEntryBeforeDate(valueByDate, currentEntry.date);
+
+    if (previousEntry) {
+      dailyReturnPct = ((currentEntry.value / previousEntry.value) - 1) * 100;
+    }
+  }
+
+  return {
+    returnMap,
+    summary: {
+      periodReturnPct,
+      dailyReturnPct,
+    },
+    diagnostics: {
+      baseSource,
+      rawPointCount,
+    },
+  };
 }
 
 export function createEmptyIndexHistorySeries(): IndexHistorySeriesMap {
@@ -113,13 +251,11 @@ export function createEmptyIndexHistorySeries(): IndexHistorySeriesMap {
 
 export function buildAssetTrendBenchmarkData(options: {
   snapshots: TotalAssetSnapshot[];
-  ym: string;
   indexSeries: IndexHistorySeriesMap;
-  endDate?: string;
-}): AssetTrendBenchmarkPoint[] {
-  const dates = getMonthDays(options.ym).filter((date) =>
-    options.endDate ? date <= options.endDate : true,
-  );
+  compareStartDate: string;
+  compareEndDate: string;
+}): AssetTrendBenchmarkBuildResult {
+  const dates = getDatesInRange(options.compareStartDate, options.compareEndDate);
   const portfolioValueByDate = new Map(
     options.snapshots.map((snapshot) => [snapshot.date, snapshot.totalAssetKrwInt]),
   );
@@ -133,16 +269,50 @@ export function buildAssetTrendBenchmarkData(options: {
     options.indexSeries.sp500.map((point) => [point.date, point.close]),
   );
 
-  const portfolioReturns = buildNormalizedReturnMap(dates, portfolioValueByDate);
-  const kospiReturns = buildNormalizedReturnMap(dates, kospiValueByDate);
-  const kosdaqReturns = buildNormalizedReturnMap(dates, kosdaqValueByDate);
-  const sp500Returns = buildNormalizedReturnMap(dates, sp500ValueByDate);
+  const portfolioResult = buildNormalizedSeriesResult(
+    dates,
+    portfolioValueByDate,
+    options.compareStartDate,
+    options.compareEndDate,
+  );
+  const kospiResult = buildNormalizedSeriesResult(
+    dates,
+    kospiValueByDate,
+    options.compareStartDate,
+    options.compareEndDate,
+  );
+  const kosdaqResult = buildNormalizedSeriesResult(
+    dates,
+    kosdaqValueByDate,
+    options.compareStartDate,
+    options.compareEndDate,
+  );
+  const sp500Result = buildNormalizedSeriesResult(
+    dates,
+    sp500ValueByDate,
+    options.compareStartDate,
+    options.compareEndDate,
+  );
 
-  return dates.map((date) => ({
-    date,
-    portfolio: portfolioReturns.get(date) ?? null,
-    kospi: kospiReturns.get(date) ?? null,
-    kosdaq: kosdaqReturns.get(date) ?? null,
-    sp500: sp500Returns.get(date) ?? null,
-  }));
+  return {
+    data: dates.map((date) => ({
+      date,
+      portfolio: portfolioResult.returnMap.get(date) ?? null,
+      kospi: kospiResult.returnMap.get(date) ?? null,
+      kosdaq: kosdaqResult.returnMap.get(date) ?? null,
+      sp500: sp500Result.returnMap.get(date) ?? null,
+    })),
+    summary: {
+      portfolio: portfolioResult.summary,
+      kospi: kospiResult.summary,
+      kosdaq: kosdaqResult.summary,
+      sp500: sp500Result.summary,
+    },
+    diagnostics: {
+      portfolio: portfolioResult.diagnostics,
+      kospi: kospiResult.diagnostics,
+      kosdaq: kosdaqResult.diagnostics,
+      sp500: sp500Result.diagnostics,
+    },
+  };
 }

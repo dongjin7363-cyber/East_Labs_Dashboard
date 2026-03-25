@@ -94,6 +94,8 @@ export function TotalAssetClient() {
   const [selectedMonth, setSelectedMonth] = useState(SSR_SAFE_MONTH);
   const [selectedDate, setSelectedDate] = useState(SSR_SAFE_DATE);
   const [todayKst, setTodayKst] = useState(SSR_SAFE_DATE);
+  const [compareStartDate, setCompareStartDate] = useState(SSR_SAFE_DATE);
+  const [compareEndDate, setCompareEndDate] = useState(SSR_SAFE_DATE);
   const [nowKstHour, setNowKstHour] = useState(0);
   const [memoInput, setMemoInput] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
@@ -114,16 +116,17 @@ export function TotalAssetClient() {
   >({});
   const loading = portfolioLoading || snapshotLoading || authLoading;
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
-  const benchmarkEndDate = useMemo(
+  const compareDefaultEndDate = useMemo(
     () => (selectedMonth === todayKst.slice(0, 7) ? todayKst : monthRange.to),
     [monthRange.to, selectedMonth, todayKst],
   );
+  const compareResetLabel = selectedMonth === todayKst.slice(0, 7) ? "이번 달" : "월 기본값";
   const benchmarkFetchFrom = useMemo(() => {
-    const baseDate = new Date(`${monthRange.from}T00:00:00`);
+    const baseDate = new Date(`${compareStartDate}T00:00:00`);
     baseDate.setDate(baseDate.getDate() - 14);
 
     return toYmd(baseDate);
-  }, [monthRange.from]);
+  }, [compareStartDate]);
 
   useEffect(() => {
     const initialMonth = toYm(new Date());
@@ -148,6 +151,15 @@ export function TotalAssetClient() {
       setSelectedDate(range.from);
     }
   }, [mounted, selectedDate, selectedMonth]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
+    setCompareStartDate(monthRange.from);
+    setCompareEndDate(compareDefaultEndDate);
+  }, [compareDefaultEndDate, monthRange.from, mounted]);
 
   useEffect(() => {
     if (!mounted) {
@@ -218,7 +230,7 @@ export function TotalAssetClient() {
     }
 
     let cancelled = false;
-    const benchmarkCacheKey = `${selectedMonth}:${benchmarkEndDate}`;
+    const benchmarkCacheKey = `${benchmarkFetchFrom}:${compareEndDate}`;
     const cached = benchmarkMonthCacheRef.current[benchmarkCacheKey];
 
     if (cached) {
@@ -240,7 +252,7 @@ export function TotalAssetClient() {
     const loadIndexHistory = async () => {
       try {
         const response = await fetch(
-          `/api/index-history?from=${benchmarkFetchFrom}&to=${benchmarkEndDate}`,
+          `/api/index-history?from=${benchmarkFetchFrom}&to=${compareEndDate}`,
           { cache: "no-store" },
         );
 
@@ -281,7 +293,7 @@ export function TotalAssetClient() {
     return () => {
       cancelled = true;
     };
-  }, [benchmarkEndDate, benchmarkFetchFrom, mounted, selectedMonth]);
+  }, [benchmarkFetchFrom, compareEndDate, mounted]);
 
   const snapshotsByDate = useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.date, snapshot])),
@@ -309,16 +321,56 @@ export function TotalAssetClient() {
     () => buildTotalAssetTrendByMonth(snapshots, selectedMonth),
     [selectedMonth, snapshots],
   );
-  const benchmarkData = useMemo(
+  const benchmarkResult = useMemo(
     () =>
       buildAssetTrendBenchmarkData({
         snapshots,
-        ym: selectedMonth,
         indexSeries,
-        endDate: benchmarkEndDate,
+        compareStartDate,
+        compareEndDate,
       }),
-    [benchmarkEndDate, indexSeries, selectedMonth, snapshots],
+    [compareEndDate, compareStartDate, indexSeries, snapshots],
   );
+  const benchmarkData = benchmarkResult.data;
+  const benchmarkSummary = benchmarkResult.summary;
+  const benchmarkDiagnostics = benchmarkResult.diagnostics;
+
+  useEffect(() => {
+    if (!mounted || process.env.NODE_ENV === "production") {
+      return;
+    }
+
+    const portfolioSnapshotCount = snapshots.filter(
+      (snapshot) => snapshot.date >= benchmarkFetchFrom && snapshot.date <= compareEndDate,
+    ).length;
+
+    console.debug("[asset-trend] compare-range", {
+      compareStartDate,
+      compareEndDate,
+      fetchedIndexPointsCount: {
+        kospi: indexSeries.kospi.length,
+        kosdaq: indexSeries.kosdaq.length,
+        sp500: indexSeries.sp500.length,
+      },
+      fetchedPortfolioSnapshotCount: portfolioSnapshotCount,
+      baseClose: {
+        kospi: benchmarkDiagnostics.kospi.baseSource,
+        kosdaq: benchmarkDiagnostics.kosdaq.baseSource,
+        sp500: benchmarkDiagnostics.sp500.baseSource,
+      },
+      baseSnapshot: benchmarkDiagnostics.portfolio.baseSource,
+    });
+  }, [
+    benchmarkDiagnostics,
+    benchmarkFetchFrom,
+    compareEndDate,
+    compareStartDate,
+    indexSeries.kosdaq.length,
+    indexSeries.kospi.length,
+    indexSeries.sp500.length,
+    mounted,
+    snapshots,
+  ]);
 
   const shouldShowMorningReminder = useMemo(
     () => mounted && isCloudMode && nowKstHour >= 7 && !snapshotsByDate.has(todayKst),
@@ -555,6 +607,43 @@ export function TotalAssetClient() {
     }));
   };
 
+  const clampCompareDate = (value: string): string => {
+    if (!value) {
+      return todayKst;
+    }
+
+    if (value > todayKst) {
+      return todayKst;
+    }
+
+    return value;
+  };
+
+  const handleCompareStartDateChange = (value: string) => {
+    const nextStart = clampCompareDate(value || monthRange.from);
+
+    setCompareStartDate(nextStart);
+    setCompareEndDate((current) => {
+      const normalizedCurrent = clampCompareDate(current || compareDefaultEndDate);
+      return normalizedCurrent < nextStart ? nextStart : normalizedCurrent;
+    });
+  };
+
+  const handleCompareEndDateChange = (value: string) => {
+    const nextEnd = clampCompareDate(value || compareDefaultEndDate);
+
+    setCompareEndDate(nextEnd);
+    setCompareStartDate((current) => {
+      const normalizedCurrent = current || monthRange.from;
+      return normalizedCurrent > nextEnd ? nextEnd : normalizedCurrent;
+    });
+  };
+
+  const handleResetComparePeriod = () => {
+    setCompareStartDate(monthRange.from);
+    setCompareEndDate(compareDefaultEndDate);
+  };
+
   return (
     <>
       <PageHeader
@@ -711,12 +800,42 @@ export function TotalAssetClient() {
         )}
       </section>
 
-      <ChartSectionCard
-        title={`포트폴리오 vs 지수 비교 (${selectedMonth})`}
-      >
+      <ChartSectionCard>
         {mounted ? (
           <AssetTrendBenchmarkChart
+            title={`포트폴리오 vs 지수 비교 (${selectedMonth})`}
+            periodControls={
+              <div className="ta-benchmark-period-controls">
+                <label className="ta-benchmark-period-field">
+                  <span>시작일</span>
+                  <input
+                    type="date"
+                    value={compareStartDate}
+                    max={compareEndDate}
+                    onChange={(event) => handleCompareStartDateChange(event.target.value)}
+                  />
+                </label>
+                <label className="ta-benchmark-period-field">
+                  <span>종료일</span>
+                  <input
+                    type="date"
+                    value={compareEndDate}
+                    min={compareStartDate}
+                    max={todayKst}
+                    onChange={(event) => handleCompareEndDateChange(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="secondary-button ta-benchmark-period-reset"
+                  onClick={handleResetComparePeriod}
+                >
+                  {compareResetLabel}
+                </button>
+              </div>
+            }
             data={benchmarkData}
+            summary={benchmarkSummary}
             calendarMap={calendarMap}
             visibleSeries={visibleBenchmarks}
             onToggleSeries={handleToggleBenchmark}
