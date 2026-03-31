@@ -4,6 +4,10 @@ import {
   IndexHistoryPoint,
   IndexHistorySeriesMap,
 } from "@/lib/asset-trend/benchmark";
+import {
+  ASSET_TREND_INDEX_HISTORY_CONFIG,
+  AssetTrendIndexHistoryProvider,
+} from "@/lib/asset-trend/index-history-config";
 import { getDatesInRange } from "@/lib/utils/date";
 
 const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
@@ -55,6 +59,50 @@ function parseNumberText(value: string): number | null {
 
 function sortHistory(points: IndexHistoryPoint[]): IndexHistoryPoint[] {
   return [...points].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function mergeHistoryPoints(
+  primaryPoints: IndexHistoryPoint[],
+  secondaryPoints: IndexHistoryPoint[],
+): IndexHistoryPoint[] {
+  const pointsByDate = new Map<string, number>();
+
+  secondaryPoints.forEach((point) => {
+    pointsByDate.set(point.date, point.close);
+  });
+  primaryPoints.forEach((point) => {
+    pointsByDate.set(point.date, point.close);
+  });
+
+  return sortHistory(
+    Array.from(pointsByDate.entries()).map(([date, close]) => ({
+      date,
+      close,
+    })),
+  );
+}
+
+function formatDateInTimeZone(date: Date, timeZone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
+function readLastPoint(points: IndexHistoryPoint[]): IndexHistoryPoint | null {
+  return points.length > 0 ? points[points.length - 1] ?? null : null;
 }
 
 function parseNaverIndexRows(html: string): IndexHistoryPoint[] {
@@ -141,6 +189,10 @@ async function fetchNaverIndexHistory(
 }
 
 function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
+  if (!text.includes(",")) {
+    return [];
+  }
+
   const lines = text.trim().split(/\r?\n/);
 
   if (lines.length <= 1) {
@@ -153,6 +205,38 @@ function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHist
     const [date, , , , close] = line.split(",");
 
     if (!date || !close || close === "N/D") {
+      continue;
+    }
+
+    if (date < from || date > to) {
+      continue;
+    }
+
+    const parsedClose = Number(close);
+
+    if (!Number.isFinite(parsedClose) || parsedClose <= 0) {
+      continue;
+    }
+
+    points.push({ date, close: parsedClose });
+  }
+
+  return sortHistory(points);
+}
+
+function parseFredHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
+  const lines = text.trim().split(/\r?\n/);
+
+  if (lines.length <= 1) {
+    return [];
+  }
+
+  const points: IndexHistoryPoint[] = [];
+
+  for (const line of lines.slice(1)) {
+    const [date, close] = line.split(",");
+
+    if (!date || !close || close === ".") {
       continue;
     }
 
@@ -229,6 +313,16 @@ async function fetchYahooIndexHistory(
     throw new Error(`Yahoo ${symbol} payload invalid`);
   }
 
+  const meta =
+    "meta" in result && result.meta && typeof result.meta === "object" ? result.meta : null;
+  const exchangeTimeZone =
+    meta &&
+    "exchangeTimezoneName" in meta &&
+    typeof meta.exchangeTimezoneName === "string" &&
+    meta.exchangeTimezoneName
+      ? meta.exchangeTimezoneName
+      : "UTC";
+
   const timestamps =
     "timestamp" in result && Array.isArray(result.timestamp) ? result.timestamp : [];
   const quoteNode =
@@ -260,7 +354,7 @@ async function fetchYahooIndexHistory(
       return;
     }
 
-    const date = new Date(timestamp * 1000).toISOString().slice(0, 10);
+    const date = formatDateInTimeZone(new Date(timestamp * 1000), exchangeTimeZone);
 
     if (date < from || date > to) {
       return;
@@ -272,12 +366,98 @@ async function fetchYahooIndexHistory(
   return sortHistory(points);
 }
 
-async function fetchSp500History(from: string, to: string): Promise<IndexHistoryPoint[]> {
-  try {
-    return await fetchStooqIndexHistory("^spx", from, to);
-  } catch {
-    return fetchYahooIndexHistory("^GSPC", from, to);
+async function fetchFredIndexHistory(
+  symbol: string,
+  from: string,
+  to: string,
+): Promise<IndexHistoryPoint[]> {
+  const response = await fetch(
+    `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(symbol)}`,
+    {
+      headers: DEFAULT_HEADERS,
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`FRED ${symbol} history failed: ${response.status}`);
   }
+
+  return parseFredHistoryCsv(await response.text(), from, to);
+}
+
+async function fetchSp500History(from: string, to: string): Promise<IndexHistoryPoint[]> {
+  const providers = ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers;
+  const providerResults = await Promise.allSettled(
+    providers.map((provider) => fetchHistoryForProvider(provider, from, to)),
+  );
+
+  const successfulSeries = providerResults.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+  const mergedPoints = successfulSeries.reduce<IndexHistoryPoint[]>(
+    (allPoints, points) => mergeHistoryPoints(points, allPoints),
+    [],
+  );
+
+  if (process.env.NODE_ENV !== "production") {
+    console.debug("[api/index-history] sp500", {
+      requestedSymbol: providers[0]?.symbol ?? null,
+      compareEndDate: to,
+      compareStartDate: from,
+      fetchedPointCount: mergedPoints.length,
+      firstValidPoint: mergedPoints[0] ?? null,
+      lastValidPoint: readLastPoint(mergedPoints),
+      providerResults: providers.map((provider, index) => ({
+        type: provider.type,
+        symbol: provider.symbol,
+        pointCount:
+          providerResults[index]?.status === "fulfilled" ? providerResults[index].value.length : 0,
+        failed: providerResults[index]?.status === "rejected",
+      })),
+    });
+  }
+
+  if (mergedPoints.length > 0) {
+    return mergedPoints;
+  }
+
+  throw new Error("S&P history is empty for the selected range");
+}
+
+async function fetchHistoryForProvider(
+  provider: AssetTrendIndexHistoryProvider,
+  from: string,
+  to: string,
+): Promise<IndexHistoryPoint[]> {
+  if (provider.type === "naver") {
+    return fetchNaverIndexHistory(provider.symbol, from, to);
+  }
+
+  if (provider.type === "yahoo") {
+    return fetchYahooIndexHistory(provider.symbol, from, to);
+  }
+
+  if (provider.type === "fred") {
+    return fetchFredIndexHistory(provider.symbol, from, to);
+  }
+
+  return fetchStooqIndexHistory(provider.symbol, from, to);
+}
+
+async function fetchConfiguredIndexHistory(
+  key: keyof IndexHistorySeriesMap,
+  from: string,
+  to: string,
+): Promise<IndexHistoryPoint[]> {
+  const config = ASSET_TREND_INDEX_HISTORY_CONFIG[key];
+
+  if (key === "sp500") {
+    return fetchSp500History(from, to);
+  }
+
+  const provider = config.providers[0];
+  return fetchHistoryForProvider(provider, from, to);
 }
 
 function getCached(key: string): IndexHistoryResponse | null {
@@ -331,26 +511,32 @@ export async function GET(request: Request) {
   const errors: string[] = [];
   const series = createEmptyIndexHistorySeries();
   const [kospiResult, kosdaqResult, sp500Result] = await Promise.allSettled([
-    fetchNaverIndexHistory("KOSPI", from, to),
-    fetchNaverIndexHistory("KOSDAQ", from, to),
-    fetchSp500History(from, to),
+    fetchConfiguredIndexHistory("kospi", from, to),
+    fetchConfiguredIndexHistory("kosdaq", from, to),
+    fetchConfiguredIndexHistory("sp500", from, to),
   ]);
 
   if (kospiResult.status === "fulfilled") {
     series.kospi = kospiResult.value;
-  } else {
+  }
+
+  if (series.kospi.length === 0) {
     errors.push("KOSPI");
   }
 
   if (kosdaqResult.status === "fulfilled") {
     series.kosdaq = kosdaqResult.value;
-  } else {
+  }
+
+  if (series.kosdaq.length === 0) {
     errors.push("KOSDAQ");
   }
 
   if (sp500Result.status === "fulfilled") {
     series.sp500 = sp500Result.value;
-  } else {
+  }
+
+  if (series.sp500.length === 0) {
     errors.push("S&P");
   }
 

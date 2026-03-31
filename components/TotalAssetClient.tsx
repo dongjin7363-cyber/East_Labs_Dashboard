@@ -12,6 +12,7 @@ import {
   createEmptyIndexHistorySeries,
   IndexHistorySeriesMap,
 } from "@/lib/asset-trend/benchmark";
+import { ASSET_TREND_INDEX_HISTORY_CONFIG } from "@/lib/asset-trend/index-history-config";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { PortfolioHolding } from "@/lib/models/types";
@@ -62,6 +63,27 @@ interface CalendarDayInfo {
   dow: number;
   isHoliday: boolean;
   holidayName?: string;
+}
+
+function filterBenchmarkErrors(
+  errors: string[],
+  nextSeries: IndexHistorySeriesMap,
+): string[] {
+  return errors.filter((label) => {
+    if (label === "KOSPI") {
+      return nextSeries.kospi.length === 0;
+    }
+
+    if (label === "KOSDAQ") {
+      return nextSeries.kosdaq.length === 0;
+    }
+
+    if (label === "S&P") {
+      return nextSeries.sp500.length === 0;
+    }
+
+    return true;
+  });
 }
 
 const QUOTE_MAX_CONCURRENCY = 3;
@@ -234,10 +256,12 @@ export function TotalAssetClient() {
     const cached = benchmarkMonthCacheRef.current[benchmarkCacheKey];
 
     if (cached) {
+      const cachedErrors = filterBenchmarkErrors(cached.errors, cached.series);
+
       setIndexSeries(cached.series);
       setBenchmarkError(
-        cached.errors.length > 0
-          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${cached.errors.join(", ")}`
+        cachedErrors.length > 0
+          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${cachedErrors.join(", ")}`
           : "",
       );
 
@@ -266,7 +290,10 @@ export function TotalAssetClient() {
           kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
           sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
         };
-        const errors = Array.isArray(data.errors) ? data.errors : [];
+        const errors = filterBenchmarkErrors(
+          Array.isArray(data.errors) ? data.errors : [],
+          nextSeries,
+        );
 
         if (!cancelled) {
           benchmarkMonthCacheRef.current[benchmarkCacheKey] = {
@@ -340,36 +367,22 @@ export function TotalAssetClient() {
       return;
     }
 
-    const portfolioSnapshotCount = snapshots.filter(
-      (snapshot) => snapshot.date >= benchmarkFetchFrom && snapshot.date <= compareEndDate,
-    ).length;
-
-    console.debug("[asset-trend] compare-range", {
+    console.debug("[asset-trend] sp500", {
+      requestedSymbol: ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers[0].symbol,
+      fallbackSymbol: ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers[1]?.symbol ?? null,
       compareStartDate,
       compareEndDate,
-      fetchedIndexPointsCount: {
-        kospi: indexSeries.kospi.length,
-        kosdaq: indexSeries.kosdaq.length,
-        sp500: indexSeries.sp500.length,
-      },
-      fetchedPortfolioSnapshotCount: portfolioSnapshotCount,
-      baseClose: {
-        kospi: benchmarkDiagnostics.kospi.baseSource,
-        kosdaq: benchmarkDiagnostics.kosdaq.baseSource,
-        sp500: benchmarkDiagnostics.sp500.baseSource,
-      },
-      baseSnapshot: benchmarkDiagnostics.portfolio.baseSource,
+      fetchedPointCount: indexSeries.sp500.length,
+      firstValidPoint: indexSeries.sp500[0] ?? null,
+      lastValidPoint: indexSeries.sp500[indexSeries.sp500.length - 1] ?? null,
+      baseCloseFound: benchmarkDiagnostics.sp500.baseSource !== "none",
     });
   }, [
     benchmarkDiagnostics,
-    benchmarkFetchFrom,
     compareEndDate,
     compareStartDate,
-    indexSeries.kosdaq.length,
-    indexSeries.kospi.length,
-    indexSeries.sp500.length,
+    indexSeries.sp500,
     mounted,
-    snapshots,
   ]);
 
   const shouldShowMorningReminder = useMemo(
