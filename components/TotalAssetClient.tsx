@@ -137,9 +137,7 @@ export function TotalAssetClient() {
     DEFAULT_BENCHMARK_VISIBILITY,
   );
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
-  const benchmarkMonthCacheRef = useRef<
-    Record<string, { series: IndexHistorySeriesMap; errors: string[] }>
-  >({});
+  const benchmarkRequestSeqRef = useRef(0);
   const loading = portfolioLoading || snapshotLoading || authLoading;
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
   const compareDefaultEndDate = useMemo(
@@ -263,79 +261,113 @@ export function TotalAssetClient() {
     ) {
       setIndexSeries(createEmptyIndexHistorySeries());
       setBenchmarkError("");
+    }
+  }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
+
+  const refreshBenchmarkData = useCallback(async () => {
+    if (!mounted) {
       return;
     }
 
-    let cancelled = false;
-    const benchmarkCacheKey = `${benchmarkFetchFrom}:${compareEndDate}`;
-    const cached = benchmarkMonthCacheRef.current[benchmarkCacheKey];
-
-    if (cached) {
-      const cachedErrors = filterBenchmarkErrors(cached.errors, cached.series);
-
-      setIndexSeries(cached.series);
-      setBenchmarkError(
-        cachedErrors.length > 0
-          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${cachedErrors.join(", ")}`
-          : "",
-      );
-
-      return () => {
-        cancelled = true;
-      };
+    if (
+      !isValidBenchmarkDate(compareStartDate) ||
+      !isValidBenchmarkDate(compareEndDate) ||
+      !isValidBenchmarkDate(benchmarkFetchFrom) ||
+      compareStartDate > compareEndDate
+    ) {
+      return;
     }
 
-    setIndexSeries(createEmptyIndexHistorySeries());
+    const requestSeq = ++benchmarkRequestSeqRef.current;
     setBenchmarkError("");
 
-    const loadIndexHistory = async () => {
-      try {
-        const response = await fetch(
-          `/api/index-history?from=${benchmarkFetchFrom}&to=${compareEndDate}`,
-          { cache: "no-store" },
-        );
+    try {
+      const params = new URLSearchParams({
+        from: benchmarkFetchFrom,
+        to: compareEndDate,
+        _ts: `${Date.now()}`,
+      });
+      const response = await fetch(`/api/index-history?${params.toString()}`, {
+        cache: "no-store",
+      });
 
-        if (!response.ok) {
-          throw new Error(`index-history API error: ${response.status}`);
-        }
+      if (!response.ok) {
+        throw new Error(`index-history API error: ${response.status}`);
+      }
 
-        const data = (await response.json()) as IndexHistoryApiResponse;
-        const nextSeries: IndexHistorySeriesMap = {
-          kospi: Array.isArray(data.series?.kospi) ? data.series.kospi : [],
-          kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
-          sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
-        };
-        const errors = filterBenchmarkErrors(
-          Array.isArray(data.errors) ? data.errors : [],
-          nextSeries,
-        );
+      const data = (await response.json()) as IndexHistoryApiResponse;
+      const nextSeries: IndexHistorySeriesMap = {
+        kospi: Array.isArray(data.series?.kospi) ? data.series.kospi : [],
+        kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
+        sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
+      };
+      const errors = filterBenchmarkErrors(
+        Array.isArray(data.errors) ? data.errors : [],
+        nextSeries,
+      );
 
-        if (!cancelled) {
-          benchmarkMonthCacheRef.current[benchmarkCacheKey] = {
-            series: nextSeries,
-            errors,
-          };
-          setIndexSeries(nextSeries);
-          setBenchmarkError(
-            errors.length > 0
-              ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
-              : "",
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setIndexSeries(createEmptyIndexHistorySeries());
-          setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
-        }
+      if (requestSeq !== benchmarkRequestSeqRef.current) {
+        return;
+      }
+
+      setIndexSeries(nextSeries);
+      setBenchmarkError(
+        errors.length > 0
+          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
+          : "",
+      );
+    } catch {
+      if (requestSeq !== benchmarkRequestSeqRef.current) {
+        return;
+      }
+
+      setIndexSeries(createEmptyIndexHistorySeries());
+      setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
+    }
+  }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
+
+  useEffect(() => {
+    void refreshBenchmarkData();
+  }, [refreshBenchmarkData]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
+    const handleWindowFocus = () => {
+      void refreshBenchmarkData();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshBenchmarkData();
       }
     };
 
-    void loadIndexHistory();
+    window.addEventListener("focus", handleWindowFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      cancelled = true;
+      window.removeEventListener("focus", handleWindowFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
+  }, [mounted, refreshBenchmarkData]);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshBenchmarkData();
+      }
+    }, 60_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [mounted, refreshBenchmarkData]);
 
   const snapshotsByDate = useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.date, snapshot])),
