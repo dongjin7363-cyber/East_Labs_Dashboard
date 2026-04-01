@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   createEmptyIndexHistorySeries,
@@ -10,9 +11,13 @@ import {
 } from "@/lib/asset-trend/index-history-config";
 import { getDatesInRange } from "@/lib/utils/date";
 
-const CACHE_TTL_MS = 1000 * 60 * 60 * 6;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const MAX_RANGE_DAYS = 370;
 const MAX_NAVER_PAGES = 30;
+const NO_STORE_CACHE_CONTROL =
+  "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0";
 const NAVER_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -30,13 +35,6 @@ interface IndexHistoryResponse {
   series: IndexHistorySeriesMap;
   errors: string[];
 }
-
-interface CacheEntry {
-  payload: IndexHistoryResponse;
-  expiresAt: number;
-}
-
-const historyCache = new Map<string, CacheEntry>();
 
 function isValidDateString(value: string | null): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -460,52 +458,37 @@ async function fetchConfiguredIndexHistory(
   return fetchHistoryForProvider(provider, from, to);
 }
 
-function getCached(key: string): IndexHistoryResponse | null {
-  const cached = historyCache.get(key);
-
-  if (!cached) {
-    return null;
-  }
-
-  if (cached.expiresAt < Date.now()) {
-    historyCache.delete(key);
-    return null;
-  }
-
-  return cached.payload;
-}
-
-function setCached(key: string, payload: IndexHistoryResponse): void {
-  historyCache.set(key, {
-    payload,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-}
-
 export async function GET(request: Request) {
+  noStore();
+
   const requestUrl = new URL(request.url);
   const from = requestUrl.searchParams.get("from");
   const to = requestUrl.searchParams.get("to");
 
   if (!isValidDateString(from) || !isValidDateString(to) || from > to) {
-    return NextResponse.json({ error: "invalid date range" }, { status: 400 });
+    return NextResponse.json(
+      { error: "invalid date range" },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": NO_STORE_CACHE_CONTROL,
+        },
+      },
+    );
   }
 
   const dates = getDatesInRange(from, to);
 
   if (dates.length === 0 || dates.length > MAX_RANGE_DAYS) {
-    return NextResponse.json({ error: "date range is too large" }, { status: 400 });
-  }
-
-  const cacheKey = `${from}:${to}`;
-  const cached = getCached(cacheKey);
-
-  if (cached) {
-    return NextResponse.json(cached, {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=21600",
+    return NextResponse.json(
+      { error: "date range is too large" },
+      {
+        status: 400,
+        headers: {
+          "Cache-Control": NO_STORE_CACHE_CONTROL,
+        },
       },
-    });
+    );
   }
 
   const errors: string[] = [];
@@ -541,11 +524,10 @@ export async function GET(request: Request) {
   }
 
   const payload: IndexHistoryResponse = { from, to, series, errors };
-  setCached(cacheKey, payload);
 
   return NextResponse.json(payload, {
     headers: {
-      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=21600",
+      "Cache-Control": NO_STORE_CACHE_CONTROL,
     },
   });
 }

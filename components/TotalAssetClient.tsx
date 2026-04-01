@@ -65,6 +65,10 @@ interface CalendarDayInfo {
   holidayName?: string;
 }
 
+function isValidBenchmarkDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && value !== SSR_SAFE_DATE;
+}
+
 function filterBenchmarkErrors(
   errors: string[],
   nextSeries: IndexHistorySeriesMap,
@@ -251,6 +255,17 @@ export function TotalAssetClient() {
       return;
     }
 
+    if (
+      !isValidBenchmarkDate(compareStartDate) ||
+      !isValidBenchmarkDate(compareEndDate) ||
+      !isValidBenchmarkDate(benchmarkFetchFrom) ||
+      compareStartDate > compareEndDate
+    ) {
+      setIndexSeries(createEmptyIndexHistorySeries());
+      setBenchmarkError("");
+      return;
+    }
+
     let cancelled = false;
     const benchmarkCacheKey = `${benchmarkFetchFrom}:${compareEndDate}`;
     const cached = benchmarkMonthCacheRef.current[benchmarkCacheKey];
@@ -320,7 +335,7 @@ export function TotalAssetClient() {
     return () => {
       cancelled = true;
     };
-  }, [benchmarkFetchFrom, compareEndDate, mounted]);
+  }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
 
   const snapshotsByDate = useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.date, snapshot])),
