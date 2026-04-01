@@ -93,23 +93,8 @@ function getSortButtonClassName(
 }
 
 function resolveTickerMeta(holding: PortfolioHolding): string {
-  if (holding.market === "US") {
-    return holding.ticker.trim().toUpperCase();
-  }
-
-  if (holding.tickerCode?.trim()) {
-    return holding.tickerCode.trim().toUpperCase();
-  }
-
-  if (holding.krCode?.trim()) {
-    return holding.krCode.trim().toUpperCase();
-  }
-
-  if (/^\d{4,12}$/.test(holding.ticker.trim())) {
-    return holding.ticker.trim();
-  }
-
-  return "-";
+  const ticker = holding.ticker.trim();
+  return ticker ? ticker.toUpperCase() : "-";
 }
 
 function SortHeader({

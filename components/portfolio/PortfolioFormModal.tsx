@@ -106,7 +106,12 @@ export function PortfolioFormModal({
     event.preventDefault();
 
     if (!form.ticker.trim()) {
-      window.alert("Ticker를 입력하세요.");
+      window.alert("종목코드(티커)를 입력하세요.");
+      return;
+    }
+
+    if (!form.displayName.trim()) {
+      window.alert("종목명을 입력하세요.");
       return;
     }
 
@@ -147,15 +152,17 @@ export function PortfolioFormModal({
       currentPrice = parsedCurrentPrice;
     }
 
+    const normalizedTicker = form.ticker.trim();
+
     onSubmit({
       market: form.market,
       currency,
-      ticker: form.ticker,
-      displayName: form.displayName,
-      tickerCode: form.tickerCode,
+      ticker: normalizedTicker,
+      displayName: form.displayName.trim(),
+      tickerCode: normalizedTicker,
       logoUrl: form.logoUrl,
       comment: form.comment,
-      quoteDisabled: form.quoteDisabled,
+      quoteDisabled: false,
       sector: form.sector,
       qty,
       avgPrice,
@@ -191,63 +198,25 @@ export function PortfolioFormModal({
           </label>
 
           <label>
-            Ticker
+            종목코드(티커)
             <input
               value={form.ticker}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, ticker: event.target.value }))
               }
-              placeholder="005930 / AAPL"
+              placeholder="예: 475830 / AAPL"
             />
           </label>
 
           <label>
-            Display Name
+            종목명
             <input
               value={form.displayName}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, displayName: event.target.value }))
               }
-              placeholder="Microsoft Corp / 삼성전자"
+              placeholder="예: 오름테라퓨틱 / Apple"
             />
-          </label>
-
-          <label>
-            Ticker Code
-            <input
-              value={form.tickerCode}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, tickerCode: event.target.value }))
-              }
-              placeholder="005930 / 0126Z0"
-            />
-          </label>
-
-          <label>
-            Logo URL
-            <input
-              value={form.logoUrl}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, logoUrl: event.target.value }))
-              }
-              placeholder="https://..."
-            />
-          </label>
-
-          <label>
-            Quote
-            <select
-              value={form.quoteDisabled ? "MANUAL" : "AUTO"}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  quoteDisabled: event.target.value === "MANUAL",
-                }))
-              }
-            >
-              <option value="AUTO">자동 시세 조회</option>
-              <option value="MANUAL">수동 입력 전용</option>
-            </select>
           </label>
 
           <label>

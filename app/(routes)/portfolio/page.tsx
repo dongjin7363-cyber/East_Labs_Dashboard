@@ -1875,16 +1875,9 @@ export default function PortfolioPage() {
                 sortedTableRows.map((row) => {
                   const { holding, computed } = row;
                   const displayName = resolveHoldingDisplayName(holding);
-                  const tickerMeta =
-                    holding.market === "US"
-                      ? holding.ticker.trim().toUpperCase()
-                      : holding.tickerCode?.trim()
-                        ? holding.tickerCode.trim().toUpperCase()
-                        : holding.krCode?.trim()
-                          ? holding.krCode.trim().toUpperCase()
-                        : /^\d{4,12}$/.test(holding.ticker.trim())
-                          ? holding.ticker.trim()
-                          : "-";
+                  const tickerMeta = holding.ticker.trim()
+                    ? holding.ticker.trim().toUpperCase()
+                    : "-";
 
                   return (
                     <tr
