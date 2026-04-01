@@ -46,6 +46,15 @@ function buildHoldingLookupKey(holding: PortfolioHolding): string {
   return `${holding.market}:${holding.ticker.trim().toUpperCase()}`;
 }
 
+function parseTimeMs(value?: string): number {
+  if (typeof value !== "string" || value.trim() === "") {
+    return 0;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function mergeHoldingsWithLocalMetadata(
   cloudHoldings: PortfolioHolding[],
   localHoldings: PortfolioHolding[],
@@ -68,6 +77,10 @@ function mergeHoldingsWithLocalMetadata(
       return holding;
     }
 
+    const shouldPreferLocalQuote =
+      holding.market === "US" &&
+      parseTimeMs(localMatched.priceUpdatedAt) > parseTimeMs(holding.priceUpdatedAt);
+
     const next: PortfolioHolding = {
       ...holding,
       displayName: holding.displayName ?? localMatched.displayName,
@@ -81,9 +94,19 @@ function mergeHoldingsWithLocalMetadata(
         holding.position === "N" && localMatched.position && localMatched.position !== "N"
           ? localMatched.position
           : holding.position,
-      prevClose: holding.prevClose ?? localMatched.prevClose,
-      dayChangePct: holding.dayChangePct ?? localMatched.dayChangePct,
-      priceUpdatedAt: holding.priceUpdatedAt ?? localMatched.priceUpdatedAt,
+      currentPrice: shouldPreferLocalQuote ? localMatched.currentPrice : holding.currentPrice,
+      prevClose:
+        shouldPreferLocalQuote
+          ? localMatched.prevClose ?? holding.prevClose
+          : holding.prevClose ?? localMatched.prevClose,
+      dayChangePct:
+        shouldPreferLocalQuote
+          ? localMatched.dayChangePct ?? holding.dayChangePct
+          : holding.dayChangePct ?? localMatched.dayChangePct,
+      priceUpdatedAt:
+        shouldPreferLocalQuote
+          ? localMatched.priceUpdatedAt ?? holding.priceUpdatedAt
+          : holding.priceUpdatedAt ?? localMatched.priceUpdatedAt,
       krCode:
         holding.market === "KR"
           ? holding.krCode ??
@@ -98,6 +121,7 @@ function mergeHoldingsWithLocalMetadata(
       next.logoUrl !== holding.logoUrl ||
       next.comment !== holding.comment ||
       next.position !== holding.position ||
+      next.currentPrice !== holding.currentPrice ||
       next.prevClose !== holding.prevClose ||
       next.dayChangePct !== holding.dayChangePct ||
       next.priceUpdatedAt !== holding.priceUpdatedAt ||

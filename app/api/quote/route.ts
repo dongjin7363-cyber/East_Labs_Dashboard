@@ -3,6 +3,7 @@ import iconv from "iconv-lite";
 
 const QUOTE_CACHE_TTL_MS = 45_000;
 const KRX_COMPANY_CACHE_TTL_MS = 21_600_000;
+const US_MARKET_TIME_ZONE = "America/New_York";
 
 type QuoteFailureReason =
   | "NO_QUOTE"
@@ -42,6 +43,11 @@ type QuoteFailureResponse = {
 type CacheEntry = {
   expiresAt: number;
   value: QuoteSuccessResponse;
+};
+
+type DailyBar = {
+  date: string;
+  close: number | null;
 };
 
 const quoteCache = new Map<string, CacheEntry>();
@@ -101,6 +107,75 @@ function toIsoOrNow(value: unknown): string {
 
 function toPriceIntUsd(price: number): number {
   return Math.round(price * 100);
+}
+
+function formatDateInTimeZone(date: Date, timeZone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
+function pickLatestAndPreviousBars(
+  bars: DailyBar[],
+  targetDate: string,
+): {
+  latest: DailyBar | null;
+  previous: DailyBar | null;
+} {
+  const valid = bars
+    .filter((bar) => bar?.date && typeof bar.close === "number" && Number.isFinite(bar.close))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  let latestIndex = -1;
+
+  for (let index = valid.length - 1; index >= 0; index -= 1) {
+    if (valid[index].date <= targetDate) {
+      latestIndex = index;
+      break;
+    }
+  }
+
+  if (latestIndex === -1) {
+    return { latest: null, previous: null };
+  }
+
+  return {
+    latest: valid[latestIndex] ?? null,
+    previous: latestIndex > 0 ? valid[latestIndex - 1] ?? null : null,
+  };
+}
+
+function mergeDailyBars(primary: DailyBar[], fallback: DailyBar[]): DailyBar[] {
+  const closeByDate = new Map<string, number>();
+
+  fallback.forEach((bar) => {
+    if (bar.date && typeof bar.close === "number" && Number.isFinite(bar.close) && bar.close > 0) {
+      closeByDate.set(bar.date, bar.close);
+    }
+  });
+
+  primary.forEach((bar) => {
+    if (bar.date && typeof bar.close === "number" && Number.isFinite(bar.close) && bar.close > 0) {
+      closeByDate.set(bar.date, bar.close);
+    }
+  });
+
+  return Array.from(closeByDate.entries())
+    .map(([date, close]) => ({ date, close }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function debugQuoteRaw(
@@ -243,9 +318,7 @@ async function fetchUsQuoteFromFinnhub(ticker: string): Promise<{
   };
 }
 
-async function fetchUsPrevCloseFromStooqHistory(
-  ticker: string,
-): Promise<number | undefined> {
+async function fetchUsDailyBarsFromStooqHistory(ticker: string): Promise<DailyBar[]> {
   const stooqSymbol = `${ticker.toLowerCase().replace(/\.us$/i, "")}.us`;
   const response = await fetch(
     `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`,
@@ -253,7 +326,7 @@ async function fetchUsPrevCloseFromStooqHistory(
   );
 
   if (!response.ok) {
-    return undefined;
+    return [];
   }
 
   const csvText = await response.text();
@@ -262,21 +335,152 @@ async function fetchUsPrevCloseFromStooqHistory(
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (lines.length < 3) {
-    return undefined;
+  if (lines.length < 2) {
+    return [];
   }
 
-  const closes = lines
+  return lines
     .slice(1)
     .map((line) => line.split(","))
-    .map((cols) => Number(cols[4]))
-    .filter((value) => Number.isFinite(value) && value > 0);
+    .map((cols) => ({
+      date: cols[0] ?? "",
+      close: Number(cols[4]),
+    }))
+    .filter((bar) => bar.date !== "" && Number.isFinite(bar.close) && bar.close > 0);
+}
 
-  if (closes.length < 2) {
-    return undefined;
+async function fetchUsDailyBarsFromYahooHistory(ticker: string): Promise<DailyBar[]> {
+  const period2 = Math.floor(Date.now() / 1000);
+  const period1 = period2 - 60 * 60 * 24 * 21;
+  const response = await fetch(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+      ticker,
+    )}?period1=${period1}&period2=${period2}&interval=1d&includeAdjustedClose=true`,
+    {
+      cache: "no-store",
+    },
+  );
+
+  if (!response.ok) {
+    return [];
   }
 
-  return closes[closes.length - 2];
+  const payload: unknown = await response.json();
+  const result =
+    payload &&
+    typeof payload === "object" &&
+    "chart" in payload &&
+    payload.chart &&
+    typeof payload.chart === "object" &&
+    "result" in payload.chart &&
+    Array.isArray(payload.chart.result)
+      ? payload.chart.result[0]
+      : null;
+
+  if (!result || typeof result !== "object") {
+    return [];
+  }
+
+  const meta =
+    "meta" in result && result.meta && typeof result.meta === "object" ? result.meta : null;
+  const exchangeTimeZone =
+    meta &&
+    "exchangeTimezoneName" in meta &&
+    typeof meta.exchangeTimezoneName === "string" &&
+    meta.exchangeTimezoneName
+      ? meta.exchangeTimezoneName
+      : US_MARKET_TIME_ZONE;
+  const timestamps =
+    "timestamp" in result && Array.isArray(result.timestamp) ? result.timestamp : [];
+  const quoteNode =
+    "indicators" in result &&
+    result.indicators &&
+    typeof result.indicators === "object" &&
+    "quote" in result.indicators &&
+    Array.isArray(result.indicators.quote)
+      ? result.indicators.quote[0]
+      : null;
+  const closes =
+    quoteNode &&
+    typeof quoteNode === "object" &&
+    "close" in quoteNode &&
+    Array.isArray(quoteNode.close)
+      ? quoteNode.close
+      : [];
+
+  const bars: DailyBar[] = [];
+
+  (timestamps as unknown[]).forEach((timestamp: unknown, index: number) => {
+    const close = (closes as unknown[])[index];
+
+    if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+      return;
+    }
+
+    if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
+      return;
+    }
+
+    bars.push({
+      date: formatDateInTimeZone(new Date(timestamp * 1000), exchangeTimeZone),
+      close,
+    });
+  });
+
+  return bars.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+async function fetchUsDailyBars(ticker: string): Promise<DailyBar[]> {
+  const stooqBars = await fetchUsDailyBarsFromStooqHistory(ticker);
+
+  if (stooqBars.length >= 2) {
+    return stooqBars;
+  }
+
+  const yahooBars = await fetchUsDailyBarsFromYahooHistory(ticker);
+
+  if (stooqBars.length === 0) {
+    return yahooBars;
+  }
+
+  return mergeDailyBars(stooqBars, yahooBars);
+}
+
+async function fetchUsCompletedSessionMetricsFromStooqHistory(ticker: string): Promise<{
+  latestClose?: number;
+  prevClose?: number;
+  dayChangePct?: number;
+  latestDate?: string;
+}> {
+  const bars = await fetchUsDailyBars(ticker);
+  const targetDate = formatDateInTimeZone(new Date(), US_MARKET_TIME_ZONE);
+  const { latest, previous } = pickLatestAndPreviousBars(bars, targetDate);
+
+  if (!latest) {
+    return {};
+  }
+
+  const latestClose =
+    typeof latest.close === "number" && Number.isFinite(latest.close) && latest.close > 0
+      ? latest.close
+      : undefined;
+  const prevClose =
+    typeof previous?.close === "number" && Number.isFinite(previous.close) && previous.close > 0
+      ? previous.close
+      : undefined;
+  const dayChangePct =
+    typeof latestClose === "number" &&
+    typeof prevClose === "number" &&
+    prevClose > 0
+      ? ((latestClose - prevClose) / prevClose) * 100
+      : undefined;
+
+  return {
+    latestClose,
+    prevClose,
+    dayChangePct,
+    latestDate: latest.date,
+  };
 }
 
 async function fetchUsQuoteFromStooq(ticker: string): Promise<{
@@ -355,17 +559,13 @@ async function fetchUsQuoteFromStooq(ticker: string): Promise<{
     }
   }
 
-  const prevClose = await fetchUsPrevCloseFromStooqHistory(ticker);
-  const dayChangePct =
-    typeof prevClose === "number" && Number.isFinite(prevClose) && prevClose > 0
-      ? ((closePrice - prevClose) / prevClose) * 100
-      : undefined;
+  const sessionMetrics = await fetchUsCompletedSessionMetricsFromStooqHistory(ticker);
 
   return {
     price: closePriceInt / 100,
     asOf,
-    prevClose,
-    dayChangePct,
+    prevClose: sessionMetrics.prevClose,
+    dayChangePct: sessionMetrics.dayChangePct,
     displayName: undefined,
   };
 }
@@ -379,25 +579,21 @@ async function fetchUsQuote(ticker: string): Promise<{
 }> {
   try {
     const finnhubQuote = await fetchUsQuoteFromFinnhub(ticker);
+    const sessionMetrics = await fetchUsCompletedSessionMetricsFromStooqHistory(ticker);
 
     if (
-      finnhubQuote.prevClose === undefined &&
-      finnhubQuote.dayChangePct === undefined
+      typeof sessionMetrics.prevClose === "number" &&
+      Number.isFinite(sessionMetrics.prevClose)
     ) {
-      const historyPrevClose = await fetchUsPrevCloseFromStooqHistory(ticker);
-
-      if (typeof historyPrevClose === "number" && Number.isFinite(historyPrevClose)) {
-        const safeDayChangePct =
-          historyPrevClose > 0
-            ? ((finnhubQuote.price - historyPrevClose) / historyPrevClose) * 100
-            : undefined;
-
-        return {
-          ...finnhubQuote,
-          prevClose: historyPrevClose,
-          dayChangePct: finnhubQuote.dayChangePct ?? safeDayChangePct,
-        };
-      }
+      return {
+        ...finnhubQuote,
+        prevClose: sessionMetrics.prevClose,
+        dayChangePct:
+          typeof sessionMetrics.dayChangePct === "number" &&
+          Number.isFinite(sessionMetrics.dayChangePct)
+            ? sessionMetrics.dayChangePct
+            : finnhubQuote.dayChangePct,
+      };
     }
 
     return finnhubQuote;

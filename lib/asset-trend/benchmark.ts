@@ -149,6 +149,9 @@ function buildNormalizedSeriesResult(
   valueByDate: Map<string, number>,
   compareStartDate: string,
   compareEndDate: string,
+  options?: {
+    allowLatestEntryBeforeStartForDailyReturn?: boolean;
+  },
 ): {
   returnMap: Map<string, number | null>;
   summary: AssetTrendBenchmarkSummaryValue;
@@ -219,8 +222,13 @@ function buildNormalizedSeriesResult(
 
   const currentEntry = findLatestEntryOnOrBeforeDate(valueByDate, compareEndDate);
   let dailyReturnPct: number | null = null;
+  const allowLatestEntryBeforeStartForDailyReturn =
+    options?.allowLatestEntryBeforeStartForDailyReturn ?? false;
 
-  if (currentEntry && currentEntry.date >= compareStartDate) {
+  if (
+    currentEntry &&
+    (allowLatestEntryBeforeStartForDailyReturn || currentEntry.date >= compareStartDate)
+  ) {
     const previousEntry = findLatestEntryBeforeDate(valueByDate, currentEntry.date);
 
     if (previousEntry) {
@@ -292,6 +300,9 @@ export function buildAssetTrendBenchmarkData(options: {
     sp500ValueByDate,
     options.compareStartDate,
     options.compareEndDate,
+    {
+      allowLatestEntryBeforeStartForDailyReturn: true,
+    },
   );
 
   return {

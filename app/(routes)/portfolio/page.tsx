@@ -216,6 +216,10 @@ function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
     return holding.dayChangePct;
   }
 
+  if (holding.market === "US") {
+    return null;
+  }
+
   if (
     typeof holding.prevClose === "number" &&
     Number.isFinite(holding.prevClose) &&
@@ -484,6 +488,7 @@ export default function PortfolioPage() {
 
   const resolveDayChangeRate = useCallback(
     (
+      market: Market,
       payload: Partial<QuoteApiResponse>,
       priceInt: number,
     ): number | undefined => {
@@ -672,7 +677,7 @@ export default function PortfolioPage() {
                     ? Math.round(Number(parsed.prevClose) * 100)
                     : Math.round(Number(parsed.prevClose))
                   : undefined,
-            dayChangePct: resolveDayChangeRate(parsed, priceInt),
+            dayChangePct: resolveDayChangeRate(holding.market, parsed, priceInt),
             displayName:
               typeof parsed.displayName === "string"
                 ? parsed.displayName.trim() || undefined
@@ -1506,7 +1511,7 @@ export default function PortfolioPage() {
             Number(parsed.prevCloseInt) > 0
               ? Math.round(Number(parsed.prevCloseInt))
               : undefined,
-          dayChangePct: resolveDayChangeRate(parsed, Math.round(updatedPriceInt)),
+          dayChangePct: resolveDayChangeRate("KR", parsed, Math.round(updatedPriceInt)),
           displayName:
             typeof parsed.displayName === "string"
               ? parsed.displayName.trim() || undefined
