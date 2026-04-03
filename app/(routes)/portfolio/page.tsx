@@ -1147,8 +1147,13 @@ export default function PortfolioPage() {
   const tableUsdMvCents = useMemo(
     () =>
       tableRows.reduce(
-        (sum, row) =>
-          row.holding.market === "US" ? sum + row.computed.marketValue : sum,
+        (sum, row) => {
+          if (row.holding.market !== "US") {
+            return sum;
+          }
+
+          return sum + (row.holding.isCredit ? row.computed.pnl : row.computed.marketValue);
+        },
         0,
       ),
     [tableRows],
@@ -1156,8 +1161,13 @@ export default function PortfolioPage() {
   const tableKrwMvWon = useMemo(
     () =>
       tableRows.reduce(
-        (sum, row) =>
-          row.holding.market === "KR" ? sum + row.computed.marketValue : sum,
+        (sum, row) => {
+          if (row.holding.market !== "KR") {
+            return sum;
+          }
+
+          return sum + (row.holding.isCredit ? row.computed.pnl : row.computed.marketValue);
+        },
         0,
       ),
     [tableRows],
@@ -1169,7 +1179,8 @@ export default function PortfolioPage() {
     }
 
     const sumTableUsdMv = tableUsdMvCents / 100;
-    const totalUsdMv = totalAsset.usdHoldingsMarketValueCents / 100;
+    const totalUsdMv =
+      (totalAsset.totalUsdEvalCents - Math.max(depositUsdCents, 0)) / 100;
     const sumTableKrwMv = tableKrwMvWon;
     const totalKrwMvWithoutDeposit = totalAsset.totalKrwEval - Math.max(depositKrw, 0);
     const totalAssetKrwWon = totalAsset.totalAssetKrw;
@@ -1197,6 +1208,7 @@ export default function PortfolioPage() {
   }, [
     cashKrw,
     depositKrw,
+    depositUsdCents,
     loading,
     tableKrwMvWon,
     tableUsdMvCents,
@@ -1302,6 +1314,7 @@ export default function PortfolioPage() {
       logoUrl: holding.logoUrl,
       krCode: holding.krCode,
       quoteDisabled: holding.quoteDisabled,
+      isCredit: holding.isCredit,
       sector: holding.sector,
       position: holding.position,
       qty: holding.qty,

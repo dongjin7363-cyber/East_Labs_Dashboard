@@ -51,6 +51,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
         market,
         ticker,
         ticker_code,
+        is_credit,
         display_name,
         logo_url,
         qty,

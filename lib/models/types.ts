@@ -30,6 +30,7 @@ export interface PortfolioHolding {
   logoUrl?: string;
   krCode?: string;
   quoteDisabled?: boolean;
+  isCredit: boolean;
   sector: PortfolioSector;
   position: PortfolioPosition;
   qty: number;

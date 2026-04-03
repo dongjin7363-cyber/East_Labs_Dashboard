@@ -34,6 +34,7 @@ interface PortfolioFormState {
   logoUrl: string;
   comment: string;
   quoteDisabled: boolean;
+  isCredit: boolean;
   sector: PortfolioSector;
   qty: string;
   avgPrice: string;
@@ -48,6 +49,7 @@ const EMPTY_FORM: PortfolioFormState = {
   logoUrl: "",
   comment: "",
   quoteDisabled: false,
+  isCredit: false,
   sector: "Other",
   qty: "",
   avgPrice: "",
@@ -86,6 +88,7 @@ export function PortfolioFormModal({
         logoUrl: holding.logoUrl ?? "",
         comment: holding.comment ?? "",
         quoteDisabled: holding.quoteDisabled ?? false,
+        isCredit: holding.isCredit === true,
         sector: holding.sector ?? "Other",
         qty: `${holding.qty}`,
         avgPrice: priceIntToInput(currency, holding.avgPrice),
@@ -163,6 +166,7 @@ export function PortfolioFormModal({
       logoUrl: form.logoUrl,
       comment: form.comment,
       quoteDisabled: false,
+      isCredit: form.isCredit,
       sector: form.sector,
       qty,
       avgPrice,
@@ -172,52 +176,73 @@ export function PortfolioFormModal({
   };
 
   return (
-    <Modal open={open} title={title} onClose={onClose}>
+    <Modal
+      open={open}
+      title={title}
+      onClose={onClose}
+      cardClassName="portfolio-form-modal"
+    >
       <form onSubmit={handleSubmit}>
         <div className="form-grid">
-          <label>
-            Market
-            <select
-              value={form.market}
-              onChange={(event) => {
-                const nextMarket = event.target.value as Market;
-                setForm((prev) => ({
-                  ...prev,
-                  market: nextMarket,
-                }));
-              }}
-            >
-              <option value="KR">KR</option>
-              <option value="US">US</option>
-            </select>
-          </label>
+          <div className="portfolio-form-market-row">
+            <label>
+              Market
+              <select
+                value={form.market}
+                onChange={(event) => {
+                  const nextMarket = event.target.value as Market;
+                  setForm((prev) => ({
+                    ...prev,
+                    market: nextMarket,
+                  }));
+                }}
+              >
+                <option value="KR">KR</option>
+                <option value="US">US</option>
+              </select>
+            </label>
+          </div>
 
-          <label>
-            Currency
-            <input value={currency} disabled />
-          </label>
+          <div className="portfolio-form-identity-row">
+            <label className="portfolio-form-credit-field">
+              <span className="portfolio-form-field-label">신용종목</span>
+              <span className="portfolio-form-field-control portfolio-form-credit-control">
+                <input
+                  type="checkbox"
+                  checked={form.isCredit}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, isCredit: event.target.checked }))
+                  }
+                />
+              </span>
+            </label>
 
-          <label>
-            종목코드(티커)
-            <input
-              value={form.ticker}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, ticker: event.target.value }))
-              }
-              placeholder="예: 475830 / AAPL"
-            />
-          </label>
+            <label>
+              <span className="portfolio-form-field-label">종목코드(티커)</span>
+              <span className="portfolio-form-field-control">
+                <input
+                  value={form.ticker}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, ticker: event.target.value }))
+                  }
+                  placeholder="예: 475830 / AAPL"
+                />
+              </span>
+            </label>
 
-          <label>
-            종목명
-            <input
-              value={form.displayName}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, displayName: event.target.value }))
-              }
-              placeholder="예: 오름테라퓨틱 / Apple"
-            />
-          </label>
+            <label>
+              <span className="portfolio-form-field-label">종목명</span>
+              <span className="portfolio-form-field-control">
+                <input
+                  value={form.displayName}
+                  onChange={(event) =>
+                    setForm((prev) => ({ ...prev, displayName: event.target.value }))
+                  }
+                  placeholder="예: 오름테라퓨틱 / Apple"
+                />
+              </span>
+            </label>
+          </div>
 
           <label>
             Sector

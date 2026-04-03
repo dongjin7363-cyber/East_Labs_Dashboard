@@ -2543,6 +2543,55 @@ table tfoot td {
   grid-column: 1 / -1;
 }
 
+.portfolio-form-market-row,
+.portfolio-form-identity-row {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-form-market-row {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.portfolio-form-identity-row {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 2fr 7fr 11fr;
+  align-items: start;
+}
+
+.portfolio-form-identity-row > * {
+  min-width: 0;
+}
+
+.portfolio-form-field-label {
+  min-height: 24px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.portfolio-form-field-control {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.portfolio-form-field-control > input {
+  width: 100%;
+  min-width: 0;
+}
+
+.portfolio-form-credit-field {
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.portfolio-form-credit-control {
+  justify-content: center;
+  width: 100%;
+}
+
 .form-actions {
   margin-top: 14px;
   display: flex;
@@ -2597,6 +2646,10 @@ table tfoot td {
   background: #fff;
   border: 1px solid #d6dbe3;
   padding: 16px;
+}
+
+.portfolio-form-modal {
+  width: min(530px, 100%);
 }
 
 .modal-header {
@@ -3386,6 +3439,10 @@ table tfoot td {
 
   .form-grid,
   .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .portfolio-form-identity-row {
     grid-template-columns: 1fr;
   }
 

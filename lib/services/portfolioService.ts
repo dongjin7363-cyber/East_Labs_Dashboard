@@ -22,6 +22,7 @@ export interface PortfolioInput {
   logoUrl?: string;
   krCode?: string;
   quoteDisabled?: boolean;
+  isCredit?: boolean;
   sector?: PortfolioSector;
   position?: PortfolioPosition;
   qty: number;
@@ -175,6 +176,7 @@ export function addHolding(input: PortfolioInput): PortfolioHolding[] {
     logoUrl: normalizeOptionalText(input.logoUrl),
     krCode: normalizedKrCode,
     quoteDisabled: input.quoteDisabled ? true : undefined,
+    isCredit: input.isCredit === true,
     sector: resolveSector(input.sector),
     position: input.position ?? "N",
     qty: input.qty,
@@ -227,6 +229,7 @@ export function updateHolding(
         logoUrl: normalizeOptionalText(input.logoUrl),
         krCode: normalizedKrCode,
         quoteDisabled: input.quoteDisabled ? true : undefined,
+        isCredit: input.isCredit === true,
         sector: resolveSector(input.sector),
         position: input.position ?? item.position ?? "N",
         qty: input.qty,
@@ -360,6 +363,19 @@ function emptyTotals(): CurrencyTotals {
   };
 }
 
+function summarizePortfolioAssetContribution(
+  holdings: PortfolioHolding[],
+): CurrencyTotals {
+  const contribution = emptyTotals();
+
+  holdings.forEach((holding) => {
+    const computed = calcHoldingComputed(holding);
+    contribution[holding.currency] += holding.isCredit ? computed.pnl : computed.marketValue;
+  });
+
+  return contribution;
+}
+
 export function summarizePortfolio(holdings: PortfolioHolding[]): {
   marketValue: CurrencyTotals;
   pnl: CurrencyTotals;
@@ -383,6 +399,7 @@ export function calculatePortfolioTotalAsset(
   input: PortfolioTotalAssetInput,
 ): PortfolioTotalAssetResult {
   const summary = summarizePortfolio(input.holdings);
+  const contribution = summarizePortfolioAssetContribution(input.holdings);
   const normalizedDepositKrw = Math.max(Math.round(input.depositKrw), 0);
   const normalizedDepositUsdCents = Math.max(
     Math.round(input.depositUsdCents ?? 0),
@@ -391,12 +408,14 @@ export function calculatePortfolioTotalAsset(
   const normalizedCash = Math.max(Math.round(input.cashKrw), 0);
   const krHoldingsMarketValueKrw = summary.marketValue.KRW;
   const usdHoldingsMarketValueCents = summary.marketValue.USD;
+  const krHoldingsContributionKrw = contribution.KRW;
+  const usdHoldingsContributionCents = contribution.USD;
   const totalUsdEvalCents =
-    usdHoldingsMarketValueCents + normalizedDepositUsdCents;
+    usdHoldingsContributionCents + normalizedDepositUsdCents;
   const krHoldingsPnlKrw = summary.pnl.KRW;
   const usdHoldingsPnlCents = summary.pnl.USD;
 
-  const totalKrwEval = krHoldingsMarketValueKrw + normalizedDepositKrw;
+  const totalKrwEval = krHoldingsContributionKrw + normalizedDepositKrw;
   const usdTotalKrw = usdToKrw(usdCentsToUsdFloat(totalUsdEvalCents), input.fxRate);
   const usdPnlKrw = usdToKrw(usdCentsToUsdFloat(usdHoldingsPnlCents), input.fxRate);
   const totalKrwPnl = krHoldingsPnlKrw + usdPnlKrw;

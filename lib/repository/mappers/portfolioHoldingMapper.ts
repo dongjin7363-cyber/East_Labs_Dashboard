@@ -21,6 +21,7 @@ export interface PortfolioHoldingRow {
   market: "KR" | "US";
   ticker: string;
   ticker_code: string | null;
+  is_credit?: boolean | null;
   display_name: string | null;
   logo_url: string | null;
   qty: number;
@@ -134,6 +135,7 @@ export function deserializePortfolioHolding(
       input.quoteDisabled === true || input.quote_disabled === true || input.isCustom === true
         ? true
         : undefined,
+    isCredit: input.isCredit === true || input.is_credit === true,
     sector: normalizeSector(input.sector),
     position: normalizePosition(input.position),
     qty: toNonNegativeInt(input.qty),
@@ -171,6 +173,7 @@ export function serializePortfolioHoldingForStorage(
         ? normalizeUppercaseText(holding.krCode ?? holding.tickerCode)
         : undefined,
     quoteDisabled: holding.quoteDisabled ? true : undefined,
+    isCredit: holding.isCredit === true,
     sector: normalizeSector(holding.sector),
     position: normalizePosition(holding.position),
     qty: toNonNegativeInt(holding.qty),
@@ -200,6 +203,7 @@ export function serializePortfolioHoldingRow(
     ticker: holding.ticker.trim(),
     ticker_code:
       normalizeUppercaseText(holding.tickerCode ?? holding.krCode) ?? null,
+    is_credit: holding.isCredit === true,
     display_name: normalizeOptionalText(holding.displayName) ?? null,
     logo_url: normalizeOptionalText(holding.logoUrl) ?? null,
     qty: toNonNegativeInt(holding.qty),
