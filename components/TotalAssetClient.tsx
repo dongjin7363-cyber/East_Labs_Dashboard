@@ -91,9 +91,25 @@ function filterBenchmarkErrors(
   });
 }
 
+function hasAnyBenchmarkSeriesData(series: IndexHistorySeriesMap): boolean {
+  return series.kospi.length > 0 || series.kosdaq.length > 0 || series.sp500.length > 0;
+}
+
+function mergeBenchmarkSeries(
+  previous: IndexHistorySeriesMap,
+  next: IndexHistorySeriesMap,
+): IndexHistorySeriesMap {
+  return {
+    kospi: next.kospi.length > 0 ? next.kospi : previous.kospi,
+    kosdaq: next.kosdaq.length > 0 ? next.kosdaq : previous.kosdaq,
+    sp500: next.sp500.length > 0 ? next.sp500 : previous.sp500,
+  };
+}
+
 const QUOTE_MAX_CONCURRENCY = 3;
 const SSR_SAFE_MONTH = "1970-01";
 const SSR_SAFE_DATE = "1970-01-01";
+const BENCHMARK_FETCH_RETRY_DELAY_MS = 400;
 const DEFAULT_BENCHMARK_VISIBILITY: Record<AssetTrendBenchmarkKey, boolean> = {
   portfolio: true,
   kospi: true,
@@ -266,7 +282,7 @@ export function TotalAssetClient() {
     }
   }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
 
-  const refreshBenchmarkData = useCallback(async () => {
+  const loadBenchmarkIndices = useCallback(async () => {
     if (!mounted) {
       return;
     }
@@ -283,7 +299,10 @@ export function TotalAssetClient() {
     const requestSeq = ++benchmarkRequestSeqRef.current;
     setBenchmarkError("");
 
-    try {
+    const fetchOnce = async (): Promise<{
+      nextSeries: IndexHistorySeriesMap;
+      errors: string[];
+    }> => {
       const params = new URLSearchParams({
         from: benchmarkFetchFrom,
         to: compareEndDate,
@@ -303,34 +322,62 @@ export function TotalAssetClient() {
         kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
         sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
       };
-      const errors = filterBenchmarkErrors(
-        Array.isArray(data.errors) ? data.errors : [],
+
+      return {
         nextSeries,
-      );
+        errors: filterBenchmarkErrors(
+          Array.isArray(data.errors) ? data.errors : [],
+          nextSeries,
+        ),
+      };
+    };
 
-      if (requestSeq !== benchmarkRequestSeqRef.current) {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const { nextSeries, errors } = await fetchOnce();
+
+        if (requestSeq !== benchmarkRequestSeqRef.current) {
+          return;
+        }
+
+        const hasAnyData = hasAnyBenchmarkSeriesData(nextSeries);
+
+        if (!hasAnyData && attempt === 0) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, BENCHMARK_FETCH_RETRY_DELAY_MS);
+          });
+          continue;
+        }
+
+        setIndexSeries((previous) => mergeBenchmarkSeries(previous, nextSeries));
+        setBenchmarkError(
+          errors.length > 0
+            ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
+            : hasAnyData
+              ? ""
+              : "비교 지수 데이터를 불러오지 못했습니다.",
+        );
         return;
-      }
+      } catch {
+        if (requestSeq !== benchmarkRequestSeqRef.current) {
+          return;
+        }
 
-      setIndexSeries(nextSeries);
-      setBenchmarkError(
-        errors.length > 0
-          ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
-          : "",
-      );
-    } catch {
-      if (requestSeq !== benchmarkRequestSeqRef.current) {
-        return;
-      }
+        if (attempt === 0) {
+          await new Promise((resolve) => {
+            window.setTimeout(resolve, BENCHMARK_FETCH_RETRY_DELAY_MS);
+          });
+          continue;
+        }
 
-      setIndexSeries(createEmptyIndexHistorySeries());
-      setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
+        setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
+      }
     }
   }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
 
   useEffect(() => {
-    void refreshBenchmarkData();
-  }, [refreshBenchmarkData]);
+    void loadBenchmarkIndices();
+  }, [loadBenchmarkIndices]);
 
   useEffect(() => {
     if (!mounted) {
@@ -338,11 +385,11 @@ export function TotalAssetClient() {
     }
 
     const handleWindowFocus = () => {
-      void refreshBenchmarkData();
+      void loadBenchmarkIndices();
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void refreshBenchmarkData();
+        void loadBenchmarkIndices();
       }
     };
 
@@ -353,7 +400,7 @@ export function TotalAssetClient() {
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [mounted, refreshBenchmarkData]);
+  }, [loadBenchmarkIndices, mounted]);
 
   useEffect(() => {
     if (!mounted) {
@@ -362,14 +409,14 @@ export function TotalAssetClient() {
 
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === "visible") {
-        void refreshBenchmarkData();
+        void loadBenchmarkIndices();
       }
     }, 60_000);
 
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [mounted, refreshBenchmarkData]);
+  }, [loadBenchmarkIndices, mounted]);
 
   const snapshotsByDate = useMemo(
     () => new Map(snapshots.map((snapshot) => [snapshot.date, snapshot])),

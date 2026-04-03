@@ -13,6 +13,7 @@ import { getDatesInRange } from "@/lib/utils/date";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const runtime = "nodejs";
 
 const MAX_RANGE_DAYS = 370;
 const MAX_NAVER_PAGES = 30;
@@ -156,6 +157,7 @@ async function fetchNaverIndexHistory(
       {
         headers: NAVER_HEADERS,
         cache: "no-store",
+        next: { revalidate: 0 },
       },
     );
 
@@ -276,6 +278,7 @@ async function fetchStooqIndexHistory(
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
+      next: { revalidate: 0 },
     },
   );
 
@@ -300,6 +303,7 @@ async function fetchYahooIndexHistory(
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
+      next: { revalidate: 0 },
     },
   );
 
@@ -386,6 +390,7 @@ async function fetchFredIndexHistory(
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
+      next: { revalidate: 0 },
     },
   );
 
