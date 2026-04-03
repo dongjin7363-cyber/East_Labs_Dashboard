@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ChartSectionCard } from "@/components/common/ChartSectionCard";
 import { AssetTrendBenchmarkChart } from "@/components/asset-trend/AssetTrendBenchmarkChart";
 import { PageHeader } from "@/components/PageHeader";
@@ -101,6 +102,7 @@ const DEFAULT_BENCHMARK_VISIBILITY: Record<AssetTrendBenchmarkKey, boolean> = {
 };
 
 export function TotalAssetClient() {
+  const searchParams = useSearchParams();
   const {
     holdings,
     loading: portfolioLoading,
@@ -408,6 +410,31 @@ export function TotalAssetClient() {
   const benchmarkData = benchmarkResult.data;
   const benchmarkSummary = benchmarkResult.summary;
   const benchmarkDiagnostics = benchmarkResult.diagnostics;
+  const shouldShowDebugPanel = searchParams.get("debug") === "1";
+  const benchmarkDebugPayload = useMemo(
+    () => ({
+      compareStartDate,
+      compareEndDate,
+      indexSeriesCounts: {
+        kospi: indexSeries.kospi.length,
+        kosdaq: indexSeries.kosdaq.length,
+        sp500: indexSeries.sp500.length,
+      },
+      benchmarkDiagnostics,
+      benchmarkSummary,
+      benchmarkDataPreview: benchmarkData.slice(0, 5),
+    }),
+    [
+      benchmarkData,
+      benchmarkDiagnostics,
+      benchmarkSummary,
+      compareEndDate,
+      compareStartDate,
+      indexSeries.kosdaq.length,
+      indexSeries.kospi.length,
+      indexSeries.sp500.length,
+    ],
+  );
 
   useEffect(() => {
     if (!mounted || process.env.NODE_ENV === "production") {
@@ -905,6 +932,26 @@ export function TotalAssetClient() {
           <div className="empty-state">비교 차트 데이터 로딩 중...</div>
         )}
       </ChartSectionCard>
+
+      {shouldShowDebugPanel ? (
+        <section className="panel">
+          <div className="panel-header-inline">
+            <h3>Benchmark Debug</h3>
+          </div>
+          <pre
+            style={{
+              margin: 0,
+              fontSize: 12,
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              color: "var(--muted)",
+            }}
+          >
+            {JSON.stringify(benchmarkDebugPayload, null, 2)}
+          </pre>
+        </section>
+      ) : null}
     </>
   );
 }
