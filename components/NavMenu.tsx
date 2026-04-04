@@ -149,6 +149,7 @@ export function NavMenu() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      prefetch={item.href === "/asset-trend" ? false : undefined}
                       className={`nav-dropdown-link${isActivePath(item.href) ? " is-active" : ""}`}
                       onClick={() => {
                         setOpenGroup(null);
@@ -191,6 +192,7 @@ export function NavMenu() {
                         <Link
                           key={subItem.href}
                           href={subItem.href}
+                          prefetch={subItem.href === "/asset-trend" ? false : undefined}
                           className={`nav-dropdown-link${isActivePath(subItem.href) ? " is-active" : ""}`}
                           onClick={() => {
                             setOpenGroup(null);
