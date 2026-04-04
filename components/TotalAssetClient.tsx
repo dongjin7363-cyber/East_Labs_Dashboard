@@ -277,7 +277,6 @@ export function TotalAssetClient() {
       !isValidBenchmarkDate(benchmarkFetchFrom) ||
       compareStartDate > compareEndDate
     ) {
-      setIndexSeries(createEmptyIndexHistorySeries());
       setBenchmarkError("");
     }
   }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
