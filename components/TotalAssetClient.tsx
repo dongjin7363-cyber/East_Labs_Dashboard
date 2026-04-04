@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ChartSectionCard } from "@/components/common/ChartSectionCard";
 import { AssetTrendBenchmarkChart } from "@/components/asset-trend/AssetTrendBenchmarkChart";
 import { PageHeader } from "@/components/PageHeader";
@@ -118,6 +118,7 @@ const DEFAULT_BENCHMARK_VISIBILITY: Record<AssetTrendBenchmarkKey, boolean> = {
 };
 
 export function TotalAssetClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const {
     holdings,
@@ -156,6 +157,7 @@ export function TotalAssetClient() {
   );
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
   const benchmarkRequestSeqRef = useRef(0);
+  const didForceRefreshRef = useRef(false);
   const loading = portfolioLoading || snapshotLoading || authLoading;
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
   const compareDefaultEndDate = useMemo(
@@ -181,6 +183,19 @@ export function TotalAssetClient() {
     setFxRate(readStoredFxRate());
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted || didForceRefreshRef.current) {
+      return;
+    }
+
+    if (searchParams.toString()) {
+      return;
+    }
+
+    didForceRefreshRef.current = true;
+    router.refresh();
+  }, [mounted, router, searchParams]);
 
   useEffect(() => {
     if (!mounted) {
