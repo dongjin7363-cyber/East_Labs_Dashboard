@@ -1,4 +1,3 @@
-import { unstable_noStore as noStore } from "next/cache";
 import { NextResponse } from "next/server";
 import {
   createEmptyIndexHistorySeries,
@@ -13,7 +12,7 @@ import { getDatesInRange } from "@/lib/utils/date";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 const MAX_RANGE_DAYS = 370;
 const FETCH_TIMEOUT_MS = 8000;
@@ -503,8 +502,6 @@ async function fetchConfiguredIndexHistory(
 }
 
 export async function GET(request: Request) {
-  noStore();
-
   const requestUrl = new URL(request.url);
   const from = requestUrl.searchParams.get("from");
   const to = requestUrl.searchParams.get("to");
