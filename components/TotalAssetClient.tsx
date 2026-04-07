@@ -13,7 +13,6 @@ import {
   createEmptyIndexHistorySeries,
   IndexHistorySeriesMap,
 } from "@/lib/asset-trend/benchmark";
-import { ASSET_TREND_INDEX_HISTORY_CONFIG } from "@/lib/asset-trend/index-history-config";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { PortfolioHolding } from "@/lib/models/types";
@@ -66,6 +65,8 @@ interface CalendarDayInfo {
   holidayName?: string;
 }
 
+type BenchmarkFetchStatus = "idle" | "loading" | "ready" | "error";
+
 function isValidBenchmarkDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && value !== SSR_SAFE_DATE;
 }
@@ -93,6 +94,14 @@ function filterBenchmarkErrors(
 
 function hasAnyBenchmarkSeriesData(series: IndexHistorySeriesMap): boolean {
   return series.kospi.length > 0 || series.kosdaq.length > 0 || series.sp500.length > 0;
+}
+
+function getBenchmarkSeriesCounts(series: IndexHistorySeriesMap) {
+  return {
+    kospi: series.kospi.length,
+    kosdaq: series.kosdaq.length,
+    sp500: series.sp500.length,
+  };
 }
 
 function mergeBenchmarkSeries(
@@ -150,12 +159,15 @@ export function TotalAssetClient() {
   const [indexSeries, setIndexSeries] = useState<IndexHistorySeriesMap>(
     createEmptyIndexHistorySeries,
   );
+  const [benchmarkFetchStatus, setBenchmarkFetchStatus] =
+    useState<BenchmarkFetchStatus>("idle");
   const [benchmarkError, setBenchmarkError] = useState("");
   const [visibleBenchmarks, setVisibleBenchmarks] = useState(
     DEFAULT_BENCHMARK_VISIBILITY,
   );
   const calendarMonthCacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
   const benchmarkRequestSeqRef = useRef(0);
+  const indexSeriesRef = useRef<IndexHistorySeriesMap>(createEmptyIndexHistorySeries());
   const loading = portfolioLoading || snapshotLoading || authLoading;
   const monthRange = useMemo(() => getMonthRangeFromYm(selectedMonth), [selectedMonth]);
   const compareDefaultEndDate = useMemo(
@@ -193,6 +205,10 @@ export function TotalAssetClient() {
       setSelectedDate(range.from);
     }
   }, [mounted, selectedDate, selectedMonth]);
+
+  useEffect(() => {
+    indexSeriesRef.current = indexSeries;
+  }, [indexSeries]);
 
   useEffect(() => {
     if (!mounted) {
@@ -277,6 +293,7 @@ export function TotalAssetClient() {
       !isValidBenchmarkDate(benchmarkFetchFrom) ||
       compareStartDate > compareEndDate
     ) {
+      setBenchmarkFetchStatus("idle");
       setBenchmarkError("");
     }
   }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
@@ -296,6 +313,7 @@ export function TotalAssetClient() {
     }
 
     const requestSeq = ++benchmarkRequestSeqRef.current;
+    setBenchmarkFetchStatus("loading");
     setBenchmarkError("");
 
     const fetchOnce = async (): Promise<{
@@ -348,14 +366,33 @@ export function TotalAssetClient() {
           continue;
         }
 
-        setIndexSeries((previous) => mergeBenchmarkSeries(previous, nextSeries));
+        const mergedSeries = mergeBenchmarkSeries(indexSeriesRef.current, nextSeries);
+        const nextFetchStatus: BenchmarkFetchStatus = hasAnyBenchmarkSeriesData(mergedSeries)
+          ? "ready"
+          : "error";
+
+        setIndexSeries((previous) => ({
+          kospi: nextSeries.kospi.length > 0 ? nextSeries.kospi : previous.kospi,
+          kosdaq: nextSeries.kosdaq.length > 0 ? nextSeries.kosdaq : previous.kosdaq,
+          sp500: nextSeries.sp500.length > 0 ? nextSeries.sp500 : previous.sp500,
+        }));
+        indexSeriesRef.current = mergedSeries;
+        setBenchmarkFetchStatus(nextFetchStatus);
         setBenchmarkError(
           errors.length > 0
             ? `비교 지수 데이터를 일부 불러오지 못했습니다: ${errors.join(", ")}`
-            : hasAnyData
+            : nextFetchStatus === "ready"
               ? ""
               : "비교 지수 데이터를 불러오지 못했습니다.",
         );
+        console.debug("[asset-trend benchmark]", {
+          compareStartDate,
+          compareEndDate,
+          benchmarkFetchFrom,
+          nextSeriesCounts: getBenchmarkSeriesCounts(nextSeries),
+          finalIndexSeriesCounts: getBenchmarkSeriesCounts(mergedSeries),
+          benchmarkFetchStatus: nextFetchStatus,
+        });
         return;
       } catch {
         if (requestSeq !== benchmarkRequestSeqRef.current) {
@@ -369,7 +406,16 @@ export function TotalAssetClient() {
           continue;
         }
 
+        setBenchmarkFetchStatus("error");
         setBenchmarkError("비교 지수 데이터를 불러오지 못했습니다.");
+        console.debug("[asset-trend benchmark]", {
+          compareStartDate,
+          compareEndDate,
+          benchmarkFetchFrom,
+          nextSeriesCounts: getBenchmarkSeriesCounts(createEmptyIndexHistorySeries()),
+          finalIndexSeriesCounts: getBenchmarkSeriesCounts(indexSeriesRef.current),
+          benchmarkFetchStatus: "error",
+        });
       }
     }
   }, [benchmarkFetchFrom, compareEndDate, compareStartDate, mounted]);
@@ -456,6 +502,16 @@ export function TotalAssetClient() {
   const benchmarkData = benchmarkResult.data;
   const benchmarkSummary = benchmarkResult.summary;
   const benchmarkDiagnostics = benchmarkResult.diagnostics;
+  const hasBenchmarkComparisonData = useMemo(
+    () =>
+      benchmarkData.some(
+        (point) =>
+          typeof point.kospi === "number" ||
+          typeof point.kosdaq === "number" ||
+          typeof point.sp500 === "number",
+      ),
+    [benchmarkData],
+  );
   const showBenchmarkDebug = searchParams.get("debug") === "1";
   const benchmarkDebugPayload = useMemo(
     () => ({
@@ -469,9 +525,11 @@ export function TotalAssetClient() {
       benchmarkDiagnostics,
       benchmarkSummary,
       benchmarkDataPreview: benchmarkData.slice(0, 5),
+      benchmarkFetchStatus,
     }),
     [
       benchmarkData,
+      benchmarkFetchStatus,
       benchmarkDiagnostics,
       benchmarkSummary,
       compareEndDate,
@@ -481,29 +539,6 @@ export function TotalAssetClient() {
       indexSeries.sp500.length,
     ],
   );
-
-  useEffect(() => {
-    if (!mounted || process.env.NODE_ENV === "production") {
-      return;
-    }
-
-    console.debug("[asset-trend] sp500", {
-      requestedSymbol: ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers[0].symbol,
-      fallbackSymbol: ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers[1]?.symbol ?? null,
-      compareStartDate,
-      compareEndDate,
-      fetchedPointCount: indexSeries.sp500.length,
-      firstValidPoint: indexSeries.sp500[0] ?? null,
-      lastValidPoint: indexSeries.sp500[indexSeries.sp500.length - 1] ?? null,
-      baseCloseFound: benchmarkDiagnostics.sp500.baseSource !== "none",
-    });
-  }, [
-    benchmarkDiagnostics,
-    compareEndDate,
-    compareStartDate,
-    indexSeries.sp500,
-    mounted,
-  ]);
 
   const shouldShowMorningReminder = useMemo(
     () => mounted && isCloudMode && nowKstHour >= 7 && !snapshotsByDate.has(todayKst),
@@ -934,7 +969,7 @@ export function TotalAssetClient() {
       </section>
 
       <ChartSectionCard>
-        {mounted ? (
+        {mounted && hasBenchmarkComparisonData ? (
           <AssetTrendBenchmarkChart
             title={`포트폴리오 vs 지수 비교 (${selectedMonth})`}
             periodControls={
@@ -975,7 +1010,13 @@ export function TotalAssetClient() {
             errorMessage={benchmarkError}
           />
         ) : (
-          <div className="empty-state">비교 차트 데이터 로딩 중...</div>
+          <div className="empty-state">
+            {benchmarkFetchStatus === "loading" || benchmarkFetchStatus === "idle"
+              ? "비교 차트 데이터 로딩 중..."
+              : benchmarkFetchStatus === "error"
+                ? "비교 지수 데이터를 불러오지 못했습니다."
+                : "비교 지수 데이터가 없습니다."}
+          </div>
         )}
       </ChartSectionCard>
 
