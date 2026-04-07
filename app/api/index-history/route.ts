@@ -16,15 +16,8 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 const MAX_RANGE_DAYS = 370;
-const MAX_NAVER_PAGES = 30;
 const NO_STORE_CACHE_CONTROL =
   "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0";
-const NAVER_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-  Referer: "https://finance.naver.com/",
-  "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
-};
 const DEFAULT_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -53,20 +46,6 @@ function isValidDateString(value: string | null): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-function stripHtml(value: string): string {
-  return value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-}
-
-function parseNumberText(value: string): number | null {
-  const normalized = value.replace(/,/g, "").trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function sortHistory(points: IndexHistoryPoint[]): IndexHistoryPoint[] {
   return [...points].sort((a, b) => a.date.localeCompare(b.date));
@@ -116,89 +95,6 @@ function readLastPoint(points: IndexHistoryPoint[]): IndexHistoryPoint | null {
   return points.length > 0 ? points[points.length - 1] ?? null : null;
 }
 
-function parseNaverIndexRows(html: string): IndexHistoryPoint[] {
-  const results: IndexHistoryPoint[] = [];
-  const rowRegex =
-    /<tr[^>]*>\s*<td[^>]*class="date"[^>]*>(\d{4}\.\d{2}\.\d{2})<\/td>([\s\S]*?)<\/tr>/gi;
-
-  for (const match of html.matchAll(rowRegex)) {
-    const date = match[1].replace(/\./g, "-");
-    const cells = Array.from(
-      match[2].matchAll(/<td[^>]*class="number_1"[^>]*>([\s\S]*?)<\/td>/gi),
-    );
-
-    if (cells.length === 0) {
-      continue;
-    }
-
-    const close = parseNumberText(stripHtml(cells[0][1]));
-
-    if (!close || close <= 0) {
-      continue;
-    }
-
-    results.push({ date, close });
-  }
-
-  return results;
-}
-
-async function fetchNaverIndexHistory(
-  code: "KOSPI" | "KOSDAQ",
-  from: string,
-  to: string,
-): Promise<IndexHistoryPoint[]> {
-  const collected: IndexHistoryPoint[] = [];
-  const seen = new Set<string>();
-
-  for (let page = 1; page <= MAX_NAVER_PAGES; page += 1) {
-    const response = await fetch(
-      `https://finance.naver.com/sise/sise_index_day.naver?code=${code}&page=${page}`,
-      {
-        headers: NAVER_HEADERS,
-        cache: "no-store",
-        next: { revalidate: 0 },
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`Naver ${code} history failed: ${response.status}`);
-    }
-
-    const rows = parseNaverIndexRows(await response.text());
-
-    if (rows.length === 0) {
-      break;
-    }
-
-    let reachedOlderRows = false;
-
-    for (const row of rows) {
-      if (seen.has(row.date)) {
-        continue;
-      }
-
-      seen.add(row.date);
-
-      if (row.date < from) {
-        reachedOlderRows = true;
-        continue;
-      }
-
-      if (row.date > to) {
-        continue;
-      }
-
-      collected.push(row);
-    }
-
-    if (reachedOlderRows) {
-      break;
-    }
-  }
-
-  return sortHistory(collected);
-}
 
 function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
   if (!text.includes(",")) {
@@ -487,10 +383,6 @@ async function fetchHistoryForProvider(
   from: string,
   to: string,
 ): Promise<IndexHistoryPoint[]> {
-  if (provider.type === "naver") {
-    return fetchNaverIndexHistory(provider.symbol, from, to);
-  }
-
   if (provider.type === "yahoo") {
     return fetchYahooIndexHistory(provider.symbol, from, to);
   }
@@ -509,11 +401,6 @@ async function fetchConfiguredIndexHistory(
 ): Promise<IndexHistoryPoint[]> {
   const config = ASSET_TREND_INDEX_HISTORY_CONFIG[key];
   const providers = config.providers;
-
-  if (providers.length === 1) {
-    return fetchHistoryForProvider(providers[0], from, to);
-  }
-
   const results = await Promise.allSettled(
     providers.map((provider) => fetchHistoryForProvider(provider, from, to)),
   );
