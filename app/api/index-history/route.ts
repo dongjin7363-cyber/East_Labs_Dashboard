@@ -16,6 +16,7 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 const MAX_RANGE_DAYS = 370;
+const FETCH_TIMEOUT_MS = 8000;
 const NO_STORE_CACHE_CONTROL =
   "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0";
 const DEFAULT_HEADERS = {
@@ -24,9 +25,7 @@ const DEFAULT_HEADERS = {
 };
 
 // Yahoo Finance requires a crumb + cookie since mid-2024.
-// Cache the session for 5 minutes to avoid redundant round-trips within a
-// single hot Vercel instance, but still refresh frequently enough that stale
-// crumbs don't cause 401s.
+// Cache the session for 5 minutes per warm Vercel instance.
 let yahooSessionCache: { crumb: string; cookie: string; fetchedAt: number } | null = null;
 
 async function getYahooSession(): Promise<{ crumb: string; cookie: string } | null> {
@@ -41,38 +40,28 @@ async function getYahooSession(): Promise<{ crumb: string; cookie: string } | nu
       headers: DEFAULT_HEADERS,
       cache: "no-store",
       redirect: "follow",
+      signal: AbortSignal.timeout(5000),
     });
 
     const rawSetCookie = sessionRes.headers.get("set-cookie");
-    if (!rawSetCookie) {
-      return null;
-    }
+    if (!rawSetCookie) return null;
 
-    // Keep only the name=value token before the first attribute separator.
     const cookie = rawSetCookie.split(";")[0].trim();
-
-    if (!cookie) {
-      return null;
-    }
+    if (!cookie) return null;
 
     const crumbRes = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
       headers: { ...DEFAULT_HEADERS, Cookie: cookie },
       cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     });
 
-    if (!crumbRes.ok) {
-      return null;
-    }
+    if (!crumbRes.ok) return null;
 
     const crumb = (await crumbRes.text()).trim();
 
-    // Sanity-check: a valid crumb is a short alphanumeric token, not an HTML page.
-    if (!crumb || crumb.includes("<") || crumb.length > 30) {
-      return null;
-    }
+    if (!crumb || crumb.includes("<") || crumb.length > 30) return null;
 
     yahooSessionCache = { crumb, cookie, fetchedAt: now };
-
     console.log("[api/index-history] Yahoo session refreshed", { crumb });
 
     return yahooSessionCache;
@@ -104,7 +93,6 @@ interface IndexHistoryResponse {
 function isValidDateString(value: string | null): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
-
 
 function sortHistory(points: IndexHistoryPoint[]): IndexHistoryPoint[] {
   return [...points].sort((a, b) => a.date.localeCompare(b.date));
@@ -154,36 +142,24 @@ function readLastPoint(points: IndexHistoryPoint[]): IndexHistoryPoint | null {
   return points.length > 0 ? points[points.length - 1] ?? null : null;
 }
 
-
 function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
-  if (!text.includes(",")) {
-    return [];
-  }
+  if (!text.includes(",")) return [];
 
   const lines = text.trim().split(/\r?\n/);
 
-  if (lines.length <= 1) {
-    return [];
-  }
+  if (lines.length <= 1) return [];
 
   const points: IndexHistoryPoint[] = [];
 
   for (const line of lines.slice(1)) {
     const [date, , , , close] = line.split(",");
 
-    if (!date || !close || close === "N/D") {
-      continue;
-    }
-
-    if (date < from || date > to) {
-      continue;
-    }
+    if (!date || !close || close === "N/D") continue;
+    if (date < from || date > to) continue;
 
     const parsedClose = Number(close);
 
-    if (!Number.isFinite(parsedClose) || parsedClose <= 0) {
-      continue;
-    }
+    if (!Number.isFinite(parsedClose) || parsedClose <= 0) continue;
 
     points.push({ date, close: parsedClose });
   }
@@ -194,30 +170,73 @@ function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHist
 function parseFredHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
   const lines = text.trim().split(/\r?\n/);
 
-  if (lines.length <= 1) {
-    return [];
-  }
+  if (lines.length <= 1) return [];
 
   const points: IndexHistoryPoint[] = [];
 
   for (const line of lines.slice(1)) {
     const [date, close] = line.split(",");
 
-    if (!date || !close || close === ".") {
-      continue;
-    }
-
-    if (date < from || date > to) {
-      continue;
-    }
+    if (!date || !close || close === ".") continue;
+    if (date < from || date > to) continue;
 
     const parsedClose = Number(close);
 
-    if (!Number.isFinite(parsedClose) || parsedClose <= 0) {
-      continue;
-    }
+    if (!Number.isFinite(parsedClose) || parsedClose <= 0) continue;
 
     points.push({ date, close: parsedClose });
+  }
+
+  return sortHistory(points);
+}
+
+// Naver's official JSON API (api.stock.naver.com) works from all IPs,
+// unlike the HTML-scraping finance.naver.com endpoint.
+async function fetchNaverApiIndexHistory(
+  code: string,
+  from: string,
+  to: string,
+): Promise<IndexHistoryPoint[]> {
+  const startDateTime = from.replace(/-/g, "") + "000000";
+  const endDateTime = to.replace(/-/g, "") + "235959";
+  const response = await fetch(
+    `https://api.stock.naver.com/chart/domestic/index/${encodeURIComponent(code)}/day?startDateTime=${startDateTime}&endDateTime=${endDateTime}`,
+    {
+      headers: {
+        ...DEFAULT_HEADERS,
+        Referer: "https://m.stock.naver.com/",
+      },
+      cache: "no-store",
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Naver API ${code} history failed: ${response.status}`);
+  }
+
+  const payload: unknown = await response.json();
+
+  if (!Array.isArray(payload)) {
+    throw new Error(`Naver API ${code} payload invalid`);
+  }
+
+  const points: IndexHistoryPoint[] = [];
+
+  for (const item of payload) {
+    if (!item || typeof item !== "object") continue;
+
+    const localDate = (item as Record<string, unknown>).localDate;
+    const closePrice = (item as Record<string, unknown>).closePrice;
+
+    if (typeof localDate !== "string" || localDate.length !== 8) continue;
+    if (typeof closePrice !== "number" || closePrice <= 0) continue;
+
+    const date = `${localDate.slice(0, 4)}-${localDate.slice(4, 6)}-${localDate.slice(6, 8)}`;
+
+    if (date < from || date > to) continue;
+
+    points.push({ date, close: closePrice });
   }
 
   return sortHistory(points);
@@ -233,7 +252,7 @@ async function fetchStooqIndexHistory(
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
 
@@ -261,7 +280,7 @@ async function fetchYahooIndexHistory(
     {
       headers: { ...DEFAULT_HEADERS, ...cookieHeader },
       cache: "no-store",
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
 
@@ -318,19 +337,12 @@ async function fetchYahooIndexHistory(
   (timestamps as unknown[]).forEach((timestamp: unknown, index: number) => {
     const close = (closes as unknown[])[index];
 
-    if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
-      return;
-    }
-
-    if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) {
-      return;
-    }
+    if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) return;
+    if (typeof close !== "number" || !Number.isFinite(close) || close <= 0) return;
 
     const date = formatDateInTimeZone(new Date(timestamp * 1000), exchangeTimeZone);
 
-    if (date < from || date > to) {
-      return;
-    }
+    if (date < from || date > to) return;
 
     points.push({ date, close });
   });
@@ -348,7 +360,7 @@ async function fetchFredIndexHistory(
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
-      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     },
   );
 
@@ -427,17 +439,7 @@ async function fetchSp500History(
     lastValidPoint: readLastPoint(mergedPoints),
   });
 
-  if (mergedPoints.length > 0) {
-    return {
-      points: mergedPoints,
-      debug,
-    };
-  }
-
-  return {
-    points: mergedPoints,
-    debug,
-  };
+  return { points: mergedPoints, debug };
 }
 
 async function fetchHistoryForProvider(
@@ -445,6 +447,10 @@ async function fetchHistoryForProvider(
   from: string,
   to: string,
 ): Promise<IndexHistoryPoint[]> {
+  if (provider.type === "naver_api") {
+    return fetchNaverApiIndexHistory(provider.symbol, from, to);
+  }
+
   if (provider.type === "yahoo") {
     return fetchYahooIndexHistory(provider.symbol, from, to);
   }
@@ -509,9 +515,7 @@ export async function GET(request: Request) {
       { error: "invalid date range" },
       {
         status: 400,
-        headers: {
-          "Cache-Control": NO_STORE_CACHE_CONTROL,
-        },
+        headers: { "Cache-Control": NO_STORE_CACHE_CONTROL },
       },
     );
   }
@@ -523,9 +527,7 @@ export async function GET(request: Request) {
       { error: "date range is too large" },
       {
         status: 400,
-        headers: {
-          "Cache-Control": NO_STORE_CACHE_CONTROL,
-        },
+        headers: { "Cache-Control": NO_STORE_CACHE_CONTROL },
       },
     );
   }
@@ -580,8 +582,6 @@ export async function GET(request: Request) {
   });
 
   return NextResponse.json(payload, {
-    headers: {
-      "Cache-Control": NO_STORE_CACHE_CONTROL,
-    },
+    headers: { "Cache-Control": NO_STORE_CACHE_CONTROL },
   });
 }
