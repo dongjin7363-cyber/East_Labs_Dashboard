@@ -23,6 +23,65 @@ const DEFAULT_HEADERS = {
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
 };
 
+// Yahoo Finance requires a crumb + cookie since mid-2024.
+// Cache the session for 5 minutes to avoid redundant round-trips within a
+// single hot Vercel instance, but still refresh frequently enough that stale
+// crumbs don't cause 401s.
+let yahooSessionCache: { crumb: string; cookie: string; fetchedAt: number } | null = null;
+
+async function getYahooSession(): Promise<{ crumb: string; cookie: string } | null> {
+  const now = Date.now();
+
+  if (yahooSessionCache && now - yahooSessionCache.fetchedAt < 5 * 60 * 1000) {
+    return yahooSessionCache;
+  }
+
+  try {
+    const sessionRes = await fetch("https://fc.yahoo.com", {
+      headers: DEFAULT_HEADERS,
+      cache: "no-store",
+      redirect: "follow",
+    });
+
+    const rawSetCookie = sessionRes.headers.get("set-cookie");
+    if (!rawSetCookie) {
+      return null;
+    }
+
+    // Keep only the name=value token before the first attribute separator.
+    const cookie = rawSetCookie.split(";")[0].trim();
+
+    if (!cookie) {
+      return null;
+    }
+
+    const crumbRes = await fetch("https://query2.finance.yahoo.com/v1/test/getcrumb", {
+      headers: { ...DEFAULT_HEADERS, Cookie: cookie },
+      cache: "no-store",
+    });
+
+    if (!crumbRes.ok) {
+      return null;
+    }
+
+    const crumb = (await crumbRes.text()).trim();
+
+    // Sanity-check: a valid crumb is a short alphanumeric token, not an HTML page.
+    if (!crumb || crumb.includes("<") || crumb.length > 30) {
+      return null;
+    }
+
+    yahooSessionCache = { crumb, cookie, fetchedAt: now };
+
+    console.log("[api/index-history] Yahoo session refreshed", { crumb });
+
+    return yahooSessionCache;
+  } catch (err) {
+    console.warn("[api/index-history] Yahoo session fetch failed", err);
+    return null;
+  }
+}
+
 interface IndexHistoryResponse {
   from: string;
   to: string;
@@ -190,14 +249,17 @@ async function fetchYahooIndexHistory(
   from: string,
   to: string,
 ): Promise<IndexHistoryPoint[]> {
+  const session = await getYahooSession();
   const period1 = Math.floor(new Date(`${from}T00:00:00Z`).getTime() / 1000);
   const period2 = Math.floor(new Date(`${to}T23:59:59Z`).getTime() / 1000);
+  const crumbParam = session ? `&crumb=${encodeURIComponent(session.crumb)}` : "";
+  const cookieHeader: Record<string, string> = session ? { Cookie: session.cookie } : {};
   const response = await fetch(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
       symbol,
-    )}?period1=${period1}&period2=${period2}&interval=1d&includeAdjustedClose=true`,
+    )}?period1=${period1}&period2=${period2}&interval=1d&includeAdjustedClose=true${crumbParam}`,
     {
-      headers: DEFAULT_HEADERS,
+      headers: { ...DEFAULT_HEADERS, ...cookieHeader },
       cache: "no-store",
       next: { revalidate: 0 },
     },

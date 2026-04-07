@@ -2,15 +2,15 @@ export const ASSET_TREND_INDEX_HISTORY_CONFIG = {
   kospi: {
     label: "KOSPI",
     providers: [
-      { type: "stooq", symbol: "^kospi" },
       { type: "yahoo", symbol: "^KS11" },
+      { type: "stooq", symbol: "^kospi" },
     ],
   },
   kosdaq: {
     label: "KOSDAQ",
     providers: [
-      { type: "stooq", symbol: "^kosdaq" },
       { type: "yahoo", symbol: "^KQ11" },
+      { type: "stooq", symbol: "^kosdaq" },
     ],
   },
   sp500: {
