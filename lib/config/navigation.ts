@@ -27,7 +27,6 @@ export const NAV_GROUPS: NavigationGroup[] = [
       { type: "link", label: "Leaderboard", href: "/leaderboard" },
       { type: "link", label: "Asset Trend", href: "/asset-trend" },
       { type: "link", label: "Memo", href: "/memo" },
-      { type: "link", label: "Schedule", href: "/schedule" },
     ],
   },
   {

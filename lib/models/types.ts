@@ -163,40 +163,6 @@ export interface MemoEntry {
   updatedAt: string;
 }
 
-export const SCHEDULE_COLOR_KEYS = [
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-  "black",
-] as const;
-export type ScheduleColorKey = (typeof SCHEDULE_COLOR_KEYS)[number];
-
-export interface ScheduleEvent {
-  id: string;
-  date: string;
-  startTime: string;
-  endTime?: string;
-  title: string;
-  categoryName: string;
-  colorKey: ScheduleColorKey;
-  note?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface ScheduleTodo {
-  id: string;
-  date: string;
-  text: string;
-  isDone: boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface MarketPost {
   id: string;
   date: string;
