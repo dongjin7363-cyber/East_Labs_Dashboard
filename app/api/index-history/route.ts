@@ -450,17 +450,24 @@ async function fetchSp500History(
     mergedPointCount: mergedPoints.length,
   };
 
-  if (process.env.NODE_ENV !== "production") {
-    console.debug("[api/index-history] sp500", {
-      requestedSymbol: providers[0]?.symbol ?? null,
-      compareEndDate: to,
-      compareStartDate: from,
-      fetchedPointCount: mergedPoints.length,
-      firstValidPoint: mergedPoints[0] ?? null,
-      lastValidPoint: readLastPoint(mergedPoints),
-      providerResults: debug.providers,
+  debug.providers.forEach((providerResult) => {
+    console.log("[api/index-history] sp500 provider", {
+      from,
+      to,
+      type: providerResult.type,
+      symbol: providerResult.symbol,
+      status: providerResult.status,
+      pointCount: providerResult.pointCount,
+      error: providerResult.error,
     });
-  }
+  });
+  console.log("[api/index-history] sp500 merged", {
+    from,
+    to,
+    mergedPointCount: mergedPoints.length,
+    firstValidPoint: mergedPoints[0] ?? null,
+    lastValidPoint: readLastPoint(mergedPoints),
+  });
 
   if (mergedPoints.length > 0) {
     return {
@@ -579,6 +586,15 @@ export async function GET(request: Request) {
       sp500: sp500Result.value.debug,
     };
   }
+
+  console.log("[api/index-history] response", {
+    from,
+    to,
+    kospiPointCount: series.kospi.length,
+    kosdaqPointCount: series.kosdaq.length,
+    sp500PointCount: series.sp500.length,
+    errors,
+  });
 
   return NextResponse.json(payload, {
     headers: {
