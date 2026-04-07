@@ -508,9 +508,43 @@ async function fetchConfiguredIndexHistory(
   to: string,
 ): Promise<IndexHistoryPoint[]> {
   const config = ASSET_TREND_INDEX_HISTORY_CONFIG[key];
+  const providers = config.providers;
 
-  const provider = config.providers[0];
-  return fetchHistoryForProvider(provider, from, to);
+  if (providers.length === 1) {
+    return fetchHistoryForProvider(providers[0], from, to);
+  }
+
+  const results = await Promise.allSettled(
+    providers.map((provider) => fetchHistoryForProvider(provider, from, to)),
+  );
+
+  results.forEach((result, index) => {
+    const provider = providers[index];
+    console.log(`[api/index-history] ${key} provider`, {
+      from,
+      to,
+      type: provider?.type,
+      symbol: provider?.symbol,
+      status: result.status,
+      pointCount: result.status === "fulfilled" ? result.value.length : 0,
+      error: result.status === "rejected"
+        ? result.reason instanceof Error ? result.reason.message : String(result.reason)
+        : null,
+    });
+  });
+
+  const successfulSeries = results.flatMap((result) =>
+    result.status === "fulfilled" && result.value.length > 0 ? [result.value] : [],
+  );
+
+  if (successfulSeries.length === 0) {
+    throw new Error(`All providers failed for ${key}`);
+  }
+
+  return successfulSeries.reduce<IndexHistoryPoint[]>(
+    (merged, points) => mergeHistoryPoints(points, merged),
+    [],
+  );
 }
 
 export async function GET(request: Request) {
