@@ -356,7 +356,7 @@ async function fetchFredIndexHistory(
   to: string,
 ): Promise<IndexHistoryPoint[]> {
   const response = await fetch(
-    `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(symbol)}`,
+    `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(symbol)}&cosd=${from}&coed=${to}`,
     {
       headers: DEFAULT_HEADERS,
       cache: "no-store",
