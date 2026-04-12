@@ -107,6 +107,7 @@ function buildSlices(
   cashKrw: number,
 ): SliceRow[] {
   const grouped = new Map<string, number>();
+  const labelMap = new Map<string, string>();
 
   if (mode === "COUNTRY") {
     let krTotal = 0;
@@ -144,6 +145,10 @@ function buildSlices(
       const key =
         mode === "SECTOR" ? (holding.sector ?? "Other") : holding.ticker.toUpperCase();
       grouped.set(key, (grouped.get(key) ?? 0) + amountKrw);
+
+      if (mode === "TICKER" && holding.displayName) {
+        labelMap.set(key, holding.displayName);
+      }
     });
   }
 
@@ -158,7 +163,7 @@ function buildSlices(
   return Array.from(grouped.entries())
     .map(([key, amountKrw], index) => ({
       key,
-      label: key,
+      label: labelMap.get(key) ?? key,
       amountKrw,
       color: getSliceColor(mode, key, index),
     }))
