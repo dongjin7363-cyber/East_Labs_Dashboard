@@ -6,7 +6,6 @@ import { ChartSectionCard } from "@/components/common/ChartSectionCard";
 import { AssetTrendBenchmarkChart } from "@/components/asset-trend/AssetTrendBenchmarkChart";
 import { PageHeader } from "@/components/PageHeader";
 import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
-import { TotalAssetTrendChart } from "@/components/TotalAssetTrendChart";
 import {
   AssetTrendBenchmarkKey,
   buildAssetTrendBenchmarkData,
@@ -21,14 +20,12 @@ import {
   HoldingQuoteUpdate,
 } from "@/lib/services/portfolioService";
 import {
-  buildTotalAssetTrendByMonth,
   DEFAULT_USDKRW_FX_RATE,
   PORTFOLIO_FX_STORAGE_KEY,
   readPortfolioCashSettings,
   readStoredFxRate,
 } from "@/lib/services/totalAssetService";
 import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm, toYmd } from "@/lib/utils/date";
-import { moneyFormat } from "@/lib/utils/money";
 
 interface QuoteApiResponse {
   ticker: string;
@@ -136,10 +133,7 @@ export function TotalAssetClient() {
   const {
     snapshots,
     loading: snapshotLoading,
-    getSnapshotByDate,
     upsertSnapshot,
-    saveMemo,
-    removeSnapshot,
   } = useTotalAssets();
   const [mounted, setMounted] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(SSR_SAFE_MONTH);
@@ -149,7 +143,6 @@ export function TotalAssetClient() {
   const [compareEndDate, setCompareEndDate] = useState(SSR_SAFE_DATE);
   const [nowKstHour, setNowKstHour] = useState(0);
   const [memoInput, setMemoInput] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [fxRate, setFxRate] = useState(DEFAULT_USDKRW_FX_RATE);
   const [fxAsOf, setFxAsOf] = useState("");
@@ -474,10 +467,6 @@ export function TotalAssetClient() {
     [monthRange.from, monthRange.to, snapshots],
   );
 
-  const trendData = useMemo(
-    () => buildTotalAssetTrendByMonth(snapshots, selectedMonth),
-    [selectedMonth, snapshots],
-  );
   const benchmarkResult = useMemo(
     () =>
       buildAssetTrendBenchmarkData({
@@ -649,7 +638,6 @@ export function TotalAssetClient() {
         return;
       }
 
-      setStatusMessage("");
       setIsRecording(true);
 
       try {
@@ -676,9 +664,8 @@ export function TotalAssetClient() {
         };
 
         upsertSnapshot(payload);
-        setStatusMessage(`${targetDate} 스냅샷을 저장했습니다.`);
       } catch {
-        setStatusMessage("스냅샷 저장 중 오류가 발생했습니다.");
+        // ignore
       } finally {
         setIsRecording(false);
       }
@@ -698,51 +685,6 @@ export function TotalAssetClient() {
 
     const memoToSave = memoInput.trim() || undefined;
     void recordSnapshot(selectedDate, memoToSave);
-  };
-
-  const handleSaveNotes = () => {
-    if (!mounted) {
-      return;
-    }
-
-    if (!isCloudMode) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    const existing = getSnapshotByDate(selectedDate);
-
-    if (!existing) {
-      window.alert("먼저 해당 날짜의 스냅샷을 기록하세요.");
-      return;
-    }
-
-    saveMemo(selectedDate, memoInput);
-    setStatusMessage(`${selectedDate} 메모를 저장했습니다.`);
-  };
-
-  const handleDelete = () => {
-    if (!mounted) {
-      return;
-    }
-
-    if (!isCloudMode) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    const existing = getSnapshotByDate(selectedDate);
-
-    if (!existing) {
-      return;
-    }
-
-    if (!window.confirm(`${selectedDate} 스냅샷을 삭제할까요?`)) {
-      return;
-    }
-
-    removeSnapshot(selectedDate);
-    setStatusMessage(`${selectedDate} 스냅샷을 삭제했습니다.`);
   };
 
   const handleToggleBenchmark = (key: AssetTrendBenchmarkKey) => {
@@ -800,7 +742,7 @@ export function TotalAssetClient() {
             onClick={handleRecordSelected}
             disabled={!mounted || loading || isRecording || !isCloudMode}
           >
-            {isRecording ? "자동 기록 중..." : mounted ? `${selectedDate} 자동 기록` : "자동 기록"}
+            {isRecording ? "자동 기록 중..." : "Today Record"}
           </button>
         }
       />
@@ -868,81 +810,7 @@ export function TotalAssetClient() {
             onSelectDate={setSelectedDate}
           />
 
-          <aside className="ta-side-panel">
-            <h3>{selectedDate}</h3>
-            <div className="ta-kv-row">
-              <span>총자산</span>
-              <strong>
-                {selectedSnapshot
-                  ? moneyFormat("KRW", selectedSnapshot.totalAssetKrwInt)
-                  : "기록 없음"}
-              </strong>
-            </div>
-            <div className="ta-kv-row">
-              <span>저장 환율</span>
-              <strong>{selectedSnapshot ? selectedSnapshot.fxRate.toFixed(2) : "-"}</strong>
-            </div>
-            <div className="ta-kv-row">
-              <span>저장 시각</span>
-              <strong>
-                {mounted && selectedSnapshot
-                  ? new Date(selectedSnapshot.createdAt).toLocaleString("ko-KR")
-                  : "-"}
-              </strong>
-            </div>
-
-            <label className="ta-notes-label">
-              메모
-              <textarea
-                rows={4}
-                placeholder="선택 날짜 메모"
-                value={memoInput}
-                onChange={(event) => setMemoInput(event.target.value)}
-              />
-            </label>
-
-            <div className="form-actions" style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={handleRecordSelected}
-                disabled={!mounted || isRecording || loading || !isCloudMode}
-              >
-                Refresh
-              </button>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleSaveNotes}
-                disabled={!selectedSnapshot || !isCloudMode}
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                className="danger-button"
-                onClick={handleDelete}
-                disabled={!selectedSnapshot || !isCloudMode}
-              >
-                Delete
-              </button>
-            </div>
-
-            {statusMessage ? <p className="ta-status-text">{statusMessage}</p> : null}
-          </aside>
         </div>
-      </section>
-
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>일별 총자산 추이 ({selectedMonth})</h3>
-          <div className="panel-submetric">스냅샷 없는 날짜는 공백으로 표시됩니다.</div>
-        </div>
-        {mounted ? (
-          <TotalAssetTrendChart data={trendData} calendarMap={calendarMap} />
-        ) : (
-          <div className="empty-state">차트 데이터 로딩 중...</div>
-        )}
       </section>
 
       <ChartSectionCard>
