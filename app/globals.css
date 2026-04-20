@@ -2342,6 +2342,8 @@ tr.clickable-row:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
+  min-height: 0;
 }
 
 .expenditure-calendar-pie-row {
@@ -2349,7 +2351,7 @@ tr.clickable-row:hover {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 16px;
   margin-top: 12px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .expenditure-calendar-col {
@@ -2366,6 +2368,8 @@ tr.clickable-row:hover {
   border-radius: 12px;
   background: var(--card);
   padding: 12px;
+  display: flex;
+  flex-direction: column;
 }
 
 .expenditure-pie-header {
@@ -2382,7 +2386,8 @@ tr.clickable-row:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  flex: 1;
+  justify-content: space-evenly;
 }
 
 .expense-pie-legend li {
