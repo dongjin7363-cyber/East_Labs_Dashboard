@@ -5,10 +5,6 @@ import { ExpenseCellModal } from "@/components/ExpenseCellModal";
 import { ExpenditureCalendar } from "@/components/expenditure/ExpenditureCalendar";
 import { ExpenditureWeekTable } from "@/components/expenditure/ExpenditureWeekTable";
 import {
-  MonthlyBucketBarChart,
-  type MonthlyBucketBarPoint,
-} from "@/components/MonthlyBucketBarChart";
-import {
   MonthlySubcategoryPieChart,
   type MonthlySubcategoryPiePoint,
 } from "@/components/MonthlySubcategoryPieChart";
@@ -292,15 +288,6 @@ export default function ExpenditurePage() {
     () => computeDailyNetFromBucketTotals(monthlyBucketTotals),
     [monthlyBucketTotals],
   );
-  const monthlyBucketChartData = useMemo<MonthlyBucketBarPoint[]>(
-    () => [
-      { category: "Income", amountInt: monthlyBucketTotals.INCOME },
-      { category: "Subscription", amountInt: monthlyBucketTotals.SUBSCRIPTION },
-      { category: "Plus", amountInt: monthlyBucketTotals.PLUS },
-      { category: "Spending", amountInt: monthlyBucketTotals.SPENDING },
-    ],
-    [monthlyBucketTotals],
-  );
   const monthlySubcategoryTotals = useMemo(
     () => summarizeExpenseSubcategories(monthEntries),
     [monthEntries],
@@ -446,15 +433,31 @@ export default function ExpenditurePage() {
           </div>
         </div>
 
-        <ExpenditureCalendar
-          month={selectedMonth}
-          selectedDate={selectedDate}
-          selectedWeekDates={selectedWeekDates}
-          today={todayKst}
-          calendarMap={calendarMap}
-          dailyBreakdowns={monthDailyBreakdowns}
-          onSelectDate={setSelectedDate}
-        />
+        <div className="expenditure-calendar-pie-row">
+          <div className="expenditure-calendar-col">
+            <ExpenditureCalendar
+              month={selectedMonth}
+              selectedDate={selectedDate}
+              selectedWeekDates={selectedWeekDates}
+              today={todayKst}
+              calendarMap={calendarMap}
+              dailyBreakdowns={monthDailyBreakdowns}
+              onSelectDate={setSelectedDate}
+            />
+          </div>
+          <div className="expenditure-pie-col">
+            <div className="panel-header-inline expenditure-pie-header">
+              <h3>월 세부항목 별 비중</h3>
+              <div className="expense-chart-total-spend">
+                <span className="expense-total-spend-label">총 소비</span>
+                <strong className="expense-total-spend-value">
+                  {loading ? "—" : moneyFormat("KRW", monthlyTotalSpendInt)}
+                </strong>
+              </div>
+            </div>
+            <MonthlySubcategoryPieChart data={monthlySubcategoryPieData} vertical />
+          </div>
+        </div>
       </section>
 
       <section className="panel">
@@ -472,29 +475,6 @@ export default function ExpenditurePage() {
           monthlyTotals={monthlySplitTotals}
           onSelectCell={(cell) => setSelectedCell(cell)}
         />
-      </section>
-
-      <section className="panel">
-        <div className="expense-chart-grid">
-          <article className="expense-chart-card">
-            <div className="expense-chart-header">
-              <h3 className="expense-chart-title">월 카테고리 합계</h3>
-            </div>
-            <MonthlyBucketBarChart data={monthlyBucketChartData} />
-          </article>
-          <article className="expense-chart-card">
-            <div className="expense-chart-header">
-              <h3 className="expense-chart-title">월 세부항목 비중</h3>
-              <div className="expense-chart-total-spend">
-                <span className="expense-total-spend-label">총 소비</span>
-                <strong className="expense-total-spend-value">
-                  {moneyFormat("KRW", monthlyTotalSpendInt)}
-                </strong>
-              </div>
-            </div>
-            <MonthlySubcategoryPieChart data={monthlySubcategoryPieData} />
-          </article>
-        </div>
       </section>
 
       <ExpenseCellModal

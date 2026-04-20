@@ -2338,6 +2338,28 @@ tr.clickable-row:hover {
   align-items: center;
 }
 
+.expense-pie-layout-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.expenditure-calendar-pie-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 20px;
+  margin-top: 12px;
+  align-items: start;
+}
+
+.expenditure-pie-col {
+  min-width: 0;
+}
+
+.expenditure-pie-header {
+  margin-bottom: 4px;
+}
+
 .expense-subcategory-pie-chart {
   height: 280px;
 }
@@ -3630,6 +3652,10 @@ table tfoot td {
   }
 
   .expense-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .expenditure-calendar-pie-row {
     grid-template-columns: 1fr;
   }
 

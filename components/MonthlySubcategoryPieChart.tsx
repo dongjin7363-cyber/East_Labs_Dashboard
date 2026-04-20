@@ -17,6 +17,7 @@ export interface MonthlySubcategoryPiePoint {
 
 interface MonthlySubcategoryPieChartProps {
   data: MonthlySubcategoryPiePoint[];
+  vertical?: boolean;
 }
 
 const PIE_COLORS: Record<ExpenseSubcategory, string> = {
@@ -30,6 +31,7 @@ const PIE_COLORS: Record<ExpenseSubcategory, string> = {
 
 export function MonthlySubcategoryPieChart({
   data,
+  vertical = false,
 }: MonthlySubcategoryPieChartProps) {
   const filteredData = data.filter((item) => item.amountInt > 0);
   const totalAmount = filteredData.reduce((sum, item) => sum + item.amountInt, 0);
@@ -38,7 +40,7 @@ export function MonthlySubcategoryPieChart({
     filteredData.length === 0 ? (
       <div className="empty-state">지출 세부항목 데이터가 없습니다.</div>
     ) : (
-      <div className="expense-pie-layout">
+      <div className={vertical ? "expense-pie-layout-vertical" : "expense-pie-layout"}>
         <div className="chart-wrap expense-subcategory-pie-chart">
           <ResponsiveContainer width="100%" height={280}>
             <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
