@@ -1680,6 +1680,21 @@ textarea {
   color: var(--negative);
 }
 
+.leaderboard-table-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.leaderboard-charts-row {
+  display: flex;
+  gap: 24px;
+}
+
+.leaderboard-chart-col {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -3608,6 +3623,10 @@ table tfoot td {
 
   .leaderboard-summary-block {
     flex: 1 1 160px;
+  }
+
+  .leaderboard-charts-row {
+    flex-direction: column;
   }
 
   .expense-chart-grid {

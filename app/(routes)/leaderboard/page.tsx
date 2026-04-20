@@ -448,7 +448,7 @@ export default function LeaderboardPage() {
           </div>
         </div>
 
-        <div className="table-wrap">
+        <div className="table-wrap leaderboard-table-scroll">
           <table>
             <thead>
               <tr>
@@ -599,23 +599,26 @@ export default function LeaderboardPage() {
       </section>
 
       <section className="panel">
-        <div className="panel-header-inline">
-          <h3>일별 순수익</h3>
-          <div className="panel-submetric">
-            월 누적 순수익(KRW 환산): {moneyFormat("KRW", monthlyTotal)}
+        <div className="leaderboard-charts-row">
+          <div className="leaderboard-chart-col">
+            <div className="panel-header-inline">
+              <h3>월별 순수익 ({selectedYear})</h3>
+              <div className="panel-submetric">
+                연 누적 순수익: {moneyFormat("KRW", yearlyCumulative)}
+              </div>
+            </div>
+            <MonthlyNetChart data={monthlyNet} />
+          </div>
+          <div className="leaderboard-chart-col">
+            <div className="panel-header-inline">
+              <h3>일별 순수익</h3>
+              <div className="panel-submetric">
+                월 누적 순수익(KRW 환산): {moneyFormat("KRW", monthlyTotal)}
+              </div>
+            </div>
+            <DailyNetChart data={dailyNet} />
           </div>
         </div>
-        <DailyNetChart data={dailyNet} />
-      </section>
-
-      <section className="panel">
-        <div className="panel-header-inline">
-          <h3>월별 순수익 ({selectedYear})</h3>
-          <div className="panel-submetric">
-            연 누적 순수익: {moneyFormat("KRW", yearlyCumulative)}
-          </div>
-        </div>
-        <MonthlyNetChart data={monthlyNet} />
       </section>
 
       <RealizedTradeModal
