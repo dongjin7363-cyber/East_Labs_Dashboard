@@ -2347,13 +2347,25 @@ tr.clickable-row:hover {
 .expenditure-calendar-pie-row {
   display: grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 20px;
+  gap: 16px;
   margin-top: 12px;
   align-items: start;
 }
 
+.expenditure-calendar-col {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 12px;
+}
+
 .expenditure-pie-col {
   min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 12px;
 }
 
 .expenditure-pie-header {
