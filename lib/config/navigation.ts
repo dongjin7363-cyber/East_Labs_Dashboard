@@ -21,17 +21,12 @@ export interface NavigationGroup {
 
 export const NAV_GROUPS: NavigationGroup[] = [
   {
-    label: "Investment",
+    label: "Invest Management",
     items: [
       { type: "link", label: "Portfolio", href: "/portfolio" },
       { type: "link", label: "Leaderboard", href: "/leaderboard" },
       { type: "link", label: "Asset Trend", href: "/asset-trend" },
       { type: "link", label: "Memo", href: "/memo" },
-    ],
-  },
-  {
-    label: "Asset Management",
-    items: [
       { type: "link", label: "Expenditure", href: "/expenditure" },
       { type: "link", label: "Salary", href: "/salary" },
     ],
