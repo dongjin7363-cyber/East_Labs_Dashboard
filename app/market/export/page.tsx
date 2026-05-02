@@ -184,7 +184,10 @@ export default function MarketExportPage() {
         {selectedItem && (
           <div className="export-item-info-card">
             <span className="export-related-stock-text">
-              관련 종목: {selectedRelatedStocks.length > 0 ? selectedRelatedStocks.join(" · ") : "-"}
+              관련 종목 :{" "}
+              <span className="export-related-stock-value">
+                {selectedRelatedStocks.length > 0 ? selectedRelatedStocks.join(" · ") : "-"}
+              </span>
             </span>
             <span className="export-item-importance-stars">
               {formatImportanceStars(selectedItem.importance)}

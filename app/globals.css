@@ -4366,6 +4366,11 @@ table tfoot td {
   white-space: nowrap;
 }
 
+.export-related-stock-value {
+  color: var(--text);
+  font-weight: 700;
+}
+
 .export-item-importance-stars {
   flex-shrink: 0;
   color: #f97316;
