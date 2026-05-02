@@ -4244,3 +4244,223 @@ table tfoot td {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Export (수출입 데이터) ── */
+.export-page {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-sector-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.export-sector-tabs .market-category-tab.is-active {
+  border-color: #9fc2ea;
+  background: #eaf3ff;
+  color: #2563eb;
+}
+
+.export-item-panel {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.04);
+}
+
+.export-item-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.export-item-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid #dbe5f2;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.export-item-pill:hover {
+  border-color: #bcd0e7;
+  background: #f8fbff;
+}
+
+.export-item-pill.is-active {
+  border-color: #93bde9;
+  background: #eaf3ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+.export-item-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.export-item-dot[data-importance="3"] {
+  background: #f97316;
+}
+
+.export-item-dot[data-importance="2"] {
+  background: #3b82f6;
+}
+
+.export-item-dot[data-importance="1"] {
+  background: #94a3b8;
+}
+
+.export-item-name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-chart-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.export-chart-card {
+  border-color: #dce6f2;
+  border-radius: 12px;
+  background: #fbfdff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+}
+
+.export-chart-card-main {
+  width: 100%;
+}
+
+.export-chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.export-chart-card-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.export-chart-card-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.export-chart-period {
+  flex-shrink: 0;
+  border: 1px solid #dbe5f2;
+  border-radius: 999px;
+  background: #fff;
+  color: #64748b;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.export-insight-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  border: 1px solid #eadfc9;
+  border-radius: 10px;
+  background: #fff8eb;
+  color: #7c4f13;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.export-insight-box strong,
+.export-feature-box strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.export-feature-box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.export-feature-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border: 1px solid #dce6f2;
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px;
+}
+
+.export-feature-box span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.export-chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.export-chart-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .export-chart-grid,
+  .export-feature-box {
+    grid-template-columns: 1fr;
+  }
+
+  .export-chart-card-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .export-chart-period {
+    align-self: flex-start;
+  }
+}

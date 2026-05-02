@@ -21,9 +21,11 @@ npm run dev
 npm run lint
 npm run build
 npm run check
+npm run export:parse -- --file "/path/to/file.xlsx"
 ```
 
 `npm run check`는 `lint + build`를 순서대로 실행합니다.
+`npm run export:parse`는 `.env.local` 또는 `.env`의 Supabase service role key를 사용하므로 로컬/서버 스크립트 환경에서만 실행합니다.
 
 ## 기술 스택
 - Next.js 14 App Router

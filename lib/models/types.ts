@@ -190,18 +190,20 @@ export interface MembershipPost {
   updatedAt: string;
 }
 
-export type MarketRegion = "kr" | "us" | "crypto";
-
-export interface MarketSnapshot {
+export interface ExportItem {
   id: string;
-  runDate: string;
-  snapshotKey: string;
-  title: string;
-  symbol: string;
-  category: string;
-  section: string;
-  sourceUrl: string;
-  imageUrl: string;
-  sortOrder: number;
-  updatedAt: string;
+  sector: string;
+  name: string;
+  importance: number;
+}
+
+export interface ExportDataPoint {
+  id: string;
+  itemId: string;
+  ym: string;
+  avgExport: number | null;
+  yoy: number | null;
+  mom: number | null;
+  priceYoy: number | null;
+  qoq: number | null;
 }

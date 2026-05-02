@@ -34,42 +34,10 @@ export const NAV_GROUPS: NavigationGroup[] = [
   {
     label: "Market",
     items: [
-      { type: "link", label: "News", href: "/market/news" },
-      {
-        type: "subgroup",
-        label: "KR",
-        items: [
-          { type: "link", label: "Daily Market", href: "/market/kr/daily-market" },
-          {
-            type: "link",
-            label: "Sector ETF Trend",
-            href: "/market/kr/sector-etf-trend",
-          },
-          {
-            type: "link",
-            label: "Sector ETF Momentum",
-            href: "/market/kr/sector-etf-momentum",
-          },
-        ],
-      },
-      {
-        type: "subgroup",
-        label: "US",
-        items: [
-          { type: "link", label: "Daily Market", href: "/market/us/daily-market" },
-          {
-            type: "link",
-            label: "Sector ETF Trend",
-            href: "/market/us/sector-etf-trend",
-          },
-          {
-            type: "link",
-            label: "Sector ETF Momentum",
-            href: "/market/us/sector-etf-momentum",
-          },
-        ],
-      },
-      { type: "link", label: "Crypto", href: "/market/crypto" },
+      { type: "link", label: "Market Screening", href: "/market/screening" },
+      { type: "link", label: "Daily Stock", href: "/market/daily" },
+      { type: "link", label: "Momentum", href: "/market/momentum" },
+      { type: "link", label: "수출입 데이터", href: "/market/export" },
     ],
   },
   {
