@@ -4,6 +4,9 @@ create table if not exists public.export_items (
   sheet_name text not null,
   name text not null,
   importance integer not null default 0 check (importance >= 0 and importance <= 5),
+  description text,
+  related_stocks text,
+  note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint export_items_sheet_name_key unique (sheet_name)
@@ -18,10 +21,21 @@ create table if not exists public.export_data (
   mom numeric,
   price_yoy numeric,
   qoq numeric,
+  as_of_date date,
+  is_partial boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint export_data_item_id_ym_key unique (item_id, ym)
 );
+
+alter table public.export_items
+  add column if not exists description text,
+  add column if not exists related_stocks text,
+  add column if not exists note text;
+
+alter table public.export_data
+  add column if not exists as_of_date date,
+  add column if not exists is_partial boolean not null default false;
 
 create index if not exists export_items_sector_idx
   on public.export_items (sector);

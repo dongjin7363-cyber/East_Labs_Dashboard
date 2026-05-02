@@ -1,6 +1,7 @@
 import argparse
 import os
 import re
+from datetime import date, datetime
 from pathlib import Path
 
 import pandas as pd
@@ -146,6 +147,8 @@ def upsert(
     item_id: str,
     sheet_name: str,
     rows: list[dict[str, float | str | None]],
+    as_of_date: str,
+    is_partial: bool,
 ) -> tuple[int, int]:
     if not rows:
         return 0, 0
@@ -167,7 +170,15 @@ def upsert(
     if duplicate_count > 0:
         print(f"  [DEDUP] {sheet_name}: removed {duplicate_count} duplicate item_id+ym rows")
 
-    payload = [{"item_id": item_id, **row} for row in deduped_rows]
+    payload = [
+        {
+            "item_id": item_id,
+            **row,
+            "as_of_date": as_of_date,
+            "is_partial": is_partial,
+        }
+        for row in deduped_rows
+    ]
     response = requests.post(
         f"{supabase_url}/rest/v1/export_data?on_conflict=item_id,ym",
         headers=headers,
@@ -189,7 +200,22 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Path to the xlsx file received on the monthly export data schedule.",
     )
+    parser.add_argument(
+        "--as-of-date",
+        default=None,
+        help="Data received date in YYYY-MM-DD format. Defaults to today.",
+    )
     return parser.parse_args()
+
+
+def resolve_as_of_date(value: str | None) -> tuple[str, bool]:
+    if value:
+        parsed = datetime.strptime(value, "%Y-%m-%d").date()
+    else:
+        parsed = date.today()
+
+    is_partial = parsed.day in {11, 21}
+    return parsed.isoformat(), is_partial
 
 
 def main() -> None:
@@ -197,6 +223,7 @@ def main() -> None:
     file_path = Path(args.file).expanduser()
     if not file_path.exists() or not file_path.is_file():
         raise FileNotFoundError(f"Excel file does not exist: {file_path}")
+    as_of_date, is_partial = resolve_as_of_date(args.as_of_date)
 
     load_env()
     supabase_url = resolve_supabase_url()
@@ -204,6 +231,7 @@ def main() -> None:
     headers = build_headers(service_role_key)
 
     print(f"Loading Excel file: {file_path}")
+    print(f"Using as_of_date={as_of_date}, is_partial={is_partial}")
     xl = pd.ExcelFile(file_path)
     excel_sheet_names = set(xl.sheet_names)
     items = get_items(supabase_url, headers)
@@ -225,6 +253,8 @@ def main() -> None:
             items[sheet_name],
             sheet_name,
             rows,
+            as_of_date,
+            is_partial,
         )
         inserted_or_updated_rows += ok_count
         failed_rows += fail_count

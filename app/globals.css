@@ -4253,6 +4253,14 @@ table tfoot td {
   gap: 12px;
 }
 
+.export-page .page-header {
+  margin-bottom: 0;
+}
+
+.export-page .panel + .panel {
+  margin-top: 0;
+}
+
 .export-sector-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -4335,6 +4343,37 @@ table tfoot td {
   white-space: nowrap;
 }
 
+.export-item-info-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid #dce6f2;
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 9px 12px;
+}
+
+.export-related-stock-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.export-item-importance-stars {
+  flex-shrink: 0;
+  color: #f97316;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
 .export-chart-stack {
   display: flex;
   flex-direction: column;
@@ -4352,6 +4391,7 @@ table tfoot td {
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: visible;
   border-color: #dce6f2;
   border-radius: 12px;
   background: #fbfdff;
@@ -4457,7 +4497,7 @@ table tfoot td {
   height: 280px;
   min-height: 280px;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .export-chart-period {
@@ -4519,6 +4559,234 @@ table tfoot td {
 
 @media (max-width: 768px) {
   .export-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Market Screening / Finviz ── */
+.finviz-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.finviz-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-color: #dce6f2;
+  background: #fbfdff;
+}
+
+.finviz-control-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.finviz-control-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.finviz-control-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.finviz-search-input {
+  width: min(360px, 100%);
+  border: 1px solid #dce6f2;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  padding: 9px 13px;
+  font-size: 13px;
+  outline: none;
+}
+
+.finviz-search-input:focus {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
+}
+
+.finviz-sector-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.finviz-sector-tabs .market-category-tab.is-active {
+  border-color: #93c5fd;
+  background: #eaf3ff;
+  color: #1d4ed8;
+}
+
+.finviz-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.finviz-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #dce6f2;
+  border-radius: 14px;
+  background: #fbfdff;
+  padding: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+}
+
+.finviz-card-meta {
+  display: flex;
+  min-height: 58px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.finviz-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.finviz-card-title-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.finviz-ticker-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.35px;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.16);
+}
+
+.finviz-sector-badge {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #64748b;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.82;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finviz-keywords {
+  display: -webkit-box;
+  min-height: 18px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.finviz-display-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.finviz-chart-frame {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #e5eaf1;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.finviz-chart-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.finviz-chart-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.finviz-chart-fallback a {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.finviz-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 0;
+}
+
+.finviz-loading,
+.finviz-error {
+  display: flex;
+  min-height: 140px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.finviz-error {
+  color: #ef4444;
+}
+
+@media (max-width: 1100px) {
+  .finviz-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .finviz-control-header {
+    flex-direction: column;
+  }
+
+  .finviz-search-input {
+    width: 100%;
+  }
+
+  .finviz-card-grid {
     grid-template-columns: 1fr;
   }
 }

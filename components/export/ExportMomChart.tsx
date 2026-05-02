@@ -36,7 +36,9 @@ export function ExportMomChart({ data }: Props) {
     ym: formatYm(d.ym),
     mom: d.mom,
     avg3m: compute3mAvg(moms, i),
+    isPartial: d.isPartial,
   }));
+  const latestPartialIndex = data[data.length - 1]?.isPartial ? data.length - 1 : -1;
 
   return (
     <>
@@ -44,7 +46,7 @@ export function ExportMomChart({ data }: Props) {
         <div className="export-chart-empty">데이터 없음</div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5eaf1" vertical={false} />
             <XAxis
               dataKey="ym"
@@ -61,9 +63,13 @@ export function ExportMomChart({ data }: Props) {
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}%`}
-              width={40}
+              width={48}
             />
             <Tooltip
+              labelFormatter={(label, payload) => {
+                const row = Array.isArray(payload) ? payload[0]?.payload : null;
+                return row?.isPartial ? `${label} · 잠정치` : `${label}`;
+              }}
               formatter={(value, name) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return ["-", name];
@@ -75,7 +81,13 @@ export function ExportMomChart({ data }: Props) {
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={(entry.mom ?? 0) >= 0 ? "#22c55e" : "#ef4444"}
+                  fill={
+                    i === latestPartialIndex
+                      ? "#f97316"
+                      : (entry.mom ?? 0) >= 0
+                        ? "#22c55e"
+                        : "#ef4444"
+                  }
                 />
               ))}
             </Bar>

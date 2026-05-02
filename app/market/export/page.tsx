@@ -42,6 +42,18 @@ function formatPct(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
+function formatRelatedStocks(value?: string): string[] {
+  if (!value) return [];
+  return value
+    .split(/[,\n/·ㆍ]+/)
+    .map((stock) => stock.trim())
+    .filter(Boolean);
+}
+
+function formatImportanceStars(value: number): string {
+  return "★".repeat(importanceLevel(value));
+}
+
 function buildMainInsight(data: ExportDataPoint[]): string {
   const yoyPoints = data.filter(
     (point): point is ExportDataPoint & { yoy: number } =>
@@ -88,6 +100,7 @@ export default function MarketExportPage() {
   const { data, loading: dataLoading } = useExportItemData(selectedItemId);
   const chartPeriod = formatPeriod(data);
   const mainInsight = buildMainInsight(data);
+  const selectedRelatedStocks = formatRelatedStocks(selectedItem?.relatedStocks);
 
   function handleSectorClick(sector: string) {
     setActiveSector(sector);
@@ -165,6 +178,17 @@ export default function MarketExportPage() {
                 <span className="export-item-name">{item.name}</span>
               </button>
             ))}
+          </div>
+        )}
+
+        {selectedItem && (
+          <div className="export-item-info-card">
+            <span className="export-related-stock-text">
+              관련 종목: {selectedRelatedStocks.length > 0 ? selectedRelatedStocks.join(" · ") : "-"}
+            </span>
+            <span className="export-item-importance-stars">
+              {formatImportanceStars(selectedItem.importance)}
+            </span>
           </div>
         )}
       </div>

@@ -40,6 +40,9 @@ export function deserializeExportItem(raw: unknown, index: number): ExportItem |
     sector,
     name,
     importance: normalizeImportance(r.importance),
+    description: normalizeOptionalText(r.description),
+    relatedStocks: normalizeOptionalText(r.related_stocks) ?? normalizeOptionalText(r.relatedStocks),
+    note: normalizeOptionalText(r.note),
   };
 }
 
@@ -70,5 +73,7 @@ export function deserializeExportDataPoint(
     mom: toFiniteNumber(r.mom) ?? null,
     priceYoy: toFiniteNumber(r.price_yoy) ?? null,
     qoq: toFiniteNumber(r.qoq) ?? null,
+    asOfDate: normalizeOptionalText(r.as_of_date) ?? normalizeOptionalText(r.asOfDate) ?? null,
+    isPartial: r.is_partial === true || r.isPartial === true,
   };
 }

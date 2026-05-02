@@ -25,7 +25,10 @@ function formatYm(ym: string): string {
 export function ExportQoqChart({ data }: Props) {
   const chartData = data
     .filter((d) => d.qoq !== null)
-    .map((d) => ({ ym: formatYm(d.ym), qoq: d.qoq }));
+    .map((d) => ({ ym: formatYm(d.ym), qoq: d.qoq, isPartial: d.isPartial }));
+  const latestPartialIndex = chartData[chartData.length - 1]?.isPartial
+    ? chartData.length - 1
+    : -1;
 
   return (
     <>
@@ -33,7 +36,7 @@ export function ExportQoqChart({ data }: Props) {
         <div className="export-chart-empty">데이터 없음</div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={chartData} margin={{ top: 8, right: 24, left: 0, bottom: 8 }}>
+          <BarChart data={chartData} margin={{ top: 8, right: 24, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5eaf1" vertical={false} />
             <XAxis
               dataKey="ym"
@@ -50,9 +53,13 @@ export function ExportQoqChart({ data }: Props) {
               tickLine={false}
               axisLine={false}
               tickFormatter={(v) => `${v}%`}
-              width={40}
+              width={48}
             />
             <Tooltip
+              labelFormatter={(label, payload) => {
+                const row = Array.isArray(payload) ? payload[0]?.payload : null;
+                return row?.isPartial ? `${label} · 잠정치` : `${label}`;
+              }}
               formatter={(value) => {
                 const n = Number(value);
                 if (!Number.isFinite(n)) return "-";
@@ -64,7 +71,13 @@ export function ExportQoqChart({ data }: Props) {
               {chartData.map((entry, i) => (
                 <Cell
                   key={i}
-                  fill={(entry.qoq ?? 0) >= 0 ? "#22c55e" : "#ef4444"}
+                  fill={
+                    i === latestPartialIndex
+                      ? "#f97316"
+                      : (entry.qoq ?? 0) >= 0
+                        ? "#22c55e"
+                        : "#ef4444"
+                  }
                 />
               ))}
             </Bar>

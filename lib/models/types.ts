@@ -195,6 +195,9 @@ export interface ExportItem {
   sector: string;
   name: string;
   importance: number;
+  description?: string;
+  relatedStocks?: string;
+  note?: string;
 }
 
 export interface ExportDataPoint {
@@ -206,4 +209,19 @@ export interface ExportDataPoint {
   mom: number | null;
   priceYoy: number | null;
   qoq: number | null;
+  asOfDate: string | null;
+  isPartial: boolean;
+}
+
+export interface FinvizWatchlistItem {
+  id: string;
+  ticker: string;
+  sector: string;
+  displayName: string;
+  keywords: string;
+  chartUrl: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

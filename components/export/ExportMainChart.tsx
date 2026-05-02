@@ -3,6 +3,7 @@
 import {
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -29,6 +30,15 @@ function formatPct(value: unknown): string {
   return `${n > 0 ? "+" : ""}${n.toFixed(1)}%`;
 }
 
+function formatCompactNumber(value: unknown): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "-";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${Math.round(n / 1_000)}K`;
+  return Math.round(n).toLocaleString();
+}
+
 export function ExportMainChart({ data }: Props) {
   if (data.length === 0) {
     return <div className="export-chart-empty">데이터 없음</div>;
@@ -39,11 +49,13 @@ export function ExportMainChart({ data }: Props) {
     avgExport: d.avgExport,
     yoy: d.yoy,
     priceYoy: d.priceYoy,
+    isPartial: d.isPartial,
   }));
+  const latestPartialIndex = data[data.length - 1]?.isPartial ? data.length - 1 : -1;
 
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <ComposedChart data={chartData} margin={{ top: 8, right: 48, left: 8, bottom: 4 }}>
+      <ComposedChart data={chartData} margin={{ top: 8, right: 48, left: 24, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e5eaf1" vertical={false} />
         <XAxis
           dataKey="ym"
@@ -57,8 +69,8 @@ export function ExportMainChart({ data }: Props) {
           tick={{ fontSize: 11, fill: "#64748b" }}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(v) => (typeof v === "number" ? v.toLocaleString() : `${v}`)}
-          width={52}
+          tickFormatter={formatCompactNumber}
+          width={66}
         />
         <YAxis
           yAxisId="right"
@@ -70,6 +82,10 @@ export function ExportMainChart({ data }: Props) {
           width={44}
         />
         <Tooltip
+          labelFormatter={(label, payload) => {
+            const row = Array.isArray(payload) ? payload[0]?.payload : null;
+            return row?.isPartial ? `${label} · 잠정치` : `${label}`;
+          }}
           formatter={(value, name) => {
             const n = Number(value);
             if (!Number.isFinite(n)) return ["-", name];
@@ -92,7 +108,14 @@ export function ExportMainChart({ data }: Props) {
           fill="#93c5fd"
           radius={[3, 3, 0, 0]}
           maxBarSize={24}
-        />
+        >
+          {chartData.map((_, index) => (
+            <Cell
+              key={index}
+              fill={index === latestPartialIndex ? "#f97316" : "#93c5fd"}
+            />
+          ))}
+        </Bar>
         <Line
           yAxisId="right"
           dataKey="yoy"
