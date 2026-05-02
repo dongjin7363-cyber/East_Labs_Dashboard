@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { ExportMainChart } from "@/components/export/ExportMainChart";
 import { ExportMomChart } from "@/components/export/ExportMomChart";
 import { ExportQoqChart } from "@/components/export/ExportQoqChart";
+import { ExportSecondaryChartCard } from "@/components/export/ExportSecondaryChartCard";
 import { useExportItems, useExportItemData } from "@/lib/hooks/useExportData";
 import { ExportDataPoint } from "@/lib/models/types";
 
@@ -191,40 +192,33 @@ export default function MarketExportPage() {
                 </div>
               </article>
 
-              <div className="export-chart-grid">
-                <article className="panel export-chart-card">
-                  <div className="export-chart-card-header">
-                    <div>
-                      <h3>월간 MoM % 추이</h3>
-                      <p>전월 대비 변화율 — 이달 가속/감속 즉각 포착용</p>
-                    </div>
-                  </div>
+              <div className="export-secondary-grid">
+                <ExportSecondaryChartCard
+                  title="월간 MoM % 추이"
+                  subtitle="전월 대비 변화율 — 이달 가속/감속 즉각 포착용"
+                  legend={
+                    <>
+                      <span className="export-secondary-legend-item">
+                        <span className="export-secondary-legend-dot export-secondary-legend-dot-mom" />
+                        MoM%
+                      </span>
+                      <span className="export-secondary-legend-item">
+                        <span className="export-secondary-legend-line" />
+                        3개월 평균
+                      </span>
+                    </>
+                  }
+                >
                   <ExportMomChart data={data} />
-                  <div className="export-feature-box">
-                    <div>
-                      <strong>장점</strong>
-                      <span>+ 이달 변화 즉각 반영</span>
-                      <span>+ 스윙 1~2주 투자에 적합</span>
-                      <span>+ 급변 구간 한눈에 파악</span>
-                    </div>
-                    <div>
-                      <strong>주의점</strong>
-                      <span>- 변동성 커서 노이즈 많음</span>
-                      <span>- 계절성 영향 받을 수 있음</span>
-                      <span>- 단독으로는 방향 오판 가능</span>
-                    </div>
-                  </div>
-                </article>
+                </ExportSecondaryChartCard>
 
-                <article className="panel export-chart-card">
-                  <div className="export-chart-card-header">
-                    <div>
-                      <h3>분기 평균 수출 (QoQ)</h3>
-                      <p>분기별 방향성 확인</p>
-                    </div>
-                  </div>
+                <ExportSecondaryChartCard
+                  title="분기 평균 수출 (QoQ)"
+                  subtitle="분기별 방향성 확인"
+                  legend={<div style={{ visibility: "hidden" }}>placeholder</div>}
+                >
                   <ExportQoqChart data={data} />
-                </article>
+                </ExportSecondaryChartCard>
               </div>
             </div>
           )}

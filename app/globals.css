@@ -4247,6 +4247,7 @@ table tfoot td {
 
 /* ── Export (수출입 데이터) ── */
 .export-page {
+  --export-chart-gap: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -4337,19 +4338,35 @@ table tfoot td {
 .export-chart-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--export-chart-gap);
 }
 
-.export-chart-grid {
+.export-secondary-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--export-chart-gap);
+  align-items: stretch;
 }
 
 .export-chart-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   border-color: #dce6f2;
   border-radius: 12px;
   background: #fbfdff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+}
+
+.export-secondary-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: 72px 28px 280px;
+  height: 420px;
+  border: 1px solid #dce6f2;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 24px;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
 }
 
@@ -4379,6 +4396,70 @@ table tfoot td {
   line-height: 1.5;
 }
 
+.export-secondary-header {
+  height: 72px;
+  min-height: 72px;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
+.export-secondary-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.export-secondary-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.export-secondary-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 28px;
+  min-height: 28px;
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.export-secondary-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.export-secondary-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.export-secondary-legend-dot-mom {
+  background: #22c55e;
+}
+
+.export-secondary-legend-line {
+  width: 18px;
+  height: 0;
+  border-top: 2px solid #94a3b8;
+  flex-shrink: 0;
+}
+
+.export-secondary-chart {
+  height: 280px;
+  min-height: 280px;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .export-chart-period {
   flex-shrink: 0;
   border: 1px solid #dbe5f2;
@@ -4404,33 +4485,9 @@ table tfoot td {
   line-height: 1.55;
 }
 
-.export-insight-box strong,
-.export-feature-box strong {
+.export-insight-box strong {
   color: var(--text);
   font-size: 13px;
-}
-
-.export-feature-box {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.export-feature-box > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  border: 1px solid #dce6f2;
-  border-radius: 10px;
-  background: #fff;
-  padding: 11px;
-}
-
-.export-feature-box span {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .export-chart-loading {
@@ -4450,11 +4507,6 @@ table tfoot td {
 }
 
 @media (max-width: 900px) {
-  .export-chart-grid,
-  .export-feature-box {
-    grid-template-columns: 1fr;
-  }
-
   .export-chart-card-header {
     flex-direction: column;
     gap: 8px;
@@ -4462,5 +4514,11 @@ table tfoot td {
 
   .export-chart-period {
     align-self: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .export-secondary-grid {
+    grid-template-columns: 1fr;
   }
 }
