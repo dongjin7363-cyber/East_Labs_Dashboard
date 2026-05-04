@@ -86,6 +86,10 @@ export default function MarketExportPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const { bySector, loading: itemsLoading, error: itemsError } = useExportItems();
+  const availableSectors = useMemo(
+    () => SECTORS.filter((sector) => (bySector.get(sector)?.length ?? 0) > 0),
+    [bySector],
+  );
   const sectorItems = useMemo(
     () =>
       [...(bySector.get(activeSector) ?? [])].sort((a, b) => {
@@ -105,6 +109,16 @@ export default function MarketExportPage() {
   function handleSectorClick(sector: string) {
     setActiveSector(sector);
   }
+
+  useEffect(() => {
+    if (itemsLoading || availableSectors.length === 0) {
+      return;
+    }
+
+    if (!availableSectors.includes(activeSector as (typeof SECTORS)[number])) {
+      setActiveSector(availableSectors[0]);
+    }
+  }, [activeSector, availableSectors, itemsLoading]);
 
   useEffect(() => {
     if (itemsLoading) {
@@ -130,7 +144,7 @@ export default function MarketExportPage() {
       <PageHeader title="수출입 데이터" />
 
       <div className="panel export-sector-tabs">
-        {SECTORS.map((sector) => (
+        {availableSectors.map((sector) => (
           <button
             key={sector}
             type="button"

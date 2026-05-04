@@ -6,11 +6,23 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 
 export async function fetchExportItems(): Promise<ExportItem[]> {
-  const { data, error } = await supabase
+  const baseQuery = supabase
     .from("export_items")
     .select("*")
     .order("sector", { ascending: true })
     .order("importance", { ascending: false });
+
+  let { data, error } = await baseQuery.eq("is_active", true);
+
+  if (error && error.message.includes("is_active")) {
+    const fallback = await supabase
+      .from("export_items")
+      .select("*")
+      .order("sector", { ascending: true })
+      .order("importance", { ascending: false });
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) throw error;
 

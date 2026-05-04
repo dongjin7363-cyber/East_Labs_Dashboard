@@ -34,6 +34,7 @@ export function deserializeExportItem(raw: unknown, index: number): ExportItem |
   const sector = normalizeOptionalText(r.sector);
   const name = normalizeOptionalText(r.name) ?? normalizeOptionalText(r.item_name);
   if (!sector || !name) return null;
+  if (r.is_active === false || r.isActive === false) return null;
 
   return {
     id: normalizeTextLike(r.id) ?? `export-item-${index}`,
@@ -43,6 +44,7 @@ export function deserializeExportItem(raw: unknown, index: number): ExportItem |
     description: normalizeOptionalText(r.description),
     relatedStocks: normalizeOptionalText(r.related_stocks) ?? normalizeOptionalText(r.relatedStocks),
     note: normalizeOptionalText(r.note),
+    isActive: true,
   };
 }
 

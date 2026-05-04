@@ -198,6 +198,7 @@ export interface ExportItem {
   description?: string;
   relatedStocks?: string;
   note?: string;
+  isActive: boolean;
 }
 
 export interface ExportDataPoint {

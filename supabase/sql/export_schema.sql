@@ -7,6 +7,7 @@ create table if not exists public.export_items (
   description text,
   related_stocks text,
   note text,
+  is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint export_items_sheet_name_key unique (sheet_name)
@@ -31,7 +32,8 @@ create table if not exists public.export_data (
 alter table public.export_items
   add column if not exists description text,
   add column if not exists related_stocks text,
-  add column if not exists note text;
+  add column if not exists note text,
+  add column if not exists is_active boolean not null default true;
 
 alter table public.export_data
   add column if not exists as_of_date date,
@@ -39,6 +41,9 @@ alter table public.export_data
 
 create index if not exists export_items_sector_idx
   on public.export_items (sector);
+
+create index if not exists export_items_is_active_idx
+  on public.export_items (is_active);
 
 create index if not exists export_data_item_id_ym_idx
   on public.export_data (item_id, ym);
