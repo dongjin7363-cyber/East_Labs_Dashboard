@@ -49,6 +49,7 @@ const QUOTE_BLACKLIST_TTL_MS = 86_400_000;
 const QUOTE_MAX_CONCURRENCY = 2;
 const QUOTE_MAX_REQUESTS_PER_RUN = 12;
 const QUOTE_FAILURE_TICKER_PREVIEW_LIMIT = 5;
+const QUOTE_UNSUPPORTED_SKIP_MESSAGE = "지원되지 않는 티커는 24시간 동안 자동 스킵됩니다";
 
 type QuoteFailureReason =
   | "NO_QUOTE"
@@ -755,7 +756,7 @@ export default function PortfolioPage() {
 
       if (targets.length === 0) {
         if (!force && candidateTargets.length > 0) {
-          setQuoteWarning("지원되지 않는 티커는 24시간 동안 자동 스킵됩니다.");
+          setQuoteWarning(QUOTE_UNSUPPORTED_SKIP_MESSAGE);
         }
 
         return;
@@ -1398,6 +1399,17 @@ export default function PortfolioPage() {
 
     return Array.from(new Set([...unmatchedKrTickers, ...blacklistedKrTickers]));
   }, [holdings, quoteBlacklist, unmatchedKrTickers]);
+  const skippedQuoteTickers = useMemo(
+    () =>
+      holdings
+        .filter(
+          (holding) =>
+            !holding.quoteDisabled &&
+            Boolean(quoteBlacklist[holding.ticker.trim().toUpperCase()]),
+        )
+        .map((holding) => holding.ticker),
+    [holdings, quoteBlacklist],
+  );
   const fxSummaryText = useMemo(() => {
     const fxDate = formatKstDate(fxAsOf);
     const fxValue = fxRate.toLocaleString("ko-KR", {
@@ -1410,8 +1422,13 @@ export default function PortfolioPage() {
   }, [fxAsOf, fxRate, lastQuoteRefreshAt]);
   const quoteWarningLine = useMemo(() => {
     const messages: string[] = [];
+    const hasSkippedOrUnsupportedTickers =
+      skippedQuoteTickers.length > 0 || unmatchedKrDisplayTickers.length > 0;
 
-    if (quoteWarning) {
+    if (
+      quoteWarning &&
+      (quoteWarning !== QUOTE_UNSUPPORTED_SKIP_MESSAGE || hasSkippedOrUnsupportedTickers)
+    ) {
       messages.push(quoteWarning);
     }
 
@@ -1420,7 +1437,7 @@ export default function PortfolioPage() {
     }
 
     return messages.join(" | ");
-  }, [quoteWarning, unmatchedKrDisplayTickers]);
+  }, [quoteWarning, skippedQuoteTickers, unmatchedKrDisplayTickers]);
 
   const openManualKrCodeModal = (ticker: string) => {
     const target = holdings.find(

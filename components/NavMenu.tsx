@@ -5,7 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_GROUPS } from "@/lib/config/navigation";
 
-export function NavMenu() {
+type NavMenuProps = {
+  onNavigate?: () => void;
+};
+
+export function NavMenu({ onNavigate }: NavMenuProps) {
   const pathname = usePathname();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [openSubgroupKey, setOpenSubgroupKey] = useState<string | null>(null);
@@ -154,6 +158,7 @@ export function NavMenu() {
                       onClick={() => {
                         setOpenGroup(null);
                         setOpenSubgroupKey(null);
+                        onNavigate?.();
                       }}
                     >
                       {item.label}
@@ -197,6 +202,7 @@ export function NavMenu() {
                           onClick={() => {
                             setOpenGroup(null);
                             setOpenSubgroupKey(null);
+                            onNavigate?.();
                           }}
                         >
                           {subItem.label}
