@@ -140,8 +140,9 @@ export function PortfolioFormModal({
       return;
     }
 
+    const currentPriceInput = form.currentPrice.trim();
     let currentPrice = 0;
-    if (form.currentPrice.trim()) {
+    if (currentPriceInput) {
       const parsedCurrentPrice = parsePriceInputToInt(currency, form.currentPrice);
       if (parsedCurrentPrice === null) {
         window.alert(
@@ -156,6 +157,11 @@ export function PortfolioFormModal({
     }
 
     const normalizedTicker = form.ticker.trim();
+    const nextQuoteDisabled =
+      currentPriceInput ||
+      (mode === "edit" && (holding?.currentPrice ?? 0) > 0 && currentPrice === 0)
+        ? true
+        : form.quoteDisabled;
 
     onSubmit({
       market: form.market,
@@ -165,7 +171,7 @@ export function PortfolioFormModal({
       tickerCode: normalizedTicker,
       logoUrl: form.logoUrl,
       comment: form.comment,
-      quoteDisabled: false,
+      quoteDisabled: nextQuoteDisabled,
       isCredit: form.isCredit,
       sector: form.sector,
       qty,
