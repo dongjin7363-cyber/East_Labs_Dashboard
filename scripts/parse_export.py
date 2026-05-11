@@ -37,22 +37,136 @@ def build_headers(service_role_key: str) -> dict[str, str]:
     }
 
 
-def get_items(supabase_url: str, headers: dict[str, str]) -> dict[str, str]:
+def normalize_sheet_name(value: str) -> str:
+    return value.strip()
+
+
+def get_items(supabase_url: str, headers: dict[str, str]) -> list[dict[str, str]]:
     response = requests.get(
-        f"{supabase_url}/rest/v1/export_items?select=id,sheet_name",
+        f"{supabase_url}/rest/v1/export_items?select=id,sheet_name,is_active&is_active=eq.true",
         headers=headers,
         timeout=30,
     )
     response.raise_for_status()
 
-    items = {}
+    items = []
     for item in response.json():
-        sheet_name = str(item.get("sheet_name") or "").strip()
+        sheet_name = str(item.get("sheet_name") or "")
         item_id = item.get("id")
         if sheet_name and item_id is not None:
-            items[sheet_name] = str(item_id)
+            items.append({"id": str(item_id), "sheet_name": sheet_name})
 
     return items
+
+
+def get_inactive_sheet_names(supabase_url: str, headers: dict[str, str]) -> list[str]:
+    response = requests.get(
+        f"{supabase_url}/rest/v1/export_items?select=sheet_name&is_active=eq.false",
+        headers=headers,
+        timeout=30,
+    )
+    response.raise_for_status()
+
+    return [
+        str(item.get("sheet_name") or "")
+        for item in response.json()
+        if str(item.get("sheet_name") or "")
+    ]
+
+
+def warn_duplicate_normalized_sheet_names(
+    active_items: list[dict[str, str]],
+    inactive_sheet_names: list[str],
+) -> None:
+    by_normalized: dict[str, list[str]] = {}
+
+    for item in active_items:
+        sheet_name = item["sheet_name"]
+        normalized = normalize_sheet_name(sheet_name)
+        if normalized:
+            by_normalized.setdefault(normalized, []).append(
+                f"active id={item['id']} sheet_name={sheet_name!r}"
+            )
+
+    for sheet_name in inactive_sheet_names:
+        normalized = normalize_sheet_name(sheet_name)
+        if normalized:
+            by_normalized.setdefault(normalized, []).append(
+                f"inactive sheet_name={sheet_name!r}"
+            )
+
+    duplicates = {
+        normalized: entries
+        for normalized, entries in by_normalized.items()
+        if len(entries) > 1
+    }
+
+    if duplicates:
+        print("\n[WARN] duplicate normalized sheet names:")
+        for normalized, entries in sorted(duplicates.items()):
+            print(f"  - {normalized!r}: {', '.join(entries)}")
+
+
+def match_active_sheets(
+    xl: pd.ExcelFile,
+    active_items: list[dict[str, str]],
+) -> tuple[list[tuple[str, str, str]], list[str]]:
+    excel_sheet_names = list(xl.sheet_names)
+    excel_sheet_name_set = set(excel_sheet_names)
+    excel_by_normalized: dict[str, list[str]] = {}
+
+    for sheet_name in excel_sheet_names:
+        normalized = normalize_sheet_name(sheet_name)
+        if normalized:
+            excel_by_normalized.setdefault(normalized, []).append(sheet_name)
+
+    matched: list[tuple[str, str, str]] = []
+    skipped: list[str] = []
+    used_excel_sheet_names: set[str] = set()
+
+    for item in active_items:
+        item_id = item["id"]
+        item_sheet_name = item["sheet_name"]
+
+        if item_sheet_name in excel_sheet_name_set:
+            excel_sheet_name = item_sheet_name
+            match_type = "exact"
+        else:
+            normalized = normalize_sheet_name(item_sheet_name)
+            fallback_candidates = excel_by_normalized.get(normalized, [])
+            if len(fallback_candidates) == 1:
+                excel_sheet_name = fallback_candidates[0]
+                match_type = "normalized"
+            elif len(fallback_candidates) > 1:
+                print(
+                    f"  [SKIP] {item_sheet_name!r}: "
+                    f"multiple normalized Excel matches {fallback_candidates}"
+                )
+                skipped.append(item_sheet_name)
+                continue
+            else:
+                skipped.append(item_sheet_name)
+                continue
+
+        if excel_sheet_name in used_excel_sheet_names:
+            print(
+                f"  [SKIP] {item_sheet_name!r}: "
+                f"Excel sheet {excel_sheet_name!r} already matched"
+            )
+            skipped.append(item_sheet_name)
+            continue
+
+        used_excel_sheet_names.add(excel_sheet_name)
+        matched.append((excel_sheet_name, item_id, match_type))
+
+        if normalize_sheet_name(item_sheet_name) == "타이어":
+            print(
+                f"  [DEBUG] tire sheet match: "
+                f"item_id={item_id}, export_item_sheet_name={item_sheet_name!r}, "
+                f"excel_sheet_name={excel_sheet_name!r}, match={match_type}"
+            )
+
+    return matched, skipped
 
 
 def parse_ym(value) -> str | None:
@@ -233,16 +347,25 @@ def main() -> None:
     print(f"Loading Excel file: {file_path}")
     print(f"Using as_of_date={as_of_date}, is_partial={is_partial}")
     xl = pd.ExcelFile(file_path)
-    excel_sheet_names = set(xl.sheet_names)
-    items = get_items(supabase_url, headers)
-    matched_sheet_names = sorted(set(items).intersection(excel_sheet_names))
-    skipped_whitelist_items = sorted(set(items) - excel_sheet_names)
-    non_whitelisted_sheets = sorted(excel_sheet_names - set(items))
+    active_items = get_items(supabase_url, headers)
+    inactive_sheet_names = get_inactive_sheet_names(supabase_url, headers)
+    warn_duplicate_normalized_sheet_names(active_items, inactive_sheet_names)
+    matched_sheets, skipped_whitelist_items = match_active_sheets(xl, active_items)
+    matched_excel_sheet_names = {sheet_name for sheet_name, _, _ in matched_sheets}
+    non_whitelisted_sheets = sorted(set(xl.sheet_names) - matched_excel_sheet_names)
+    skipped_inactive_sheets = sorted(
+        {
+            sheet_name
+            for sheet_name in inactive_sheet_names
+            if sheet_name in xl.sheet_names
+            and sheet_name not in matched_excel_sheet_names
+        }
+    )
 
     inserted_or_updated_rows = 0
     failed_rows = 0
 
-    for sheet_name in matched_sheet_names:
+    for sheet_name, item_id, _match_type in matched_sheets:
         rows = parse_sheet(xl, sheet_name)
         if not rows:
             continue
@@ -250,7 +373,7 @@ def main() -> None:
         ok_count, fail_count = upsert(
             supabase_url,
             headers,
-            items[sheet_name],
+            item_id,
             sheet_name,
             rows,
             as_of_date,
@@ -262,8 +385,9 @@ def main() -> None:
         print(f"  [{status}] {sheet_name}: {ok_count} rows")
 
     print("\nSummary")
-    print(f"  loaded export_items count: {len(items)}")
-    print(f"  matched sheets count: {len(matched_sheet_names)}")
+    print(f"  active export_items count: {len(active_items)}")
+    print(f"  matched active sheets count: {len(matched_sheets)}")
+    print(f"  skipped inactive sheets count: {len(skipped_inactive_sheets)}")
     print(f"  skipped whitelist items count: {len(skipped_whitelist_items)}")
     print(f"  inserted/updated rows count: {inserted_or_updated_rows}")
     print(f"  failed rows count: {failed_rows}")
