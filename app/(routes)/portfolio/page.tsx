@@ -327,6 +327,7 @@ export default function PortfolioPage() {
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const quoteRefreshInFlightRef = useRef(false);
+  const depositUsdInputFocusedRef = useRef(false);
   const isAuthed = isCloudMode;
   const depositKrw = accountState.depositKrwInt;
   const depositUsdCents = accountState.depositUsdCents;
@@ -360,7 +361,9 @@ export default function PortfolioPage() {
     }
 
     setDepositKrwInput(depositKrw === 0 ? "" : `${depositKrw}`);
-    setDepositUsdInput(depositUsdCents === 0 ? "" : (depositUsdCents / 100).toFixed(2));
+    if (!depositUsdInputFocusedRef.current) {
+      setDepositUsdInput(depositUsdCents === 0 ? "" : (depositUsdCents / 100).toFixed(2));
+    }
     setCashInput(cashKrw === 0 ? "" : `${cashKrw}`);
   }, [accountStateLoadedAt, accountStateLoading, authLoading]);
 
@@ -1247,9 +1250,16 @@ export default function PortfolioPage() {
       return;
     }
 
-    if (!rawValue.trim()) {
-      setDepositUsdInput("");
+    setDepositUsdInput(rawValue);
+
+    const normalizedValue = rawValue.trim().replace(/,/g, "");
+
+    if (!normalizedValue) {
       setDepositUsdCents(0);
+      return;
+    }
+
+    if (/^\d+\.$/.test(normalizedValue)) {
       return;
     }
 
@@ -1259,7 +1269,6 @@ export default function PortfolioPage() {
       return;
     }
 
-    setDepositUsdInput(rawValue);
     setDepositUsdCents(nextCents);
   };
 
@@ -1669,6 +1678,12 @@ export default function PortfolioPage() {
               placeholder="예: 1,250.75"
               value={depositUsdInput}
               onValueChange={handleDepositUsdInputChange}
+              onFocus={() => {
+                depositUsdInputFocusedRef.current = true;
+              }}
+              onBlur={() => {
+                depositUsdInputFocusedRef.current = false;
+              }}
               allowDecimal
               maxDecimals={2}
               disabled={!isAuthed}
