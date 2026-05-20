@@ -40,6 +40,17 @@ function formatKisResponseBody(payload: unknown): string {
   }
 }
 
+function getKisErrorMessage(payload: unknown): string {
+  if (!payload || typeof payload !== "object") {
+    return "KIS API returned an error";
+  }
+
+  const msg1 = (payload as Record<string, unknown>).msg1;
+  return typeof msg1 === "string" && msg1.trim()
+    ? msg1
+    : "KIS API returned an error";
+}
+
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim();
 
@@ -110,12 +121,8 @@ export class KisClient {
       "rt_cd" in payload &&
       String((payload as { rt_cd?: unknown }).rt_cd) !== "0"
     ) {
-      const message =
-        typeof (payload as { msg1?: unknown }).msg1 === "string"
-          ? (payload as { msg1: string }).msg1
-          : "KIS API returned an error";
       throw new KisApiError(
-        `${message}: ${formatKisResponseBody(payload)}`,
+        `${getKisErrorMessage(payload)}: ${formatKisResponseBody(payload)}`,
         response.status,
         payload,
       );
