@@ -26,7 +26,6 @@ import {
   calcHoldingComputed,
   calculatePortfolioTotalAsset,
   filterHoldings,
-  HoldingQuoteUpdate,
   PortfolioInput,
 } from "@/lib/services/portfolioService";
 import {
@@ -51,9 +50,6 @@ const QUOTE_BLACKLIST_STORAGE_KEY = "pf_quote_blacklist_v1";
 const DEFAULT_FX_RATE = 1350;
 const QUOTE_REFRESH_INTERVAL_MS = 7_200_000;
 const QUOTE_FAIL_COOLDOWN_MS = 600_000;
-const QUOTE_BLACKLIST_TTL_MS = 86_400_000;
-const QUOTE_MAX_CONCURRENCY = 2;
-const QUOTE_MAX_REQUESTS_PER_RUN = 12;
 const QUOTE_FAILURE_TICKER_PREVIEW_LIMIT = 5;
 const QUOTE_UNSUPPORTED_SKIP_MESSAGE = "지원되지 않는 티커는 24시간 동안 자동 스킵됩니다";
 
@@ -92,21 +88,6 @@ interface QuoteBlacklistItem {
 }
 
 type QuoteBlacklistMap = Record<string, QuoteBlacklistItem>;
-
-type QuoteFetchResult =
-  | {
-      ok: true;
-      update: HoldingQuoteUpdate;
-      ticker: string;
-      debugRaw?: unknown;
-    }
-  | {
-      ok: false;
-      ticker: string;
-      reason: QuoteFailureReason;
-      status?: number;
-      message?: string;
-    };
 
 type PortfolioSortKey =
   | "ticker"
@@ -443,24 +424,6 @@ export default function PortfolioPage() {
     });
   }, [holdings, market, search]);
 
-  const isQuoteStale = useCallback((holding: PortfolioHolding): boolean => {
-    if (holding.currentPrice <= 0) {
-      return true;
-    }
-
-    if (!holding.priceUpdatedAt) {
-      return true;
-    }
-
-    const updatedAtMs = new Date(holding.priceUpdatedAt).getTime();
-
-    if (Number.isNaN(updatedAtMs)) {
-      return true;
-    }
-
-    return Date.now() - updatedAtMs >= QUOTE_REFRESH_INTERVAL_MS;
-  }, []);
-
   const parsePercentValue = useCallback((value: unknown): number | null => {
     if (typeof value === "number" && Number.isFinite(value)) {
       return value;
@@ -536,182 +499,6 @@ export default function PortfolioPage() {
       return undefined;
     },
     [parsePercentValue],
-  );
-
-  const fetchHoldingQuote = useCallback(
-    async (holding: PortfolioHolding): Promise<QuoteFetchResult> => {
-      if (holding.market !== "US" && holding.market !== "KR") {
-        return {
-          ok: false,
-          ticker: holding.ticker,
-          status: 400,
-          reason: "BAD_RESPONSE",
-          message: "지원하지 않는 시장입니다.",
-        };
-      }
-
-      try {
-        const queryTicker =
-          holding.market === "KR" && holding.krCode
-            ? holding.krCode
-            : holding.ticker;
-        const response = await fetch(
-          `/api/quote?market=${holding.market}&ticker=${encodeURIComponent(queryTicker)}`,
-          { cache: "no-store" },
-        );
-
-        if (!response.ok) {
-          let message = `시세 업데이트 실패 (${response.status})`;
-
-          try {
-            const errorPayload: unknown = await response.json();
-
-            if (
-              typeof errorPayload === "object" &&
-              errorPayload !== null &&
-              "message" in errorPayload
-            ) {
-              const apiMessage = String(
-                (errorPayload as { message?: unknown }).message ?? "",
-              ).trim();
-
-              if (apiMessage) {
-                message = `시세 업데이트 실패 (${response.status}): ${apiMessage}`;
-              }
-            }
-          } catch {
-            // Keep default message.
-          }
-
-          return {
-            ok: false,
-            ticker: holding.ticker,
-            status: response.status,
-            reason:
-              response.status === 429
-                ? "RATE_LIMIT"
-                : response.status === 404
-                  ? "NOT_FOUND"
-                  : "BAD_RESPONSE",
-            message,
-          };
-        }
-
-        const data: unknown = await response.json();
-
-        if (typeof data !== "object" || data === null) {
-          return {
-            ok: false,
-            ticker: holding.ticker,
-            status: 502,
-            reason: "BAD_RESPONSE",
-            message: "시세 응답 형식이 올바르지 않습니다.",
-          };
-        }
-
-        const parsed = data as Partial<QuoteApiResponse>;
-        const responseTicker =
-          typeof parsed.ticker === "string" && parsed.ticker.trim() !== ""
-            ? parsed.ticker.trim().toUpperCase()
-            : holding.ticker;
-
-        if (parsed.ok === false) {
-          return {
-            ok: false,
-            ticker: responseTicker,
-            reason:
-              parsed.reason === "NO_QUOTE" ||
-              parsed.reason === "NOT_FOUND" ||
-              parsed.reason === "RATE_LIMIT" ||
-              parsed.reason === "BAD_RESPONSE"
-                ? parsed.reason
-                : "BAD_RESPONSE",
-            message:
-              typeof parsed.message === "string" && parsed.message.trim() !== ""
-                ? parsed.message
-                : "시세 조회 실패",
-          };
-        }
-
-        const directPriceInt = Number(parsed.currentPriceInt ?? parsed.priceInt);
-        let priceInt = directPriceInt;
-
-        if (!Number.isFinite(priceInt) || priceInt <= 0) {
-          const floatPrice = Number(parsed.price);
-
-          if (Number.isFinite(floatPrice) && floatPrice > 0) {
-            if (parsed.currency === "USD") {
-              priceInt = Math.round(floatPrice * 100);
-            } else {
-              priceInt = Math.round(floatPrice);
-            }
-          }
-        }
-
-        if (!Number.isFinite(priceInt) || priceInt <= 0) {
-          return {
-            ok: false,
-            ticker: responseTicker,
-            status: 502,
-            reason: "BAD_RESPONSE",
-            message: "시세 값이 유효하지 않습니다.",
-          };
-        }
-
-        return {
-          ok: true,
-          ticker: responseTicker,
-          update: {
-            id: holding.id,
-            currentPrice: priceInt,
-            prevClose:
-              Number.isFinite(Number(parsed.prevCloseInt)) &&
-              Number(parsed.prevCloseInt) > 0
-                ? Math.round(Number(parsed.prevCloseInt))
-                : Number.isFinite(Number(parsed.prevClose)) &&
-                    Number(parsed.prevClose) > 0
-                  ? parsed.currency === "USD"
-                    ? Math.round(Number(parsed.prevClose) * 100)
-                    : Math.round(Number(parsed.prevClose))
-                  : undefined,
-            dayChangePct: resolveDayChangeRate(holding.market, parsed, priceInt),
-            displayName:
-              typeof parsed.displayName === "string"
-                ? parsed.displayName.trim() || undefined
-                : typeof parsed.resolvedName === "string"
-                  ? parsed.resolvedName.trim() || undefined
-                : undefined,
-            logoUrl:
-              typeof parsed.logoUrl === "string"
-                ? parsed.logoUrl.trim() || undefined
-                : undefined,
-            tickerCode:
-              typeof parsed.tickerCode === "string"
-                ? parsed.tickerCode.trim().toUpperCase() || undefined
-                : typeof parsed.resolvedCode === "string"
-                  ? parsed.resolvedCode.trim().toUpperCase() || undefined
-                : undefined,
-            krCode:
-              holding.market === "KR" && typeof parsed.resolvedCode === "string"
-                ? parsed.resolvedCode
-                : undefined,
-            asOf:
-              typeof parsed.asOf === "string"
-                ? parsed.asOf
-                : new Date().toISOString(),
-          },
-          debugRaw: parsed,
-        };
-      } catch {
-        return {
-          ok: false,
-          ticker: holding.ticker,
-          reason: "BAD_RESPONSE",
-          message: "시세 업데이트 실패 (네트워크 오류)",
-        };
-      }
-    },
-    [resolveDayChangeRate],
   );
 
   const refreshQuotesForVisible = useCallback(

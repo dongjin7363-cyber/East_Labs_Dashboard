@@ -145,7 +145,6 @@ export async function fetchDomesticStockQuote(
 
 export async function fetchDomesticExtendedQuote(
   code: string,
-  client = new KisClient(),
 ): Promise<KisDomesticExtendedQuote | null> {
   const normalizedCode = normalizeDomesticStockCode(code);
 
