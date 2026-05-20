@@ -23,6 +23,7 @@ import {
   FINANCE_DATA_EVENT,
   notifyFinanceDataChanged,
 } from "@/lib/services/events";
+import { isKrTickerCodeLike } from "@/lib/portfolio/display";
 
 const PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY = "pf_synced_portfolio_holdings_v1";
 
@@ -55,6 +56,24 @@ function parseTimeMs(value?: string): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function resolveLocalDisplayNameFallback(
+  holding: PortfolioHolding,
+): string | undefined {
+  const explicitName = holding.displayName?.trim();
+
+  if (explicitName && !isKrTickerCodeLike(explicitName)) {
+    return explicitName;
+  }
+
+  const ticker = holding.ticker.trim();
+
+  if (holding.market === "KR" && ticker && !isKrTickerCodeLike(ticker)) {
+    return ticker;
+  }
+
+  return undefined;
+}
+
 function mergeHoldingsWithLocalMetadata(
   cloudHoldings: PortfolioHolding[],
   localHoldings: PortfolioHolding[],
@@ -80,10 +99,16 @@ function mergeHoldingsWithLocalMetadata(
     const shouldPreferLocalQuote =
       holding.market === "US" &&
       parseTimeMs(localMatched.priceUpdatedAt) > parseTimeMs(holding.priceUpdatedAt);
+    const localDisplayName = resolveLocalDisplayNameFallback(localMatched);
+    const shouldPreferLocalDisplayName =
+      Boolean(localDisplayName) &&
+      (!holding.displayName || isKrTickerCodeLike(holding.displayName));
 
     const next: PortfolioHolding = {
       ...holding,
-      displayName: holding.displayName ?? localMatched.displayName,
+      displayName: shouldPreferLocalDisplayName
+        ? localDisplayName
+        : holding.displayName ?? localMatched.displayName,
       tickerCode:
         holding.tickerCode ??
         localMatched.tickerCode ??
@@ -108,6 +133,21 @@ function mergeHoldingsWithLocalMetadata(
         shouldPreferLocalQuote
           ? localMatched.priceUpdatedAt ?? holding.priceUpdatedAt
           : holding.priceUpdatedAt ?? localMatched.priceUpdatedAt,
+      extendedPrice: holding.extendedPrice ?? localMatched.extendedPrice,
+      extendedChangePct:
+        holding.extendedChangePct ?? localMatched.extendedChangePct,
+      extendedSession: holding.extendedSession ?? localMatched.extendedSession,
+      extendedUpdatedAt:
+        holding.extendedUpdatedAt ?? localMatched.extendedUpdatedAt,
+      nxtPrice: holding.nxtPrice ?? localMatched.nxtPrice,
+      nxtChangePct: holding.nxtChangePct ?? localMatched.nxtChangePct,
+      nxtSupported: holding.nxtSupported ?? localMatched.nxtSupported,
+      nxtUpdatedAt: holding.nxtUpdatedAt ?? localMatched.nxtUpdatedAt,
+      afterHoursPrice: holding.afterHoursPrice ?? localMatched.afterHoursPrice,
+      afterHoursChangePct:
+        holding.afterHoursChangePct ?? localMatched.afterHoursChangePct,
+      afterHoursUpdatedAt:
+        holding.afterHoursUpdatedAt ?? localMatched.afterHoursUpdatedAt,
       krCode:
         holding.market === "KR"
           ? holding.krCode ??
@@ -127,6 +167,17 @@ function mergeHoldingsWithLocalMetadata(
       next.prevClose !== holding.prevClose ||
       next.dayChangePct !== holding.dayChangePct ||
       next.priceUpdatedAt !== holding.priceUpdatedAt ||
+      next.extendedPrice !== holding.extendedPrice ||
+      next.extendedChangePct !== holding.extendedChangePct ||
+      next.extendedSession !== holding.extendedSession ||
+      next.extendedUpdatedAt !== holding.extendedUpdatedAt ||
+      next.nxtPrice !== holding.nxtPrice ||
+      next.nxtChangePct !== holding.nxtChangePct ||
+      next.nxtSupported !== holding.nxtSupported ||
+      next.nxtUpdatedAt !== holding.nxtUpdatedAt ||
+      next.afterHoursPrice !== holding.afterHoursPrice ||
+      next.afterHoursChangePct !== holding.afterHoursChangePct ||
+      next.afterHoursUpdatedAt !== holding.afterHoursUpdatedAt ||
       next.krCode !== holding.krCode
     ) {
       filledCount += 1;
@@ -306,6 +357,21 @@ export function usePortfolio() {
         return;
       }
 
+      if (process.env.NODE_ENV === "development") {
+        console.info(
+          "[portfolio] extended quote fields",
+          next
+            .filter((holding) => holding.market === "KR")
+            .slice(0, 3)
+            .map((holding) => ({
+              ticker: holding.ticker,
+              displayName: holding.displayName,
+              extendedSession: holding.extendedSession,
+              extendedChangePct: holding.extendedChangePct,
+            })),
+        );
+      }
+
       applyHoldings(next);
 
     } catch (error) {
@@ -446,6 +512,17 @@ export function usePortfolio() {
             prevClose: target.prevClose,
             dayChangePct: target.dayChangePct,
             priceUpdatedAt: input.currentPrice > 0 ? nowIso : undefined,
+            extendedPrice: target.extendedPrice,
+            extendedChangePct: target.extendedChangePct,
+            extendedSession: target.extendedSession,
+            extendedUpdatedAt: target.extendedUpdatedAt,
+            nxtPrice: target.nxtPrice,
+            nxtChangePct: target.nxtChangePct,
+            nxtSupported: target.nxtSupported,
+            nxtUpdatedAt: target.nxtUpdatedAt,
+            afterHoursPrice: target.afterHoursPrice,
+            afterHoursChangePct: target.afterHoursChangePct,
+            afterHoursUpdatedAt: target.afterHoursUpdatedAt,
             updatedAt: nowIso,
           };
 

@@ -16,6 +16,15 @@ export const PORTFOLIO_SECTORS = [
 export type PortfolioSector = (typeof PORTFOLIO_SECTORS)[number];
 export const PORTFOLIO_POSITIONS = ["OW", "N", "UW"] as const;
 export type PortfolioPosition = (typeof PORTFOLIO_POSITIONS)[number];
+export const EXTENDED_SESSIONS = [
+  "KR_NXT",
+  "KR_AFTER_HOURS",
+  "US_DAY",
+  "US_PRE",
+  "US_AFTER",
+  "NONE",
+] as const;
+export type ExtendedSession = (typeof EXTENDED_SESSIONS)[number];
 
 export interface PortfolioHolding {
   id: string;
@@ -42,6 +51,17 @@ export interface PortfolioHolding {
   prevClose?: number;
   dayChangePct?: number;
   priceUpdatedAt?: string;
+  extendedPrice?: number;
+  extendedChangePct?: number;
+  extendedSession?: ExtendedSession;
+  extendedUpdatedAt?: string;
+  nxtPrice?: number;
+  nxtChangePct?: number;
+  nxtSupported?: boolean;
+  nxtUpdatedAt?: string;
+  afterHoursPrice?: number;
+  afterHoursChangePct?: number;
+  afterHoursUpdatedAt?: string;
   updatedAt: string;
 }
 

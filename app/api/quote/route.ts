@@ -5,6 +5,9 @@ const QUOTE_CACHE_TTL_MS = 45_000;
 const KRX_COMPANY_CACHE_TTL_MS = 21_600_000;
 const US_MARKET_TIME_ZONE = "America/New_York";
 
+// Deprecated for portfolio-wide refreshes. Keep this per-symbol endpoint as a
+// fallback/manual lookup path while /api/quotes/refresh uses KIS REST + DB writes.
+
 type QuoteFailureReason =
   | "NO_QUOTE"
   | "NOT_FOUND"

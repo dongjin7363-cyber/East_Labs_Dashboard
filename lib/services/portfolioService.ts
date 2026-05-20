@@ -238,6 +238,17 @@ export function updateHolding(
         prevClose: item.prevClose,
         dayChangePct: item.dayChangePct,
         priceUpdatedAt: input.currentPrice > 0 ? nowIso : undefined,
+        extendedPrice: item.extendedPrice,
+        extendedChangePct: item.extendedChangePct,
+        extendedSession: item.extendedSession,
+        extendedUpdatedAt: item.extendedUpdatedAt,
+        nxtPrice: item.nxtPrice,
+        nxtChangePct: item.nxtChangePct,
+        nxtSupported: item.nxtSupported,
+        nxtUpdatedAt: item.nxtUpdatedAt,
+        afterHoursPrice: item.afterHoursPrice,
+        afterHoursChangePct: item.afterHoursChangePct,
+        afterHoursUpdatedAt: item.afterHoursUpdatedAt,
         updatedAt: nowIso,
       };
     }),
@@ -312,11 +323,9 @@ export function replaceHoldings(holdings: PortfolioHolding[]): PortfolioHolding[
 // Source of truth for per-holding valuation and pnl.
 export function calcHoldingComputed(holding: PortfolioHolding): HoldingComputed {
   const marketValue = holding.qty * holding.currentPrice;
-  const pnl = holding.qty * (holding.currentPrice - holding.avgPrice);
-  const pnlRate =
-    holding.avgPrice <= 0
-      ? 0
-      : ((holding.currentPrice - holding.avgPrice) / holding.avgPrice) * 100;
+  const costBasis = holding.avgPrice * holding.qty;
+  const pnl = marketValue - costBasis;
+  const pnlRate = costBasis <= 0 ? 0 : (pnl / costBasis) * 100;
 
   return {
     marketValue,

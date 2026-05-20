@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "check": "npm run lint && npm run build",
+    "quotes:update": "tsx scripts/update-quotes.ts",
     "export:parse": "python3 scripts/parse_export.py",
     "export:sync-items": "python3 scripts/sync_export_items_metadata.py",
     "finviz:sync": "python3 scripts/sync_finviz_watchlist.py"
@@ -28,6 +29,7 @@
     "@types/react-dom": "^18.3.4",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
+    "tsx": "^4.22.3",
     "typescript": "^5.7.2"
   }
 }

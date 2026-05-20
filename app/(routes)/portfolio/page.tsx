@@ -21,7 +21,6 @@ import {
   Currency,
   Market,
   PortfolioHolding,
-  PortfolioPosition,
 } from "@/lib/models/types";
 import {
   calcHoldingComputed,
@@ -31,12 +30,19 @@ import {
   PortfolioInput,
 } from "@/lib/services/portfolioService";
 import {
+  isKrTickerCodeLike,
+  resolveHoldingDisplayName as resolveHoldingDisplayNameBase,
+  resolveHoldingGroupingKey,
+  resolveHoldingTickerMeta,
+} from "@/lib/portfolio/display";
+import {
   parsePriceInputToInt,
   percentFormat,
   usdCentsToUsdFloat,
   usdToKrw,
 } from "@/lib/utils/money";
 import { SortState, sortRows, toggleSort } from "@/lib/utils/sort";
+import { supabase } from "@/lib/supabaseClient";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const LAST_QUOTE_REFRESH_STORAGE_KEY = "pf_last_quote_refresh_at_v1";
@@ -105,6 +111,7 @@ type QuoteFetchResult =
 type PortfolioSortKey =
   | "ticker"
   | "dailyChangeRate"
+  | "extendedChangeRate"
   | "avgPrice"
   | "currentPrice"
   | "qty"
@@ -117,14 +124,10 @@ interface PortfolioTableRow {
   holding: PortfolioHolding;
   computed: ReturnType<typeof calcHoldingComputed>;
   dailyChangeRate: number | null;
+  extendedChangeRate: number | null;
   marketValueComparableKrw: number;
   defaultIndex: number;
 }
-
-const US_DISPLAY_NAME_FALLBACK: Record<string, string> = {
-  RKLB: "Rocket Lab",
-};
-const POSITION_OPTIONS: PortfolioPosition[] = ["OW", "N", "UW"];
 
 function parseStoredTimestamp(raw: string | null): number | null {
   if (!raw) {
@@ -145,24 +148,6 @@ function normalizeKrCodeInput(value: string): string {
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 12);
-}
-
-function resolveHoldingDisplayName(holding: PortfolioHolding): string {
-  const explicitName = holding.displayName?.trim();
-
-  if (explicitName) {
-    return explicitName;
-  }
-
-  if (holding.market === "US") {
-    const symbol = holding.ticker.trim().toUpperCase();
-
-    if (US_DISPLAY_NAME_FALLBACK[symbol]) {
-      return US_DISPLAY_NAME_FALLBACK[symbol];
-    }
-  }
-
-  return holding.ticker;
 }
 
 function formatKstTime(timestampMs: number): string {
@@ -217,10 +202,6 @@ function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
     return holding.dayChangePct;
   }
 
-  if (holding.market === "US") {
-    return null;
-  }
-
   if (
     typeof holding.prevClose === "number" &&
     Number.isFinite(holding.prevClose) &&
@@ -229,6 +210,18 @@ function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
     holding.currentPrice > 0
   ) {
     return ((holding.currentPrice - holding.prevClose) / holding.prevClose) * 100;
+  }
+
+  return null;
+}
+
+function resolveHoldingExtendedChangePct(holding: PortfolioHolding): number | null {
+  if (
+    holding.extendedSession === "KR_NXT" &&
+    typeof holding.extendedChangePct === "number" &&
+    Number.isFinite(holding.extendedChangePct)
+  ) {
+    return holding.extendedChangePct;
   }
 
   return null;
@@ -286,9 +279,9 @@ export default function PortfolioPage() {
   const {
     holdings,
     loading,
+    refresh,
     create,
     update,
-    setPosition,
     remove,
     updateQuotes,
     authLoading,
@@ -723,52 +716,18 @@ export default function PortfolioPage() {
 
   const refreshQuotesForVisible = useCallback(
     async ({
-      staleOnly,
       force = false,
+      includeExtended = false,
     }: {
-      staleOnly: boolean;
       force?: boolean;
-    }) => {
+      includeExtended?: boolean;
+    } = {}) => {
       if (quoteRefreshInFlightRef.current) {
         return;
       }
 
-      const now = Date.now();
-      const activeBlacklist = sanitizeQuoteBlacklist(quoteBlacklist);
-
-      if (Object.keys(activeBlacklist).length !== Object.keys(quoteBlacklist).length) {
-        setQuoteBlacklist(activeBlacklist);
-        writeQuoteBlacklist(activeBlacklist);
-      }
-
-      const sourceHoldings = force ? holdings : filtered;
-      const candidateTargets = sourceHoldings.filter(
-        (holding) =>
-          (holding.market === "US" || holding.market === "KR") &&
-          !holding.quoteDisabled &&
-          (!staleOnly ||
-            isQuoteStale(holding) ||
-            typeof holding.dayChangePct !== "number"),
-      );
-
-      const targets = force
-        ? candidateTargets
-        : candidateTargets.filter(
-            (holding) => !activeBlacklist[holding.ticker.trim().toUpperCase()],
-          );
-
-      if (targets.length === 0) {
-        if (!force && candidateTargets.length > 0) {
-          setQuoteWarning(QUOTE_UNSUPPORTED_SKIP_MESSAGE);
-        }
-
-        return;
-      }
-
       if (!force) {
-        if (document.visibilityState !== "visible") {
-          return;
-        }
+        const now = Date.now();
 
         if (
           lastQuoteRefreshAt !== null &&
@@ -782,176 +741,90 @@ export default function PortfolioPage() {
         }
       }
 
-      const cappedTargets = targets.slice(0, QUOTE_MAX_REQUESTS_PER_RUN);
-      const deferredCount = Math.max(targets.length - cappedTargets.length, 0);
-
       quoteRefreshInFlightRef.current = true;
       setIsRefreshingQuotes(true);
 
       try {
-        const updates: HoldingQuoteUpdate[] = [];
-        const failedItems: Array<{ ticker: string; reason: QuoteFailureReason }> = [];
-        const failedNoQuoteTickers: string[] = [];
-        const failedNotFoundKrTickers: string[] = [];
-        let hasRateLimitFailure = false;
-        let cursor = 0;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
 
-        const workers = Array.from(
-          { length: Math.min(QUOTE_MAX_CONCURRENCY, cappedTargets.length) },
-          async () => {
-            while (true) {
-              const currentIndex = cursor;
-              cursor += 1;
+        if (!accessToken) {
+          setQuoteWarning("로그인 세션을 확인할 수 없습니다.");
+          return;
+        }
 
-              if (currentIndex >= cappedTargets.length) {
-                return;
-              }
-
-              const targetHolding = cappedTargets[currentIndex];
-              const result = await fetchHoldingQuote(targetHolding);
-
-              if (result.ok) {
-                updates.push(result.update);
-
-                if (process.env.NODE_ENV === "development") {
-                  const prevCloseInt =
-                    typeof result.update.prevClose === "number" &&
-                    Number.isFinite(result.update.prevClose)
-                      ? result.update.prevClose
-                      : null;
-                  const dayChangePct =
-                    typeof result.update.dayChangePct === "number" &&
-                    Number.isFinite(result.update.dayChangePct)
-                      ? result.update.dayChangePct
-                      : null;
-
-                  console.debug("[quote-refresh]", {
-                    ticker: targetHolding.ticker,
-                    current_price_int: result.update.currentPrice,
-                    prev_close_int: prevCloseInt,
-                    day_change_pct: dayChangePct,
-                  });
-
-                  if (prevCloseInt === null && dayChangePct === null) {
-                    console.debug("[quote-refresh raw payload]", {
-                      ticker: targetHolding.ticker,
-                      payload: result.debugRaw ?? null,
-                    });
-                  }
-                }
-              } else {
-                failedItems.push({ ticker: result.ticker, reason: result.reason });
-
-                if (result.reason === "NO_QUOTE" || result.reason === "NOT_FOUND") {
-                  failedNoQuoteTickers.push(targetHolding.ticker);
-                }
-
-                if (result.reason === "NOT_FOUND" && targetHolding.market === "KR") {
-                  failedNotFoundKrTickers.push(targetHolding.ticker);
-                }
-
-                if (result.reason === "RATE_LIMIT") {
-                  hasRateLimitFailure = true;
-                }
-
-              }
-            }
+        const response = await fetch("/api/quotes/refresh", {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json",
           },
-        );
+          body: JSON.stringify({ includeExtended }),
+        });
+        const payload = (await response.json().catch(() => null)) as
+          | {
+              updated?: unknown[];
+              failed?: Array<{ ticker?: string; reason?: string }>;
+              skipped?: unknown[];
+              finishedAt?: string;
+              message?: string;
+            }
+          | null;
 
-        await Promise.all(workers);
+        if (!response.ok) {
+          const message =
+            typeof payload?.message === "string" && payload.message.trim()
+              ? payload.message
+              : `quote refresh failed (${response.status})`;
+          throw new Error(message);
+        }
 
         const completedAt = Date.now();
         setLastQuoteRefreshAt(completedAt);
         window.localStorage.setItem(LAST_QUOTE_REFRESH_STORAGE_KEY, `${completedAt}`);
 
-        if (failedNoQuoteTickers.length > 0) {
-          const nextBlacklist: QuoteBlacklistMap = {
-            ...activeBlacklist,
-          };
+        const failed = Array.isArray(payload?.failed) ? payload.failed : [];
+        const updatedCount = Array.isArray(payload?.updated)
+          ? payload.updated.length
+          : 0;
 
-          failedNoQuoteTickers.forEach((ticker) => {
-            nextBlacklist[ticker.trim().toUpperCase()] = {
-              until: completedAt + QUOTE_BLACKLIST_TTL_MS,
-            };
-          });
-
-          setQuoteBlacklist(nextBlacklist);
-          writeQuoteBlacklist(nextBlacklist);
-        }
-
-        if (updates.length > 0) {
-          await updateQuotes(updates);
-        }
-
-        setUnmatchedKrTickers(Array.from(new Set(failedNotFoundKrTickers)));
-
-        if (failedItems.length > 0) {
+        if (failed.length > 0) {
+          const preview = failed
+            .slice(0, QUOTE_FAILURE_TICKER_PREVIEW_LIMIT)
+            .map((item) => item.ticker ?? "UNKNOWN")
+            .join(", ");
+          setQuoteWarning(`시세 업데이트 실패 ${failed.length}건 (${preview})`);
           const failedAt = Date.now();
           setLastQuoteFailAt(failedAt);
           window.localStorage.setItem(LAST_QUOTE_FAIL_STORAGE_KEY, `${failedAt}`);
-
-          const uniqueFailedTickers = Array.from(
-            new Set(failedItems.map((item) => item.ticker)),
-          );
-          const previewTickers = uniqueFailedTickers
-            .slice(0, QUOTE_FAILURE_TICKER_PREVIEW_LIMIT)
-            .join(", ");
-          const suffix =
-            uniqueFailedTickers.length > QUOTE_FAILURE_TICKER_PREVIEW_LIMIT
-              ? ", ..."
-              : "";
-          const rateLimitText = hasRateLimitFailure ? " (요청 제한 포함)" : "";
-          const deferredText =
-            deferredCount > 0 ? ` 요청 제한으로 ${deferredCount}건은 다음 갱신으로 연기됨.` : "";
-          const nextWarning = `시세 업데이트 실패 ${failedItems.length}건 (${previewTickers}${suffix})${rateLimitText}. 2시간 후 자동 재시도.${deferredText}`.trim();
-
-          setQuoteWarning(nextWarning);
-          const reasonCounts = failedItems.reduce<Record<string, number>>((acc, item) => {
-            const reason = item.reason;
-            acc[reason] = (acc[reason] ?? 0) + 1;
-            return acc;
-          }, {});
-          const reasonText = Object.entries(reasonCounts)
-            .map(([reason, count]) => `${reason} ${count}`)
-            .join(", ");
-          const failedTickerText = failedItems
-            .slice(0, QUOTE_FAILURE_TICKER_PREVIEW_LIMIT)
-            .map((item) => `${item.ticker}(${item.reason})`)
-            .join(", ");
-          const failedTickerSuffix =
-            failedItems.length > QUOTE_FAILURE_TICKER_PREVIEW_LIMIT ? ", ..." : "";
-          setQuoteRefreshSummary(
-            `성공 ${updates.length}건 / 실패 ${failedItems.length}건${reasonText ? ` (${reasonText})` : ""}${failedTickerText ? ` | 실패 티커: ${failedTickerText}${failedTickerSuffix}` : ""}`,
-          );
-
         } else {
+          setQuoteWarning(null);
           setLastQuoteFailAt(null);
           window.localStorage.removeItem(LAST_QUOTE_FAIL_STORAGE_KEY);
-
-          if (deferredCount > 0) {
-            setQuoteWarning(`요청 제한으로 ${deferredCount}건은 다음 갱신으로 연기됨.`);
-          } else {
-            setQuoteWarning(null);
-          }
-
-          setQuoteRefreshSummary(`성공 ${updates.length}건 / 실패 0건`);
         }
+
+        setQuoteRefreshSummary(
+          `성공 ${updatedCount}건 / 실패 ${failed.length}건`,
+        );
+        await refresh();
+        return;
+      } catch (error) {
+        setQuoteWarning(
+          error instanceof Error
+            ? `시세 업데이트 실패: ${error.message}`
+            : "시세 업데이트 실패",
+        );
+        const failedAt = Date.now();
+        setLastQuoteFailAt(failedAt);
+        window.localStorage.setItem(LAST_QUOTE_FAIL_STORAGE_KEY, `${failedAt}`);
+        return;
       } finally {
         quoteRefreshInFlightRef.current = false;
         setIsRefreshingQuotes(false);
       }
     },
-    [
-      fetchHoldingQuote,
-      filtered,
-      holdings,
-      isQuoteStale,
-      lastQuoteFailAt,
-      lastQuoteRefreshAt,
-      quoteBlacklist,
-      updateQuotes,
-    ],
+    [lastQuoteFailAt, lastQuoteRefreshAt, refresh],
   );
 
   useEffect(() => {
@@ -959,7 +832,7 @@ export default function PortfolioPage() {
       return;
     }
 
-    void refreshQuotesForVisible({ staleOnly: true, force: false });
+    void refreshQuotesForVisible();
   }, [loading, quoteMetaLoaded, refreshQuotesForVisible]);
 
   useEffect(() => {
@@ -972,7 +845,7 @@ export default function PortfolioPage() {
     }
 
     const intervalId = window.setInterval(() => {
-      void refreshQuotesForVisible({ staleOnly: true, force: false });
+      void refreshQuotesForVisible();
     }, QUOTE_REFRESH_INTERVAL_MS);
 
     return () => {
@@ -987,7 +860,7 @@ export default function PortfolioPage() {
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void refreshQuotesForVisible({ staleOnly: true, force: false });
+        void refreshQuotesForVisible();
       }
     };
 
@@ -1009,6 +882,32 @@ export default function PortfolioPage() {
       }),
     [cashKrw, depositKrw, depositUsdCents, fxRate, holdings],
   );
+  const displayNameByGroupingKey = useMemo(() => {
+    const lookup = new Map<string, string>();
+
+    holdings.forEach((holding) => {
+      const name = resolveHoldingDisplayNameBase(holding);
+
+      if (!name || isKrTickerCodeLike(name)) {
+        return;
+      }
+
+      const key = resolveHoldingGroupingKey(holding);
+      const existing = lookup.get(key);
+
+      if (!existing || isKrTickerCodeLike(existing)) {
+        lookup.set(key, name);
+      }
+    });
+
+    return lookup;
+  }, [holdings]);
+  const resolveHoldingDisplayName = useCallback(
+    (holding: PortfolioHolding) =>
+      displayNameByGroupingKey.get(resolveHoldingGroupingKey(holding)) ??
+      resolveHoldingDisplayNameBase(holding),
+    [displayNameByGroupingKey],
+  );
   const tableRows = useMemo<PortfolioTableRow[]>(
     () => {
       const rows = filtered.map((holding) => {
@@ -1022,6 +921,7 @@ export default function PortfolioPage() {
           holding,
           computed,
           dailyChangeRate: resolveHoldingDayChangePct(holding),
+          extendedChangeRate: resolveHoldingExtendedChangePct(holding),
           marketValueComparableKrw,
           defaultIndex: 0,
         };
@@ -1057,6 +957,10 @@ export default function PortfolioPage() {
 
           if (key === "dailyChangeRate") {
             return row.dailyChangeRate ?? Number.NEGATIVE_INFINITY;
+          }
+
+          if (key === "extendedChangeRate") {
+            return row.extendedChangeRate ?? Number.NEGATIVE_INFINITY;
           }
 
           if (key === "qty") {
@@ -1365,22 +1269,6 @@ export default function PortfolioPage() {
     });
   };
 
-  const commitPosition = (
-    holding: PortfolioHolding,
-    nextPosition: PortfolioPosition,
-  ) => {
-    if (!isAuthed) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    if (nextPosition === holding.position) {
-      return;
-    }
-
-    setPosition(holding.id, nextPosition);
-  };
-
   const handleSortClick = (key: PortfolioSortKey) => {
     setSortState((prev) => toggleSort(prev, key));
   };
@@ -1392,7 +1280,7 @@ export default function PortfolioPage() {
     }
 
     console.log("[quote-refresh] manual refresh clicked");
-    await refreshQuotesForVisible({ staleOnly: false, force: true });
+    await refreshQuotesForVisible({ force: true, includeExtended: true });
   };
 
   const unmatchedKrDisplayTickers = useMemo(() => {
@@ -1419,16 +1307,27 @@ export default function PortfolioPage() {
         .map((holding) => holding.ticker),
     [holdings, quoteBlacklist],
   );
+  const latestPriceUpdatedAtMs = useMemo(() => {
+    return holdings.reduce((latest, holding) => {
+      if (!holding.priceUpdatedAt) {
+        return latest;
+      }
+
+      const parsed = Date.parse(holding.priceUpdatedAt);
+      return Number.isFinite(parsed) ? Math.max(latest, parsed) : latest;
+    }, 0);
+  }, [holdings]);
   const fxSummaryText = useMemo(() => {
     const fxDate = formatKstDate(fxAsOf);
     const fxValue = fxRate.toLocaleString("ko-KR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    const refreshValue = lastQuoteRefreshAt ? formatKstTime(lastQuoteRefreshAt) : "-";
+    const refreshTimestamp = lastQuoteRefreshAt ?? latestPriceUpdatedAtMs;
+    const refreshValue = refreshTimestamp ? formatKstTime(refreshTimestamp) : "-";
 
     return `${fxDate} : ₩${fxValue} / (Last Refresh ${refreshValue})`;
-  }, [fxAsOf, fxRate, lastQuoteRefreshAt]);
+  }, [fxAsOf, fxRate, lastQuoteRefreshAt, latestPriceUpdatedAtMs]);
   const quoteWarningLine = useMemo(() => {
     const messages: string[] = [];
     const hasSkippedOrUnsupportedTickers =
@@ -1578,7 +1477,7 @@ export default function PortfolioPage() {
       setQuoteWarning("수동 코드 저장 후 시세 조회 중 네트워크 오류가 발생했습니다.");
     }
 
-    void refreshQuotesForVisible({ staleOnly: false, force: true });
+    void refreshQuotesForVisible({ force: true, includeExtended: true });
   };
 
   const sortIndicator = (key: PortfolioSortKey): string => {
@@ -1783,15 +1682,15 @@ export default function PortfolioPage() {
             <colgroup>
               <col className="portfolio-col-holding" />
               <col className="portfolio-col-change" />
+              <col className="portfolio-col-change" />
               <col className="portfolio-col-price" />
               <col className="portfolio-col-price" />
               <col className="portfolio-col-qty" />
-            <col className="portfolio-col-value" />
-            <col className="portfolio-col-value" />
-            <col className="portfolio-col-rate" />
-            <col className="portfolio-col-position" />
-            <col className="portfolio-col-comment" />
-          </colgroup>
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-value" />
+              <col className="portfolio-col-rate" />
+              <col className="portfolio-col-comment" />
+            </colgroup>
             <thead>
               <tr>
                 <th>
@@ -1815,6 +1714,18 @@ export default function PortfolioPage() {
                     1일 등락률
                     <span className={sortIndicatorClassName("dailyChangeRate")}>
                       {sortIndicator("dailyChangeRate")}
+                    </span>
+                  </button>
+                </th>
+                <th>
+                  <button
+                    type="button"
+                    className={sortButtonClassName("extendedChangeRate")}
+                    onClick={() => handleSortClick("extendedChangeRate")}
+                  >
+                    장외 등락률
+                    <span className={sortIndicatorClassName("extendedChangeRate")}>
+                      {sortIndicator("extendedChangeRate")}
                     </span>
                   </button>
                 </th>
@@ -1890,7 +1801,6 @@ export default function PortfolioPage() {
                     </span>
                   </button>
                 </th>
-                <th className="portfolio-center-header">Position</th>
                 <th className="portfolio-center-header">
                   <button
                     type="button"
@@ -1920,9 +1830,7 @@ export default function PortfolioPage() {
                 sortedTableRows.map((row) => {
                   const { holding, computed } = row;
                   const displayName = resolveHoldingDisplayName(holding);
-                  const tickerMeta = holding.ticker.trim()
-                    ? holding.ticker.trim().toUpperCase()
-                    : "-";
+                  const tickerMeta = resolveHoldingTickerMeta(holding);
 
                   return (
                     <tr
@@ -1947,7 +1855,10 @@ export default function PortfolioPage() {
                           />
                           <div className="holding-info-text">
                             <strong className="holding-display-name">
-                              {displayName}
+                              <span>{displayName}</span>
+                              {holding.isCredit ? (
+                                <span className="holding-credit-badge">(신용)</span>
+                              ) : null}
                             </strong>
                             <span className="holding-ticker-meta">
                               {tickerMeta}
@@ -1969,6 +1880,23 @@ export default function PortfolioPage() {
                             }`}
                           >
                             {formatDailyChangeLabel(row.dailyChangeRate)}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {row.extendedChangeRate === null ? (
+                          <span className="daily-change-pill is-muted">—</span>
+                        ) : (
+                          <span
+                            className={`daily-change-pill ${
+                              row.extendedChangeRate > 0
+                                ? "is-positive"
+                                : row.extendedChangeRate < 0
+                                  ? "is-negative"
+                                  : "is-neutral"
+                            }`}
+                          >
+                            {formatDailyChangeLabel(row.extendedChangeRate)}
                           </span>
                         )}
                       </td>
@@ -1994,33 +1922,6 @@ export default function PortfolioPage() {
                         }}
                       >
                         {percentFormat(computed.pnlRate)}
-                      </td>
-                      <td
-                        className="portfolio-center-cell portfolio-position-cell"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <select
-                          className={`portfolio-position-select is-${(
-                            holding.position ?? "N"
-                          ).toLowerCase()}`}
-                          value={holding.position ?? "N"}
-                          onClick={(event) => event.stopPropagation()}
-                          onMouseDown={(event) => event.stopPropagation()}
-                          onChange={(event) =>
-                            commitPosition(
-                              holding,
-                              event.target.value as PortfolioPosition,
-                            )
-                          }
-                          disabled={!isAuthed}
-                        >
-                          {POSITION_OPTIONS.map((position) => (
-                            <option key={position} value={position}>
-                              {position}
-                            </option>
-                          ))}
-                        </select>
                       </td>
                       <td
                         className="portfolio-center-cell portfolio-comment-cell"

@@ -6,12 +6,14 @@ import { InlineFilterRow } from "@/components/common/InlineFilterRow";
 import { SectionCard } from "@/components/common/SectionCard";
 import { HoldingAvatar } from "@/components/portfolio/HoldingAvatar";
 import { Currency, Market, PortfolioHolding } from "@/lib/models/types";
+import { resolveHoldingTickerMeta } from "@/lib/portfolio/display";
 import { percentFormat } from "@/lib/utils/money";
 import { SortState } from "@/lib/utils/sort";
 
 export type PortfolioSortKey =
   | "ticker"
   | "dailyChangeRate"
+  | "extendedChangeRate"
   | "avgPrice"
   | "currentPrice"
   | "qty"
@@ -28,6 +30,7 @@ export interface PortfolioTableRow {
     pnlRate: number;
   };
   dailyChangeRate: number | null;
+  extendedChangeRate: number | null;
   defaultIndex: number;
 }
 
@@ -90,11 +93,6 @@ function getSortButtonClassName(
   key: PortfolioSortKey,
 ): string {
   return `table-sort-button${sortState.key === key && sortState.mode ? " is-active" : ""}`;
-}
-
-function resolveTickerMeta(holding: PortfolioHolding): string {
-  const ticker = holding.ticker.trim();
-  return ticker ? ticker.toUpperCase() : "-";
 }
 
 function SortHeader({
@@ -189,6 +187,7 @@ export function PortfolioHoldingsSection({
           <colgroup>
             <col className="portfolio-col-holding" />
             <col className="portfolio-col-change" />
+            <col className="portfolio-col-change" />
             <col className="portfolio-col-price" />
             <col className="portfolio-col-price" />
             <col className="portfolio-col-qty" />
@@ -211,6 +210,14 @@ export function PortfolioHoldingsSection({
                 <SortHeader
                   label="1일 등락률"
                   sortKey="dailyChangeRate"
+                  sortState={sortState}
+                  onSortClick={onSortClick}
+                />
+              </th>
+              <th>
+                <SortHeader
+                  label="장외 등락률"
+                  sortKey="extendedChangeRate"
                   sortState={sortState}
                   onSortClick={onSortClick}
                 />
@@ -276,11 +283,11 @@ export function PortfolioHoldingsSection({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9}>로딩 중...</td>
+                <td colSpan={10}>로딩 중...</td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <EmptyState title="데이터가 없습니다." compact />
                 </td>
               </tr>
@@ -312,10 +319,13 @@ export function PortfolioHoldingsSection({
                         />
                         <div className="holding-info-text">
                           <strong className="holding-display-name">
-                            {displayName}
+                            <span>{displayName}</span>
+                            {holding.isCredit ? (
+                              <span className="holding-credit-badge">(신용)</span>
+                            ) : null}
                           </strong>
                           <span className="holding-ticker-meta">
-                            {resolveTickerMeta(holding)}
+                            {resolveHoldingTickerMeta(holding)}
                           </span>
                         </div>
                       </div>
@@ -334,6 +344,23 @@ export function PortfolioHoldingsSection({
                           }`}
                         >
                           {formatDailyChangeLabel(row.dailyChangeRate)}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {row.extendedChangeRate === null ? (
+                        <span className="daily-change-pill is-muted">—</span>
+                      ) : (
+                        <span
+                          className={`daily-change-pill ${
+                            row.extendedChangeRate > 0
+                              ? "is-positive"
+                              : row.extendedChangeRate < 0
+                                ? "is-negative"
+                                : "is-neutral"
+                          }`}
+                        >
+                          {formatDailyChangeLabel(row.extendedChangeRate)}
                         </span>
                       )}
                     </td>

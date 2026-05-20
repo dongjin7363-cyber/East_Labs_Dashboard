@@ -1,0 +1,15 @@
+alter table if exists public.portfolio_holdings
+  add column if not exists prev_close_int bigint,
+  add column if not exists day_change_pct numeric,
+  add column if not exists price_updated_at timestamptz,
+  add column if not exists extended_price numeric,
+  add column if not exists extended_change_pct numeric,
+  add column if not exists extended_session text,
+  add column if not exists extended_updated_at timestamptz,
+  add column if not exists nxt_price numeric,
+  add column if not exists nxt_change_pct numeric,
+  add column if not exists nxt_supported boolean default false,
+  add column if not exists nxt_updated_at timestamptz,
+  add column if not exists after_hours_price numeric,
+  add column if not exists after_hours_change_pct numeric,
+  add column if not exists after_hours_updated_at timestamptz;

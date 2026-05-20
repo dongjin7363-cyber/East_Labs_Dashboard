@@ -1,5 +1,7 @@
 import {
   Currency,
+  ExtendedSession,
+  EXTENDED_SESSIONS,
   Market,
   PortfolioHolding,
   PORTFOLIO_POSITIONS,
@@ -21,6 +23,7 @@ export interface PortfolioHoldingRow {
   market: "KR" | "US";
   ticker: string;
   ticker_code: string | null;
+  kr_code?: string | null;
   is_credit?: boolean | null;
   display_name: string | null;
   logo_url: string | null;
@@ -29,6 +32,18 @@ export interface PortfolioHoldingRow {
   current_price_int: number;
   prev_close_int?: number | null;
   day_change_pct?: number | null;
+  price_updated_at?: string | null;
+  extended_price?: number | null;
+  extended_change_pct?: number | null;
+  extended_session?: string | null;
+  extended_updated_at?: string | null;
+  nxt_price?: number | null;
+  nxt_change_pct?: number | null;
+  nxt_supported?: boolean | null;
+  nxt_updated_at?: string | null;
+  after_hours_price?: number | null;
+  after_hours_change_pct?: number | null;
+  after_hours_updated_at?: string | null;
   comment: string | null;
   sector: string | null;
   position?: string | null;
@@ -69,6 +84,15 @@ function normalizePosition(value: unknown): PortfolioPosition {
   }
 
   return "N";
+}
+
+function normalizeExtendedSession(value: unknown): ExtendedSession | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const matched = EXTENDED_SESSIONS.find((session) => session === value);
+  return matched;
 }
 
 function resolveTicker(raw: Record<string, unknown>): string | undefined {
@@ -112,6 +136,28 @@ export function deserializePortfolioHolding(
   const dayChangeValue = toFiniteNumber(
     input.dayChangePct ?? input.day_change_pct,
   );
+  const extendedPriceValue = toFiniteNumber(
+    input.extendedPrice ??
+      input.extended_price ??
+      input.afterHoursPrice ??
+      input.after_hours_price,
+  );
+  const extendedChangeValue = toFiniteNumber(
+    input.extendedChangePct ??
+      input.extended_change_pct ??
+      input.afterHoursChangePct ??
+      input.after_hours_change_pct,
+  );
+  const afterHoursPriceValue = toFiniteNumber(
+    input.afterHoursPrice ?? input.after_hours_price,
+  );
+  const afterHoursChangeValue = toFiniteNumber(
+    input.afterHoursChangePct ?? input.after_hours_change_pct,
+  );
+  const nxtPriceValue = toFiniteNumber(input.nxtPrice ?? input.nxt_price);
+  const nxtChangeValue = toFiniteNumber(
+    input.nxtChangePct ?? input.nxt_change_pct,
+  );
 
   return {
     id: normalizeOptionalText(input.id) ?? `portfolio-holding-${index}`,
@@ -125,6 +171,11 @@ export function deserializePortfolioHolding(
     displayName:
       normalizeOptionalText(input.displayName) ??
       normalizeOptionalText(input.display_name) ??
+      normalizeOptionalText(input.stockName) ??
+      normalizeOptionalText(input.stock_name) ??
+      normalizeOptionalText(input.symbolName) ??
+      normalizeOptionalText(input.symbol_name) ??
+      normalizeOptionalText(input.title) ??
       normalizeOptionalText(input.name),
     logoUrl:
       normalizeOptionalText(input.logoUrl) ??
@@ -135,12 +186,17 @@ export function deserializePortfolioHolding(
       input.quoteDisabled === true || input.quote_disabled === true || input.isCustom === true
         ? true
         : undefined,
-    isCredit: input.isCredit === true || input.is_credit === true,
+    isCredit:
+      input.isCredit === true ||
+      input.is_credit === true ||
+      input.credit === true,
     sector: normalizeSector(input.sector),
     position: normalizePosition(input.position),
     qty: toNonNegativeInt(input.qty),
     avgPrice: toNonNegativeInt(input.avgPrice ?? input.avg_price_int),
-    currentPrice: toNonNegativeInt(input.currentPrice ?? input.current_price_int),
+    currentPrice: toNonNegativeInt(
+      input.currentPrice ?? input.current_price_int ?? input.current_price,
+    ),
     prevClose:
       typeof prevCloseValue === "number" && Number.isFinite(prevCloseValue)
         ? Math.max(Math.round(prevCloseValue), 0)
@@ -152,6 +208,51 @@ export function deserializePortfolioHolding(
     priceUpdatedAt:
       normalizeOptionalText(input.priceUpdatedAt) ??
       normalizeOptionalText(input.price_updated_at),
+    extendedPrice:
+      typeof extendedPriceValue === "number" && Number.isFinite(extendedPriceValue)
+        ? extendedPriceValue
+        : undefined,
+    extendedChangePct:
+      typeof extendedChangeValue === "number" && Number.isFinite(extendedChangeValue)
+        ? extendedChangeValue
+        : undefined,
+    extendedSession: normalizeExtendedSession(
+      input.extendedSession ?? input.extended_session,
+    ),
+    extendedUpdatedAt:
+      normalizeOptionalText(input.extendedUpdatedAt) ??
+      normalizeOptionalText(input.extended_updated_at) ??
+      normalizeOptionalText(input.afterHoursUpdatedAt) ??
+      normalizeOptionalText(input.after_hours_updated_at),
+    nxtPrice:
+      typeof nxtPriceValue === "number" && Number.isFinite(nxtPriceValue)
+        ? nxtPriceValue
+        : undefined,
+    nxtChangePct:
+      typeof nxtChangeValue === "number" && Number.isFinite(nxtChangeValue)
+        ? nxtChangeValue
+        : undefined,
+    nxtSupported:
+      input.nxtSupported === true || input.nxt_supported === true
+        ? true
+        : input.nxtSupported === false || input.nxt_supported === false
+          ? false
+          : undefined,
+    nxtUpdatedAt:
+      normalizeOptionalText(input.nxtUpdatedAt) ??
+      normalizeOptionalText(input.nxt_updated_at),
+    afterHoursPrice:
+      typeof afterHoursPriceValue === "number" && Number.isFinite(afterHoursPriceValue)
+        ? afterHoursPriceValue
+        : undefined,
+    afterHoursChangePct:
+      typeof afterHoursChangeValue === "number" &&
+      Number.isFinite(afterHoursChangeValue)
+        ? afterHoursChangeValue
+        : undefined,
+    afterHoursUpdatedAt:
+      normalizeOptionalText(input.afterHoursUpdatedAt) ??
+      normalizeOptionalText(input.after_hours_updated_at),
     updatedAt: normalizeIsoString(input.updatedAt ?? input.updated_at),
   };
 }
@@ -188,6 +289,39 @@ export function serializePortfolioHoldingForStorage(
         ? holding.dayChangePct
         : undefined,
     priceUpdatedAt: normalizeOptionalText(holding.priceUpdatedAt),
+    extendedPrice:
+      typeof holding.extendedPrice === "number" && Number.isFinite(holding.extendedPrice)
+        ? holding.extendedPrice
+        : undefined,
+    extendedChangePct:
+      typeof holding.extendedChangePct === "number" &&
+      Number.isFinite(holding.extendedChangePct)
+        ? holding.extendedChangePct
+        : undefined,
+    extendedSession: normalizeExtendedSession(holding.extendedSession),
+    extendedUpdatedAt: normalizeOptionalText(holding.extendedUpdatedAt),
+    nxtPrice:
+      typeof holding.nxtPrice === "number" && Number.isFinite(holding.nxtPrice)
+        ? holding.nxtPrice
+        : undefined,
+    nxtChangePct:
+      typeof holding.nxtChangePct === "number" && Number.isFinite(holding.nxtChangePct)
+        ? holding.nxtChangePct
+        : undefined,
+    nxtSupported:
+      typeof holding.nxtSupported === "boolean" ? holding.nxtSupported : undefined,
+    nxtUpdatedAt: normalizeOptionalText(holding.nxtUpdatedAt),
+    afterHoursPrice:
+      typeof holding.afterHoursPrice === "number" &&
+      Number.isFinite(holding.afterHoursPrice)
+        ? holding.afterHoursPrice
+        : undefined,
+    afterHoursChangePct:
+      typeof holding.afterHoursChangePct === "number" &&
+      Number.isFinite(holding.afterHoursChangePct)
+        ? holding.afterHoursChangePct
+        : undefined,
+    afterHoursUpdatedAt: normalizeOptionalText(holding.afterHoursUpdatedAt),
     updatedAt: normalizeIsoString(holding.updatedAt),
   };
 }
@@ -203,6 +337,10 @@ export function serializePortfolioHoldingRow(
     ticker: holding.ticker.trim(),
     ticker_code:
       normalizeUppercaseText(holding.tickerCode ?? holding.krCode) ?? null,
+    kr_code:
+      holding.market === "KR"
+        ? normalizeUppercaseText(holding.krCode ?? holding.tickerCode) ?? null
+        : null,
     is_credit: holding.isCredit === true,
     display_name: normalizeOptionalText(holding.displayName) ?? null,
     logo_url: normalizeOptionalText(holding.logoUrl) ?? null,
@@ -217,6 +355,40 @@ export function serializePortfolioHoldingRow(
       typeof holding.dayChangePct === "number" && Number.isFinite(holding.dayChangePct)
         ? holding.dayChangePct
         : null,
+    price_updated_at: normalizeOptionalText(holding.priceUpdatedAt) ?? null,
+    extended_price:
+      typeof holding.extendedPrice === "number" && Number.isFinite(holding.extendedPrice)
+        ? holding.extendedPrice
+        : null,
+    extended_change_pct:
+      typeof holding.extendedChangePct === "number" &&
+      Number.isFinite(holding.extendedChangePct)
+        ? holding.extendedChangePct
+        : null,
+    extended_session: normalizeExtendedSession(holding.extendedSession) ?? null,
+    extended_updated_at: normalizeOptionalText(holding.extendedUpdatedAt) ?? null,
+    nxt_price:
+      typeof holding.nxtPrice === "number" && Number.isFinite(holding.nxtPrice)
+        ? holding.nxtPrice
+        : null,
+    nxt_change_pct:
+      typeof holding.nxtChangePct === "number" && Number.isFinite(holding.nxtChangePct)
+        ? holding.nxtChangePct
+        : null,
+    nxt_supported:
+      typeof holding.nxtSupported === "boolean" ? holding.nxtSupported : null,
+    nxt_updated_at: normalizeOptionalText(holding.nxtUpdatedAt) ?? null,
+    after_hours_price:
+      typeof holding.afterHoursPrice === "number" &&
+      Number.isFinite(holding.afterHoursPrice)
+        ? holding.afterHoursPrice
+        : null,
+    after_hours_change_pct:
+      typeof holding.afterHoursChangePct === "number" &&
+      Number.isFinite(holding.afterHoursChangePct)
+        ? holding.afterHoursChangePct
+        : null,
+    after_hours_updated_at: normalizeOptionalText(holding.afterHoursUpdatedAt) ?? null,
     comment: normalizeOptionalText(holding.comment) ?? null,
     sector: normalizeOptionalText(holding.sector) ?? "Other",
     position: normalizePosition(holding.position),

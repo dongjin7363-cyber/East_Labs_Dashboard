@@ -1908,6 +1908,13 @@ th {
   text-overflow: ellipsis;
 }
 
+.holding-credit-badge {
+  margin-left: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 400;
+}
+
 .holding-ticker-meta {
   display: block;
   color: var(--muted);

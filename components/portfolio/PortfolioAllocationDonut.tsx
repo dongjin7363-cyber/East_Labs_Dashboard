@@ -4,6 +4,11 @@ import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CurrencyAmount } from "@/components/common/CurrencyAmount";
 import { PortfolioHolding } from "@/lib/models/types";
+import {
+  isKrTickerCodeLike,
+  resolveHoldingDisplayName,
+  resolveHoldingGroupingKey,
+} from "@/lib/portfolio/display";
 import { calcHoldingComputed } from "@/lib/services/portfolioService";
 import {
   moneyFormat,
@@ -143,11 +148,19 @@ function buildSlices(
       }
 
       const key =
-        mode === "SECTOR" ? (holding.sector ?? "Other") : holding.ticker.toUpperCase();
+        mode === "SECTOR" ? (holding.sector ?? "Other") : resolveHoldingGroupingKey(holding);
       grouped.set(key, (grouped.get(key) ?? 0) + amountKrw);
 
-      if (mode === "TICKER" && holding.displayName) {
-        labelMap.set(key, holding.displayName);
+      if (mode === "TICKER") {
+        const label = resolveHoldingDisplayName(holding);
+        const existingLabel = labelMap.get(key);
+
+        if (
+          !existingLabel ||
+          (isKrTickerCodeLike(existingLabel) && !isKrTickerCodeLike(label))
+        ) {
+          labelMap.set(key, label);
+        }
       }
     });
   }
