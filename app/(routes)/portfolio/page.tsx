@@ -196,7 +196,37 @@ function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
   return null;
 }
 
+function isKrxRegularSession(now = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const valueByType = new Map(parts.map((part) => [part.type, part.value]));
+  const weekday = valueByType.get("weekday");
+  const hour = Number(valueByType.get("hour"));
+  const minute = Number(valueByType.get("minute"));
+
+  if (
+    weekday === "Sat" ||
+    weekday === "Sun" ||
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute)
+  ) {
+    return false;
+  }
+
+  const minutes = hour * 60 + minute;
+  return minutes >= 9 * 60 && minutes <= 15 * 60 + 30;
+}
+
 function resolveHoldingExtendedChangePct(holding: PortfolioHolding): number | null {
+  if (holding.market !== "KR" || isKrxRegularSession()) {
+    return null;
+  }
+
   if (
     holding.extendedSession === "KR_NXT" &&
     typeof holding.extendedChangePct === "number" &&

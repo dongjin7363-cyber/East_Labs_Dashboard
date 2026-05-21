@@ -1,10 +1,19 @@
 import { getKisClientConfig, KisApiError } from "@/lib/kis/client";
+import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
 interface KisTokenResponse {
   access_token?: string;
   access_token_token_expired?: string;
   expires_in?: number;
 }
+
+interface KisTokenRow {
+  access_token: string;
+  expires_at: string;
+}
+
+const KIS_TOKEN_ID = "kis_access_token";
+const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 let tokenCache: { accessToken: string; expiresAt: number } | null = null;
 
@@ -27,11 +36,79 @@ function parseTokenExpiry(payload: KisTokenResponse): number {
   return Date.now() + 23 * 60 * 60 * 1000;
 }
 
-export async function getKisAccessToken(): Promise<string> {
-  if (tokenCache && Date.now() < tokenCache.expiresAt - 60_000) {
-    return tokenCache.accessToken;
+function isUsableToken(
+  token: { accessToken: string; expiresAt: number } | null,
+): token is { accessToken: string; expiresAt: number } {
+  return Boolean(
+    token?.accessToken &&
+      Number.isFinite(token.expiresAt) &&
+      Date.now() < token.expiresAt - TOKEN_REFRESH_BUFFER_MS,
+  );
+}
+
+function parseStoredToken(row: KisTokenRow | null): {
+  accessToken: string;
+  expiresAt: number;
+} | null {
+  if (!row?.access_token || !row.expires_at) {
+    return null;
   }
 
+  const expiresAt = Date.parse(row.expires_at);
+
+  if (!Number.isFinite(expiresAt)) {
+    return null;
+  }
+
+  return {
+    accessToken: row.access_token,
+    expiresAt,
+  };
+}
+
+async function readStoredToken(): Promise<{
+  accessToken: string;
+  expiresAt: number;
+} | null> {
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("kis_tokens")
+    .select("access_token, expires_at")
+    .eq("id", KIS_TOKEN_ID)
+    .maybeSingle<KisTokenRow>();
+
+  if (error) {
+    console.warn("KIS token Supabase lookup failed; issuing a new token");
+    return null;
+  }
+
+  return parseStoredToken(data);
+}
+
+async function saveToken(accessToken: string, expiresAt: number): Promise<boolean> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase.from("kis_tokens").upsert(
+    {
+      id: KIS_TOKEN_ID,
+      access_token: accessToken,
+      expires_at: new Date(expiresAt).toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+
+  if (error) {
+    console.warn("KIS token Supabase save failed");
+    return false;
+  }
+
+  return true;
+}
+
+async function issueKisAccessToken(): Promise<{
+  accessToken: string;
+  expiresAt: number;
+}> {
   const config = getKisClientConfig();
   const response = await fetch(`${config.baseUrl}/oauth2/tokenP`, {
     method: "POST",
@@ -56,10 +133,28 @@ export async function getKisAccessToken(): Promise<string> {
     );
   }
 
-  tokenCache = {
+  return {
     accessToken: payload.access_token,
     expiresAt: parseTokenExpiry(payload),
   };
+}
+
+export async function getKisAccessToken(): Promise<string> {
+  if (isUsableToken(tokenCache)) {
+    return tokenCache.accessToken;
+  }
+
+  const storedToken = await readStoredToken();
+
+  if (isUsableToken(storedToken)) {
+    tokenCache = storedToken;
+    console.info("KIS token reused from Supabase");
+    return storedToken.accessToken;
+  }
+
+  tokenCache = await issueKisAccessToken();
+  const saved = await saveToken(tokenCache.accessToken, tokenCache.expiresAt);
+  console.info(saved ? "KIS token issued and saved" : "KIS token issued");
 
   return tokenCache.accessToken;
 }
