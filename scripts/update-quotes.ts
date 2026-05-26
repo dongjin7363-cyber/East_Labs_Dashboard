@@ -46,6 +46,8 @@ async function main() {
       {
         scanned: result.scanned,
         updated: result.updated.length,
+        krUpdated: result.krUpdated,
+        usUpdated: result.usUpdated,
         failed: result.failed,
         skipped: result.skipped,
         extended: result.extended,

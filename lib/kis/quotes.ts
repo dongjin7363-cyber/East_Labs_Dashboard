@@ -7,8 +7,10 @@ const DOMESTIC_STOCK_PRICE_PATH =
 const DOMESTIC_STOCK_PRICE_2_TR_ID = "FHPST01010000";
 const DOMESTIC_STOCK_PRICE_2_PATH =
   "/uapi/domestic-stock/v1/quotations/inquire-price-2";
-// TODO: Wire KIS overseas quote/detail or execution-price mapping for
-// US_DAY/US_PRE/US_AFTER once the exact extended-market fields are confirmed.
+const OVERSEAS_STOCK_PRICE_TR_ID = "HHDFS00000300";
+const OVERSEAS_STOCK_PRICE_PATH =
+  "/uapi/overseas-price/v1/quotations/price";
+const DEFAULT_DEBUG_US_QUOTE_TICKERS = new Set(["CRCA", "TSLA", "MU"]);
 
 interface KisDomesticQuotePayload {
   output?: Record<string, unknown>;
@@ -18,12 +20,25 @@ interface KisDomesticNxtQuotePayload {
   output?: Record<string, unknown>;
 }
 
+interface KisOverseasQuotePayload {
+  output?: Record<string, unknown> | Array<Record<string, unknown>>;
+}
+
 export interface KisDomesticQuote {
   code: string;
   currentPrice: number;
   prevClose?: number;
   dayChangePct?: number;
   displayName?: string;
+  asOf: string;
+}
+
+export interface KisOverseasQuote {
+  code: string;
+  exchange: string;
+  currentPrice: number;
+  prevClose?: number;
+  dayChangePct?: number;
   asOf: string;
 }
 
@@ -61,6 +76,31 @@ function parseText(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
+function toUsdCents(value: number): number {
+  return Math.round(value * 100);
+}
+
+function calculateDayChangePct(currentPrice: number, prevClose: number): number {
+  return Number((((currentPrice - prevClose) / prevClose) * 100).toFixed(4));
+}
+
+function shouldDebugOverseasQuote(ticker: string): boolean {
+  if (process.env.KIS_DEBUG_US_QUOTE !== "1") {
+    return false;
+  }
+
+  const configuredTickers = process.env.KIS_DEBUG_US_QUOTE_TICKERS
+    ?.split(",")
+    .map((item) => item.trim().toUpperCase())
+    .filter(Boolean);
+
+  if (configuredTickers && configuredTickers.length > 0) {
+    return configuredTickers.includes(ticker);
+  }
+
+  return DEFAULT_DEBUG_US_QUOTE_TICKERS.has(ticker);
+}
+
 function debugDomesticNxtQuote(code: string, output: Record<string, unknown>): void {
   if (process.env.KIS_DEBUG_EXTENDED_QUOTE !== "1") {
     return;
@@ -86,6 +126,24 @@ function debugDomesticNxtQuoteMapping(
   });
 }
 
+function debugOverseasQuoteMapping(
+  ticker: string,
+  exchange: string,
+  rawOutput: Record<string, unknown>,
+  details: Record<string, unknown>,
+): void {
+  if (!shouldDebugOverseasQuote(ticker)) {
+    return;
+  }
+
+  console.debug("[kis:overseas-quote:mapping]", {
+    ticker,
+    exchange,
+    rawOutput,
+    ...details,
+  });
+}
+
 export function normalizeDomesticStockCode(value: string): string | null {
   const digits = value.replace(/\D/g, "");
 
@@ -94,6 +152,16 @@ export function normalizeDomesticStockCode(value: string): string | null {
   }
 
   return digits.padStart(6, "0");
+}
+
+export function normalizeUsTicker(value: string): string | null {
+  const normalized = value.trim().toUpperCase();
+
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(normalized)) {
+    return null;
+  }
+
+  return normalized;
 }
 
 export async function fetchDomesticStockQuote(
@@ -139,6 +207,105 @@ export async function fetchDomesticStockQuote(
         ? dayChangePct
         : undefined,
     displayName: parseText(output.hts_kor_isnm),
+    asOf: new Date().toISOString(),
+  };
+}
+
+export async function fetchKisOverseasQuote(
+  ticker: string,
+  exchange: string,
+  client = new KisClient(),
+): Promise<KisOverseasQuote> {
+  const symbol = normalizeUsTicker(ticker);
+  const normalizedExchange = exchange.trim().toUpperCase();
+
+  if (!symbol) {
+    throw new Error(`Invalid US ticker: ${ticker}`);
+  }
+
+  if (!/^[A-Z]{3,4}$/.test(normalizedExchange)) {
+    throw new Error(`Invalid US exchange code: ${exchange}`);
+  }
+
+  const accessToken = await getKisAccessToken();
+  const payload = await client.request<KisOverseasQuotePayload>({
+    path: OVERSEAS_STOCK_PRICE_PATH,
+    accessToken,
+    trId: OVERSEAS_STOCK_PRICE_TR_ID,
+    searchParams: {
+      AUTH: "",
+      EXCD: normalizedExchange,
+      SYMB: symbol,
+    },
+  });
+
+  const output = Array.isArray(payload.output)
+    ? payload.output[0] ?? {}
+    : payload.output ?? {};
+  const currentPriceField = "last";
+  const prevCloseField = "base";
+  const rateChangeField = "rate";
+  // KIS [v1_해외주식-009] 해외주식 현재체결가:
+  // - last: 현재가
+  // - base: 전일종가
+  // - rate: 전일 대비율. Used only when base is unavailable.
+  const currentPrice = parseNumber(output[currentPriceField]);
+
+  if (!currentPrice || currentPrice <= 0) {
+    throw new Error(
+      `KIS overseas quote has invalid current price for ${symbol} on ${normalizedExchange}`,
+    );
+  }
+
+  const prevClose = parseNumber(output[prevCloseField]);
+  const rawRate = parseNumber(output[rateChangeField]);
+  const currentPriceCents = toUsdCents(currentPrice);
+
+  if (currentPriceCents <= 0) {
+    throw new Error(
+      `KIS overseas quote has invalid stored current price for ${symbol} on ${normalizedExchange}`,
+    );
+  }
+
+  const prevCloseCents =
+    typeof prevClose === "number" && prevClose > 0
+      ? toUsdCents(prevClose)
+      : undefined;
+  const calculatedDayChangePct =
+    typeof prevCloseCents === "number" && prevCloseCents > 0
+      ? calculateDayChangePct(currentPriceCents, prevCloseCents)
+      : undefined;
+  const dayChangePct =
+    typeof calculatedDayChangePct === "number" &&
+    Number.isFinite(calculatedDayChangePct)
+      ? calculatedDayChangePct
+      : rawRate;
+
+  debugOverseasQuoteMapping(symbol, normalizedExchange, output, {
+    currentPriceField,
+    currentPriceRaw: output[currentPriceField],
+    currentPriceParsed: currentPrice,
+    currentPriceStoredCents: currentPriceCents,
+    prevCloseField,
+    prevCloseRaw: output[prevCloseField],
+    prevCloseParsed: prevClose,
+    prevCloseStoredCents: prevCloseCents,
+    rateChangeField,
+    rateChangeRaw: output[rateChangeField],
+    rateChangeParsed: rawRate,
+    calculatedDayChangePct,
+    finalDayChangePct: dayChangePct,
+  });
+
+  return {
+    code: symbol,
+    exchange: normalizedExchange,
+    currentPrice: currentPriceCents,
+    prevClose: prevCloseCents,
+    dayChangePct:
+      typeof dayChangePct === "number" && Number.isFinite(dayChangePct)
+        ? dayChangePct
+        : undefined,
     asOf: new Date().toISOString(),
   };
 }

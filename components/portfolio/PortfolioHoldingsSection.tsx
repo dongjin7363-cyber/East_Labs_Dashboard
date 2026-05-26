@@ -369,6 +369,7 @@ export function PortfolioHoldingsSection({
                     <td>{holding.qty}</td>
                     <td>{renderMoney(holding.currency, computed.marketValue, "table")}</td>
                     <td
+                      className="font-semibold"
                       style={{
                         color: computed.pnl >= 0 ? "var(--positive)" : "var(--negative)",
                       }}
@@ -376,6 +377,7 @@ export function PortfolioHoldingsSection({
                       {renderMoney(holding.currency, computed.pnl, "table")}
                     </td>
                     <td
+                      className="font-semibold"
                       style={{
                         color:
                           computed.pnlRate >= 0

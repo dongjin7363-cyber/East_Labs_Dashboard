@@ -2,6 +2,7 @@ alter table if exists public.portfolio_holdings
   add column if not exists prev_close_int bigint,
   add column if not exists day_change_pct numeric,
   add column if not exists price_updated_at timestamptz,
+  add column if not exists quote_source text,
   add column if not exists extended_price numeric,
   add column if not exists extended_change_pct numeric,
   add column if not exists extended_session text,

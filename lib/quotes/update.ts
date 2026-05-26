@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  fetchKisOverseasQuote,
   fetchDomesticNxtQuote,
   fetchDomesticStockQuote,
   normalizeDomesticStockCode,
+  normalizeUsTicker,
 } from "@/lib/kis/quotes";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
@@ -21,6 +23,16 @@ interface PortfolioHoldingQuoteRow {
   quote_disabled?: boolean | null;
 }
 
+interface PortfolioQuoteUpdate {
+  code: string;
+  currentPrice: number;
+  prevClose?: number;
+  dayChangePct?: number;
+  displayName?: string;
+  asOf: string;
+  quoteSource: "KIS_KR_REST" | "KIS_US_REST";
+}
+
 interface DomesticExtendedQuoteUpdate {
   extendedPrice?: number;
   extendedChangePct?: number;
@@ -34,6 +46,7 @@ export interface QuoteUpdateSuccess {
   ticker: string;
   code: string;
   currentPrice: number;
+  market: Market;
 }
 
 export interface QuoteUpdateFailure {
@@ -60,6 +73,8 @@ export interface UpdatePortfolioQuotesResult {
   ok: boolean;
   scanned: number;
   updated: QuoteUpdateSuccess[];
+  krUpdated: number;
+  usUpdated: number;
   failed: QuoteUpdateFailure[];
   skipped: QuoteUpdateFailure[];
   extended: ExtendedQuoteUpdateSummary;
@@ -101,12 +116,16 @@ function isKisRateLimitError(error: unknown): boolean {
 
 async function fetchDomesticStockQuoteWithRetry(
   code: string,
-): Promise<Awaited<ReturnType<typeof fetchDomesticStockQuote>>> {
+): Promise<PortfolioQuoteUpdate> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt <= KIS_RATE_LIMIT_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      return await fetchDomesticStockQuote(code);
+      const quote = await fetchDomesticStockQuote(code);
+      return {
+        ...quote,
+        quoteSource: "KIS_KR_REST",
+      };
     } catch (error) {
       lastError = error;
 
@@ -122,6 +141,74 @@ async function fetchDomesticStockQuoteWithRetry(
   }
 
   throw lastError instanceof Error ? lastError : new Error("KIS quote request failed");
+}
+
+const US_EXCHANGE_TRY_ORDER = ["NAS", "NYS", "AMS"] as const;
+
+function resolvePreferredUsExchanges(row: PortfolioHoldingQuoteRow): string[] {
+  const symbol = normalizeUsTicker(row.ticker_code ?? row.ticker);
+
+  if (!symbol) {
+    return [];
+  }
+
+  const knownExchangeBySymbol: Record<string, (typeof US_EXCHANGE_TRY_ORDER)[number]> = {
+    ORCL: "NYS",
+  };
+  const preferred = knownExchangeBySymbol[symbol] ?? "NAS";
+
+  return [
+    preferred,
+    ...US_EXCHANGE_TRY_ORDER.filter((exchange) => exchange !== preferred),
+  ];
+}
+
+async function fetchOverseasStockQuoteWithRetry(
+  row: PortfolioHoldingQuoteRow,
+): Promise<PortfolioQuoteUpdate> {
+  const symbol = normalizeUsTicker(row.ticker_code ?? row.ticker);
+
+  if (!symbol) {
+    throw new Error("missing US ticker");
+  }
+
+  const exchanges = resolvePreferredUsExchanges(row);
+  let lastError: unknown;
+
+  for (const exchange of exchanges) {
+    for (
+      let attempt = 0;
+      attempt <= KIS_RATE_LIMIT_RETRY_DELAYS_MS.length;
+      attempt += 1
+    ) {
+      try {
+        const quote = await fetchKisOverseasQuote(symbol, exchange);
+        return {
+          code: quote.code,
+          currentPrice: quote.currentPrice,
+          prevClose: quote.prevClose,
+          dayChangePct: quote.dayChangePct,
+          asOf: quote.asOf,
+          quoteSource: "KIS_US_REST",
+        };
+      } catch (error) {
+        lastError = error;
+
+        if (
+          attempt >= KIS_RATE_LIMIT_RETRY_DELAYS_MS.length ||
+          !isKisRateLimitError(error)
+        ) {
+          break;
+        }
+
+        await sleep(KIS_RATE_LIMIT_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("KIS overseas quote request failed");
 }
 
 async function fetchDomesticNxtQuoteWithRetry(
@@ -226,7 +313,7 @@ function isMissingColumnError(error: unknown): boolean {
 async function updateHoldingQuoteRow(
   supabase: SupabaseClient,
   row: PortfolioHoldingQuoteRow,
-  quote: Awaited<ReturnType<typeof fetchDomesticStockQuote>>,
+  quote: PortfolioQuoteUpdate,
   extendedQuote?: DomesticExtendedQuoteUpdate | null,
 ): Promise<void> {
   const asOf = quote.asOf;
@@ -236,6 +323,7 @@ async function updateHoldingQuoteRow(
     prev_close_int: quote.prevClose ?? null,
     day_change_pct: quote.dayChangePct ?? null,
     display_name: quote.displayName ?? row.ticker,
+    quote_source: quote.quoteSource,
     price_updated_at: asOf,
     updated_at: asOf,
     ...(extendedQuote
@@ -360,8 +448,31 @@ export async function updatePortfolioQuotes(
       continue;
     }
 
+    if (row.market === "US") {
+      try {
+        await waitForKisRequestSlot();
+        const quote = await fetchOverseasStockQuoteWithRetry(row);
+        await updateHoldingQuoteRow(supabase, row, quote);
+
+        updated.push({
+          id: row.id,
+          ticker: row.ticker,
+          code: quote.code,
+          currentPrice: quote.currentPrice,
+          market: row.market,
+        });
+      } catch (error) {
+        failed.push({
+          id: row.id,
+          ticker: row.ticker,
+          reason: error instanceof Error ? error.message : "unknown error",
+        });
+      }
+
+      continue;
+    }
+
     if (row.market !== "KR") {
-      // TODO: Add US, OTC, NXT, and day-market branches after the KR path is stable.
       skipped.push({
         id: row.id,
         ticker: row.ticker,
@@ -422,6 +533,7 @@ export async function updatePortfolioQuotes(
         ticker: row.ticker,
         code: quote.code,
         currentPrice: quote.currentPrice,
+        market: row.market,
       });
     } catch (error) {
       failed.push({
@@ -438,6 +550,8 @@ export async function updatePortfolioQuotes(
     ok: failed.length === 0,
     scanned: rows.length,
     updated,
+    krUpdated: updated.filter((item) => item.market === "KR").length,
+    usUpdated: updated.filter((item) => item.market === "US").length,
     failed,
     skipped,
     extended: {

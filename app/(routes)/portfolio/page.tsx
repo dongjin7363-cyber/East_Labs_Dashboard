@@ -1722,7 +1722,7 @@ export default function PortfolioPage() {
                       <td>{holding.qty}</td>
                       <td>{renderMoney(holding.currency, computed.marketValue, "table")}</td>
                       <td
-                        className="portfolio-center-cell"
+                        className="portfolio-center-cell font-semibold"
                         style={{
                           color: computed.pnl >= 0 ? "var(--positive)" : "var(--negative)",
                         }}
@@ -1730,7 +1730,7 @@ export default function PortfolioPage() {
                         {renderMoney(holding.currency, computed.pnl, "table")}
                       </td>
                       <td
-                        className="portfolio-center-cell"
+                        className="portfolio-center-cell font-semibold"
                         style={{
                           color:
                             computed.pnlRate >= 0
