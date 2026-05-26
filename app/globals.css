@@ -4438,7 +4438,7 @@ table tfoot td {
   overflow: hidden;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1.4;
   text-overflow: ellipsis;
   white-space: nowrap;

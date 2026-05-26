@@ -44,14 +44,21 @@ export function ExportMainChart({ data }: Props) {
     return <div className="export-chart-empty">데이터 없음</div>;
   }
 
+  const hasPriceYoy = data.some((d) => d.priceYoy !== null);
+  const latestPoint = data[data.length - 1];
+  const latestPointIsPartial =
+    latestPoint?.isPartial === true ||
+    (Boolean(latestPoint?.asOfDate) && latestPoint?.asOfDate?.slice(0, 7) === latestPoint?.ym);
   const chartData = data.map((d) => ({
     ym: formatYm(d.ym),
     avgExport: d.avgExport,
     yoy: d.yoy,
     priceYoy: d.priceYoy,
-    isPartial: d.isPartial,
+    isPartial:
+      d.isPartial === true ||
+      (Boolean(d.asOfDate) && d.asOfDate?.slice(0, 7) === d.ym),
   }));
-  const latestPartialIndex = data[data.length - 1]?.isPartial ? data.length - 1 : -1;
+  const latestPartialIndex = latestPointIsPartial ? data.length - 1 : -1;
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -125,16 +132,18 @@ export function ExportMainChart({ data }: Props) {
           dot={false}
           connectNulls
         />
-        <Line
-          yAxisId="right"
-          dataKey="priceYoy"
-          name="판가YoY%"
-          stroke="#f97316"
-          strokeWidth={2}
-          strokeDasharray="5 4"
-          dot={false}
-          connectNulls
-        />
+        {hasPriceYoy && (
+          <Line
+            yAxisId="right"
+            dataKey="priceYoy"
+            name="판가YoY%"
+            stroke="#f97316"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            dot={false}
+            connectNulls
+          />
+        )}
       </ComposedChart>
     </ResponsiveContainer>
   );

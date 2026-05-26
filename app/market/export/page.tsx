@@ -42,16 +42,19 @@ function formatPct(value: number): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
 }
 
-function formatRelatedStocks(value?: string): string[] {
-  if (!value) return [];
-  return value
-    .split(/[,\n/·ㆍ]+/)
-    .map((stock) => stock.trim())
-    .filter(Boolean);
-}
-
 function formatImportanceStars(value: number): string {
   return "★".repeat(importanceLevel(value));
+}
+
+function formatRelatedStocks(value?: string): string {
+  if (!value) return "-";
+
+  const stocks = value
+    .split(/[,·]/)
+    .map((stock) => stock.trim())
+    .filter(Boolean);
+
+  return stocks.length > 0 ? stocks.join(" · ") : "-";
 }
 
 function buildMainInsight(data: ExportDataPoint[]): string {
@@ -86,10 +89,14 @@ export default function MarketExportPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
   const { bySector, loading: itemsLoading, error: itemsError } = useExportItems();
-  const availableSectors = useMemo(
-    () => SECTORS.filter((sector) => (bySector.get(sector)?.length ?? 0) > 0),
-    [bySector],
-  );
+  const availableSectors = useMemo(() => {
+    const knownSectors = SECTORS.filter((sector) => (bySector.get(sector)?.length ?? 0) > 0);
+    const extraSectors = [...bySector.keys()]
+      .filter((sector) => !SECTORS.includes(sector as (typeof SECTORS)[number]))
+      .sort((a, b) => a.localeCompare(b, "ko"));
+
+    return [...knownSectors, ...extraSectors];
+  }, [bySector]);
   const sectorItems = useMemo(
     () =>
       [...(bySector.get(activeSector) ?? [])].sort((a, b) => {
@@ -104,7 +111,6 @@ export default function MarketExportPage() {
   const { data, loading: dataLoading } = useExportItemData(selectedItemId);
   const chartPeriod = formatPeriod(data);
   const mainInsight = buildMainInsight(data);
-  const selectedRelatedStocks = formatRelatedStocks(selectedItem?.relatedStocks);
 
   function handleSectorClick(sector: string) {
     setActiveSector(sector);
@@ -200,7 +206,7 @@ export default function MarketExportPage() {
             <span className="export-related-stock-text">
               관련 종목 :{" "}
               <span className="export-related-stock-value">
-                {selectedRelatedStocks.length > 0 ? selectedRelatedStocks.join(" · ") : "-"}
+                {formatRelatedStocks(selectedItem.relatedStocks)}
               </span>
             </span>
             <span className="export-item-importance-stars">

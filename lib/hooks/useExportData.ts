@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/lib/hooks/useAuth";
 import { ExportItem, ExportDataPoint } from "@/lib/models/types";
 import {
   fetchExportItems,
@@ -9,19 +8,11 @@ import {
 } from "@/lib/repository/exportRepository";
 
 export function useExportItems() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
   const [items, setItems] = useState<ExportItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      setItems([]);
-      setLoading(false);
-      return;
-    }
-
     setLoading(true);
     setError(null);
     fetchExportItems()
@@ -38,7 +29,7 @@ export function useExportItems() {
         setItems([]);
       })
       .finally(() => setLoading(false));
-  }, [authLoading, isAuthenticated]);
+  }, []);
 
   const bySector = useMemo(() => {
     const map = new Map<string, ExportItem[]>();
@@ -53,12 +44,11 @@ export function useExportItems() {
 }
 
 export function useExportItemData(itemId: string | null) {
-  const { isAuthenticated, loading: authLoading } = useAuth();
   const [data, setData] = useState<ExportDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!itemId || authLoading || !isAuthenticated) {
+    if (!itemId) {
       setData([]);
       return;
     }
@@ -76,7 +66,7 @@ export function useExportItemData(itemId: string | null) {
         setData([]);
       })
       .finally(() => setLoading(false));
-  }, [itemId, authLoading, isAuthenticated]);
+  }, [itemId]);
 
   return { data, loading };
 }
