@@ -58,6 +58,22 @@ def parse_sort_order(value: Any, fallback: int) -> int:
         return fallback
 
 
+def find_column(column_index: dict[str, int], candidates: list[str]) -> int | None:
+    for candidate in candidates:
+        if candidate in column_index:
+            return column_index[candidate]
+    return None
+
+
+def normalize_star(value: Any) -> int:
+    text = clean_text(value)
+    try:
+        numeric_level = int(float(text))
+    except (TypeError, ValueError):
+        numeric_level = text.count('★')
+    return max(0, min(3, numeric_level))
+
+
 def parse_watchlist(file_path: Path) -> tuple[list[dict[str, Any]], int, list[str], list[str], int]:
     df = pd.read_excel(file_path, sheet_name=WATCHLIST_SHEET, header=None)
     header_row_index = None
@@ -72,8 +88,11 @@ def parse_watchlist(file_path: Path) -> tuple[list[dict[str, Any]], int, list[st
 
     headers = [clean_text(value) for value in df.iloc[header_row_index].tolist()]
     column_index = {name: index for index, name in enumerate(headers) if name}
-    required = ['#', 'Ticker', '섹터', '종목명', '성격 키워드', 'Finviz 차트']
+    chart_col = find_column(column_index, ['Finviz 차트', 'Finviz 차트 URL'])
+    required = ['#', 'Ticker', '섹터', '종목명', '성격 키워드', 'Star']
     missing = [name for name in required if name not in column_index]
+    if chart_col is None:
+        missing.append('Finviz 차트 URL')
     if missing:
         raise RuntimeError(f'Missing columns: {", ".join(missing)}')
 
@@ -87,7 +106,8 @@ def parse_watchlist(file_path: Path) -> tuple[list[dict[str, Any]], int, list[st
         sector = clean_text(row.iloc[column_index['섹터']])
         display_name = clean_text(row.iloc[column_index['종목명']])
         keywords = clean_text(row.iloc[column_index['성격 키워드']])
-        chart_url = clean_text(row.iloc[column_index['Finviz 차트']])
+        star = normalize_star(row.iloc[column_index['Star']])
+        chart_url = clean_text(row.iloc[chart_col])
         sort_order = parse_sort_order(row.iloc[column_index['#']], fallback_order)
 
         if not ticker or not sector or not display_name:
@@ -106,6 +126,7 @@ def parse_watchlist(file_path: Path) -> tuple[list[dict[str, Any]], int, list[st
                 'sector': sector,
                 'display_name': display_name,
                 'keywords': keywords,
+                'star': star,
                 'chart_url': chart_url or default_chart_url(ticker),
                 'sort_order': sort_order,
                 'is_active': True,

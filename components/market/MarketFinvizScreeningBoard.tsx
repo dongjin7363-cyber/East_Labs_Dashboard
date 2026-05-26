@@ -5,6 +5,8 @@ import { FinvizWatchlistItem } from "@/lib/models/types";
 import { useFinvizWatchlist } from "@/lib/hooks/useFinvizWatchlist";
 
 const ALL_SECTOR = "전체";
+const ALL_IMPORTANCE = "ALL";
+const IMPORTANCE_OPTIONS = [ALL_IMPORTANCE, "★★★", "★★", "★"] as const;
 const INITIAL_VISIBLE_COUNT = 36;
 const VISIBLE_INCREMENT = 36;
 
@@ -18,6 +20,10 @@ function matchesSearch(item: FinvizWatchlistItem, query: string): boolean {
     .join(" ")
     .toLowerCase();
   return haystack.includes(query.toLowerCase());
+}
+
+function matchesImportance(item: FinvizWatchlistItem, importance: string): boolean {
+  return importance === ALL_IMPORTANCE || item.star === importance;
 }
 
 function FinvizChartCard({ item }: { item: FinvizWatchlistItem }) {
@@ -34,7 +40,10 @@ function FinvizChartCard({ item }: { item: FinvizWatchlistItem }) {
               <span className="finviz-display-name">{item.displayName}</span>
             ) : null}
           </div>
-          <span className="finviz-sector-badge">{item.sector}</span>
+          <div className="finviz-card-badges">
+            {item.star ? <span className="finviz-star-badge">{item.star}</span> : null}
+            <span className="finviz-sector-badge">{item.sector}</span>
+          </div>
         </div>
         <p className="finviz-keywords">{item.keywords}</p>
       </div>
@@ -63,21 +72,31 @@ function FinvizChartCard({ item }: { item: FinvizWatchlistItem }) {
 export function MarketFinvizScreeningBoard() {
   const { items, sectors, loading, error } = useFinvizWatchlist();
   const [activeSector, setActiveSector] = useState(ALL_SECTOR);
+  const [activeImportance, setActiveImportance] = useState(ALL_IMPORTANCE);
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const sectorMatch = activeSector === ALL_SECTOR || item.sector === activeSector;
-      return sectorMatch && matchesSearch(item, query.trim());
+      return (
+        sectorMatch &&
+        matchesImportance(item, activeImportance) &&
+        matchesSearch(item, query.trim())
+      );
     });
-  }, [activeSector, items, query]);
+  }, [activeImportance, activeSector, items, query]);
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const hasMore = visibleItems.length < filteredItems.length;
 
   function handleSectorClick(sector: string) {
     setActiveSector(sector);
+    setVisibleCount(INITIAL_VISIBLE_COUNT);
+  }
+
+  function handleImportanceClick(importance: string) {
+    setActiveImportance(importance);
     setVisibleCount(INITIAL_VISIBLE_COUNT);
   }
 
@@ -118,6 +137,18 @@ export function MarketFinvizScreeningBoard() {
               onClick={() => handleSectorClick(sector)}
             >
               {sector}
+            </button>
+          ))}
+        </div>
+        <div className="finviz-importance-tabs">
+          {IMPORTANCE_OPTIONS.map((importance) => (
+            <button
+              key={importance}
+              type="button"
+              className={`market-category-tab${activeImportance === importance ? " is-active" : ""}`}
+              onClick={() => handleImportanceClick(importance)}
+            >
+              {importance}
             </button>
           ))}
         </div>

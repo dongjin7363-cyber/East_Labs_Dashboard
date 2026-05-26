@@ -240,6 +240,7 @@ export interface FinvizWatchlistItem {
   sector: string;
   displayName: string;
   keywords: string;
+  star: string;
   chartUrl: string;
   sortOrder: number;
   isActive: boolean;

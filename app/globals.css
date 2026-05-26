@@ -4696,13 +4696,19 @@ table tfoot td {
   box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
 }
 
-.finviz-sector-tabs {
+.finviz-sector-tabs,
+.finviz-importance-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.finviz-sector-tabs .market-category-tab.is-active {
+.finviz-importance-tabs {
+  padding-top: 2px;
+}
+
+.finviz-sector-tabs .market-category-tab.is-active,
+.finviz-importance-tabs .market-category-tab.is-active {
   border-color: #93c5fd;
   background: #eaf3ff;
   color: #1d4ed8;
@@ -4735,7 +4741,7 @@ table tfoot td {
 
 .finviz-card-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
@@ -4777,6 +4783,27 @@ table tfoot td {
   opacity: 0.82;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.finviz-card-badges {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.finviz-star-badge {
+  flex-shrink: 0;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  background: #fff7ed;
+  color: #c2410c;
+  padding: 3px 7px;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .finviz-keywords {

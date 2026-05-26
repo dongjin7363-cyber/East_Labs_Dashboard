@@ -10,6 +10,20 @@ function normalizeText(value: unknown): string {
   return normalizeOptionalText(value) ?? "";
 }
 
+function normalizeStar(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const level = Math.max(0, Math.min(3, Math.round(value)));
+    return level > 0 ? "★".repeat(level) : "";
+  }
+
+  const text = normalizeText(value);
+  const numericLevel = Number.parseInt(text, 10);
+  const level = Number.isFinite(numericLevel)
+    ? Math.max(0, Math.min(3, numericLevel))
+    : Math.max(0, Math.min(3, Array.from(text).filter((char) => char === "★").length));
+  return level > 0 ? "★".repeat(level) : "";
+}
+
 function deserializeFinvizWatchlistItem(raw: unknown, index: number): FinvizWatchlistItem | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
@@ -25,6 +39,7 @@ function deserializeFinvizWatchlistItem(raw: unknown, index: number): FinvizWatc
     sector,
     displayName,
     keywords: normalizeText(r.keywords),
+    star: normalizeStar(r.star),
     chartUrl: normalizeText(r.chart_url) || normalizeText(r.chartUrl) || defaultChartUrl(ticker),
     sortOrder: toFiniteNumber(r.sort_order) ?? toFiniteNumber(r.sortOrder) ?? index,
     isActive: r.is_active !== false && r.isActive !== false,
