@@ -145,13 +145,13 @@ function debugOverseasQuoteMapping(
 }
 
 export function normalizeDomesticStockCode(value: string): string | null {
-  const digits = value.replace(/\D/g, "");
+  const normalized = value.trim().toUpperCase().replace(/[^0-9A-Z]/g, "");
 
-  if (!digits || digits.length > 6) {
+  if (!/^[0-9A-Z]{6}$/.test(normalized)) {
     return null;
   }
 
-  return digits.padStart(6, "0");
+  return normalized;
 }
 
 export function normalizeUsTicker(value: string): string | null {

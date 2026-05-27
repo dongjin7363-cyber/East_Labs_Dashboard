@@ -487,7 +487,7 @@ export async function updatePortfolioQuotes(
       failed.push({
         id: row.id,
         ticker: row.ticker,
-        reason: "missing 6-digit domestic stock code",
+        reason: "missing 6-character domestic stock code",
       });
       continue;
     }
