@@ -267,6 +267,16 @@ function normalizeTickerCode(value?: string): string | undefined {
   return normalized.toUpperCase();
 }
 
+function resolveDisplayNameForQuoteUpdate(
+  holding: PortfolioHolding,
+  quoteDisplayName?: string,
+): string | undefined {
+  return (
+    normalizeOptionalText(holding.displayName) ??
+    normalizeOptionalText(quoteDisplayName)
+  );
+}
+
 export function usePortfolio() {
   const { userId, isAuthenticated, loading: authLoading } = useAuth();
   const repository = useMemo(() => createPortfolioRepository(userId), [userId]);
@@ -632,9 +642,10 @@ export function usePortfolio() {
               Number.isFinite(quote.dayChangePct)
                 ? quote.dayChangePct
                 : holding.dayChangePct,
-            displayName:
-              normalizeOptionalText(quote.displayName) ??
-              holding.displayName,
+            displayName: resolveDisplayNameForQuoteUpdate(
+              holding,
+              quote.displayName,
+            ),
             logoUrl:
               normalizeOptionalText(quote.logoUrl) ?? holding.logoUrl,
             krCode:

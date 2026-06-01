@@ -24,6 +24,7 @@ export interface PortfolioHoldingRow {
   ticker: string;
   ticker_code: string | null;
   kr_code?: string | null;
+  quote_disabled?: boolean | null;
   is_credit?: boolean | null;
   display_name: string | null;
   logo_url: string | null;
@@ -341,6 +342,7 @@ export function serializePortfolioHoldingRow(
       holding.market === "KR"
         ? normalizeUppercaseText(holding.krCode ?? holding.tickerCode) ?? null
         : null,
+    quote_disabled: holding.quoteDisabled === true,
     is_credit: holding.isCredit === true,
     display_name: normalizeOptionalText(holding.displayName) ?? null,
     logo_url: normalizeOptionalText(holding.logoUrl) ?? null,

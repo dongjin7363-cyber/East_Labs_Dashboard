@@ -67,6 +67,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
         ticker,
         ticker_code,
         kr_code,
+        quote_disabled,
         is_credit,
         display_name,
         logo_url,
@@ -180,6 +181,7 @@ export class SupabasePortfolioRepository implements PortfolioRepository {
 
     const fallbackRow = { ...row };
     delete fallbackRow.price_updated_at;
+    delete fallbackRow.quote_disabled;
     delete fallbackRow.extended_price;
     delete fallbackRow.extended_change_pct;
     delete fallbackRow.extended_session;

@@ -19,6 +19,7 @@ interface PortfolioHoldingQuoteRow {
   market: Market;
   ticker: string;
   ticker_code: string | null;
+  display_name: string | null;
   current_price_int: number | null;
   quote_disabled?: boolean | null;
 }
@@ -104,6 +105,26 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function normalizeOptionalText(value?: string | null): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized || undefined;
+}
+
+function resolveDisplayNameForQuoteUpdate(
+  row: PortfolioHoldingQuoteRow,
+  quoteDisplayName?: string,
+): string {
+  return (
+    normalizeOptionalText(row.display_name) ??
+    normalizeOptionalText(quoteDisplayName) ??
+    row.ticker
+  );
 }
 
 function isKisRateLimitError(error: unknown): boolean {
@@ -317,12 +338,13 @@ async function updateHoldingQuoteRow(
   extendedQuote?: DomesticExtendedQuoteUpdate | null,
 ): Promise<void> {
   const asOf = quote.asOf;
+  const displayName = resolveDisplayNameForQuoteUpdate(row, quote.displayName);
   const fullPayload = {
     ticker_code: quote.code,
     current_price_int: quote.currentPrice,
     prev_close_int: quote.prevClose ?? null,
     day_change_pct: quote.dayChangePct ?? null,
-    display_name: quote.displayName ?? row.ticker,
+    display_name: displayName,
     quote_source: quote.quoteSource,
     price_updated_at: asOf,
     updated_at: asOf,
@@ -355,7 +377,7 @@ async function updateHoldingQuoteRow(
     current_price_int: quote.currentPrice,
     prev_close_int: quote.prevClose ?? null,
     day_change_pct: quote.dayChangePct ?? null,
-    display_name: quote.displayName ?? row.ticker,
+    display_name: displayName,
     price_updated_at: asOf,
     updated_at: asOf,
   };
@@ -377,7 +399,7 @@ async function updateHoldingQuoteRow(
     .update({
       ticker_code: quote.code,
       current_price_int: quote.currentPrice,
-      display_name: quote.displayName ?? row.ticker,
+      display_name: displayName,
       updated_at: asOf,
     })
     .eq("id", row.id);
@@ -393,7 +415,9 @@ async function fetchRows(
 ): Promise<PortfolioHoldingQuoteRow[]> {
   let query = supabase
     .from("portfolio_holdings")
-    .select("id,user_id,market,ticker,ticker_code,current_price_int");
+    .select(
+      "id,user_id,market,ticker,ticker_code,display_name,current_price_int,quote_disabled",
+    );
 
   if (userId) {
     query = query.eq("user_id", userId);
@@ -401,11 +425,32 @@ async function fetchRows(
 
   const { data, error } = await query;
 
-  if (error) {
+  if (!error) {
+    return (data ?? []) as PortfolioHoldingQuoteRow[];
+  }
+
+  if (!isMissingColumnError(error)) {
     throw error;
   }
 
-  return (data ?? []) as PortfolioHoldingQuoteRow[];
+  let fallbackQuery = supabase
+    .from("portfolio_holdings")
+    .select("id,user_id,market,ticker,ticker_code,display_name,current_price_int");
+
+  if (userId) {
+    fallbackQuery = fallbackQuery.eq("user_id", userId);
+  }
+
+  const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+
+  if (fallbackError) {
+    throw fallbackError;
+  }
+
+  return (fallbackData ?? []).map((row) => ({
+    ...(row as PortfolioHoldingQuoteRow),
+    quote_disabled: false,
+  }));
 }
 
 export async function updatePortfolioQuotes(

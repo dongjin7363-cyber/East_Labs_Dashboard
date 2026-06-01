@@ -157,6 +157,16 @@ function normalizeTickerCode(value?: string): string | undefined {
   return normalized.toUpperCase();
 }
 
+function resolveDisplayNameForQuoteUpdate(
+  holding: PortfolioHolding,
+  quoteDisplayName?: string,
+): string | undefined {
+  return (
+    normalizeOptionalText(holding.displayName) ??
+    normalizeOptionalText(quoteDisplayName)
+  );
+}
+
 export function addHolding(input: PortfolioInput): PortfolioHolding[] {
   const nowIso = new Date().toISOString();
   const normalizedTicker = input.ticker.trim();
@@ -294,7 +304,7 @@ export function updateHoldingQuotes(
           typeof quote.dayChangePct === "number" && Number.isFinite(quote.dayChangePct)
             ? quote.dayChangePct
             : holding.dayChangePct,
-        displayName: normalizeOptionalText(quote.displayName) ?? holding.displayName,
+        displayName: resolveDisplayNameForQuoteUpdate(holding, quote.displayName),
         logoUrl: normalizeOptionalText(quote.logoUrl) ?? holding.logoUrl,
         krCode:
           holding.market === "KR"
