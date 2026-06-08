@@ -54,6 +54,9 @@ export interface QuoteUpdateFailure {
   id?: string;
   ticker: string;
   reason: string;
+  stage?: "INPUT" | "KIS" | "SUPABASE" | "EXTENDED" | "SKIP";
+  market?: Market;
+  code?: string;
 }
 
 export interface ExtendedQuoteUpdateSummary {
@@ -72,13 +75,22 @@ export interface UpdatePortfolioQuotesOptions {
 
 export interface UpdatePortfolioQuotesResult {
   ok: boolean;
+  source: "KIS_REST";
   scanned: number;
+  updatedCount: number;
+  failedCount: number;
+  skippedCount: number;
   updated: QuoteUpdateSuccess[];
   krUpdated: number;
   usUpdated: number;
   failed: QuoteUpdateFailure[];
   skipped: QuoteUpdateFailure[];
+  supabase: {
+    updated: number;
+    failed: number;
+  };
   extended: ExtendedQuoteUpdateSummary;
+  lastUpdated: string;
   startedAt: string;
   finishedAt: string;
 }
@@ -133,6 +145,10 @@ function isKisRateLimitError(error: unknown): boolean {
   return /초당\s*거래건수를\s*초과|rate\s*limit|too\s*many\s*requests|EGW00201/i.test(
     message,
   );
+}
+
+function getErrorReason(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? "unknown error");
 }
 
 async function fetchDomesticStockQuoteWithRetry(
@@ -465,6 +481,8 @@ export async function updatePortfolioQuotes(
   const extendedFailed: QuoteUpdateFailure[] = [];
   let extendedUpdated = 0;
   let extendedNullCount = 0;
+  let supabaseUpdated = 0;
+  let supabaseFailed = 0;
   let lastKisRequestAt = 0;
   const includeExtended = options.includeExtended ?? true;
   const extendedSchemaReady = includeExtended
@@ -489,15 +507,40 @@ export async function updatePortfolioQuotes(
         id: row.id,
         ticker: row.ticker,
         reason: "quote disabled",
+        stage: "SKIP",
+        market: row.market,
       });
       continue;
     }
 
     if (row.market === "US") {
+      let quote: PortfolioQuoteUpdate;
+
       try {
         await waitForKisRequestSlot();
-        const quote = await fetchOverseasStockQuoteWithRetry(row);
+        quote = await fetchOverseasStockQuoteWithRetry(row);
+      } catch (error) {
+        const reason = getErrorReason(error);
+        failed.push({
+          id: row.id,
+          ticker: row.ticker,
+          reason,
+          stage: "KIS",
+          market: row.market,
+          code: row.ticker_code ?? row.ticker,
+        });
+        console.error("[quotes:update] KIS quote failed", {
+          ticker: row.ticker,
+          market: row.market,
+          code: row.ticker_code ?? row.ticker,
+          reason,
+        });
+        continue;
+      }
+
+      try {
         await updateHoldingQuoteRow(supabase, row, quote);
+        supabaseUpdated += 1;
 
         updated.push({
           id: row.id,
@@ -507,10 +550,21 @@ export async function updatePortfolioQuotes(
           market: row.market,
         });
       } catch (error) {
+        const reason = getErrorReason(error);
+        supabaseFailed += 1;
         failed.push({
           id: row.id,
           ticker: row.ticker,
-          reason: error instanceof Error ? error.message : "unknown error",
+          reason,
+          stage: "SUPABASE",
+          market: row.market,
+          code: quote.code,
+        });
+        console.error("[quotes:update] Supabase quote update failed", {
+          ticker: row.ticker,
+          market: row.market,
+          code: quote.code,
+          reason,
         });
       }
 
@@ -522,6 +576,8 @@ export async function updatePortfolioQuotes(
         id: row.id,
         ticker: row.ticker,
         reason: "unsupported market",
+        stage: "SKIP",
+        market: row.market,
       });
       continue;
     }
@@ -533,45 +589,77 @@ export async function updatePortfolioQuotes(
         id: row.id,
         ticker: row.ticker,
         reason: "missing 6-character domestic stock code",
+        stage: "INPUT",
+        market: row.market,
+      });
+      console.error("[quotes:update] Domestic code missing", {
+        ticker: row.ticker,
+        market: row.market,
       });
       continue;
     }
 
+    let quote: PortfolioQuoteUpdate;
+    let extendedQuote: DomesticExtendedQuoteUpdate | null = null;
+
     try {
       await waitForKisRequestSlot();
-      const quote = await fetchDomesticStockQuoteWithRetry(code);
-      let extendedQuote: DomesticExtendedQuoteUpdate | null = null;
+      quote = await fetchDomesticStockQuoteWithRetry(code);
+    } catch (error) {
+      const reason = getErrorReason(error);
+      failed.push({
+        id: row.id,
+        ticker: row.ticker,
+        reason,
+        stage: "KIS",
+        market: row.market,
+        code,
+      });
+      console.error("[quotes:update] KIS quote failed", {
+        ticker: row.ticker,
+        market: row.market,
+        code,
+        reason,
+      });
+      continue;
+    }
 
-      if (includeExtended && extendedSchemaReady) {
-        try {
-          await waitForKisRequestSlot();
-          extendedQuote = await fetchDomesticExtendedQuoteSafely(
-            code,
-            quote.currentPrice,
-          );
+    if (includeExtended && extendedSchemaReady) {
+      try {
+        await waitForKisRequestSlot();
+        extendedQuote = await fetchDomesticExtendedQuoteSafely(
+          code,
+          quote.currentPrice,
+        );
 
-          if (extendedQuote) {
-            extendedUpdated += 1;
-          } else {
-            extendedNullCount += 1;
-          }
-        } catch (error) {
-          // Extended-market data is reference-only. Keep the main quote update
-          // successful and preserve any existing extended values on failure.
-          extendedFailed.push({
-            id: row.id,
-            ticker: row.ticker,
-            reason: error instanceof Error ? error.message : "unknown error",
-          });
-          console.warn("[quotes:update] extended quote skipped", {
-            ticker: row.ticker,
-            code,
-            reason: error instanceof Error ? error.message : "unknown error",
-          });
+        if (extendedQuote) {
+          extendedUpdated += 1;
+        } else {
+          extendedNullCount += 1;
         }
+      } catch (error) {
+        const reason = getErrorReason(error);
+        // Extended-market data is reference-only. Keep the main quote update
+        // successful and preserve any existing extended values on failure.
+        extendedFailed.push({
+          id: row.id,
+          ticker: row.ticker,
+          reason,
+          stage: "EXTENDED",
+          market: row.market,
+          code,
+        });
+        console.warn("[quotes:update] extended quote skipped", {
+          ticker: row.ticker,
+          code,
+          reason,
+        });
       }
+    }
 
+    try {
       await updateHoldingQuoteRow(supabase, row, quote, extendedQuote);
+      supabaseUpdated += 1;
 
       updated.push({
         id: row.id,
@@ -581,24 +669,55 @@ export async function updatePortfolioQuotes(
         market: row.market,
       });
     } catch (error) {
+      const reason = getErrorReason(error);
+      supabaseFailed += 1;
       failed.push({
         id: row.id,
         ticker: row.ticker,
-        reason: error instanceof Error ? error.message : "unknown error",
+        reason,
+        stage: "SUPABASE",
+        market: row.market,
+        code: quote.code,
+      });
+      console.error("[quotes:update] Supabase quote update failed", {
+        ticker: row.ticker,
+        market: row.market,
+        code: quote.code,
+        reason,
       });
     }
   }
 
   const finishedAt = new Date().toISOString();
+  console.info("[quotes:update] summary", {
+    scanned: rows.length,
+    updated: updated.length,
+    failed: failed.length,
+    skipped: skipped.length,
+    supabaseUpdated,
+    supabaseFailed,
+    krUpdated: updated.filter((item) => item.market === "KR").length,
+    usUpdated: updated.filter((item) => item.market === "US").length,
+    startedAt,
+    finishedAt,
+  });
 
   return {
     ok: failed.length === 0,
+    source: "KIS_REST",
     scanned: rows.length,
+    updatedCount: updated.length,
+    failedCount: failed.length,
+    skippedCount: skipped.length,
     updated,
     krUpdated: updated.filter((item) => item.market === "KR").length,
     usUpdated: updated.filter((item) => item.market === "US").length,
     failed,
     skipped,
+    supabase: {
+      updated: supabaseUpdated,
+      failed: supabaseFailed,
+    },
     extended: {
       requested: includeExtended,
       schemaReady: extendedSchemaReady,
@@ -606,6 +725,7 @@ export async function updatePortfolioQuotes(
       nullCount: extendedNullCount,
       failed: extendedFailed,
     },
+    lastUpdated: finishedAt,
     startedAt,
     finishedAt,
   };

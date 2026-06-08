@@ -124,6 +124,20 @@ function parseStoredTimestamp(raw: string | null): number | null {
   return parsed;
 }
 
+function parseIsoTimestampMs(raw?: string | null): number | null {
+  if (!raw) {
+    return null;
+  }
+
+  const parsed = Date.parse(raw);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
 function normalizeKrCodeInput(value: string): string {
   return value
     .toUpperCase()
@@ -323,7 +337,7 @@ export default function PortfolioPage() {
   const [lastQuoteRefreshAt, setLastQuoteRefreshAt] = useState<number | null>(null);
   const [lastQuoteFailAt, setLastQuoteFailAt] = useState<number | null>(null);
   const [quoteWarning, setQuoteWarning] = useState<string | null>(null);
-  const [, setQuoteRefreshSummary] = useState<string>("-");
+  const [quoteRefreshSummary, setQuoteRefreshSummary] = useState<string>("-");
   const [quoteBlacklist, setQuoteBlacklist] = useState<QuoteBlacklistMap>({});
   const [quoteMetaLoaded, setQuoteMetaLoaded] = useState(false);
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
@@ -582,9 +596,13 @@ export default function PortfolioPage() {
         const payload = (await response.json().catch(() => null)) as
           | {
               updated?: unknown[];
+              updated_count?: number;
+              source?: string;
+              last_updated?: string | null;
+              finishedAt?: string;
+              supabase?: { updated?: number; failed?: number };
               failed?: Array<{ ticker?: string; reason?: string }>;
               skipped?: unknown[];
-              finishedAt?: string;
               message?: string;
             }
           | null;
@@ -597,14 +615,29 @@ export default function PortfolioPage() {
           throw new Error(message);
         }
 
-        const completedAt = Date.now();
+        const serverCompletedAt =
+          parseIsoTimestampMs(payload?.last_updated) ??
+          parseIsoTimestampMs(payload?.finishedAt);
+        const completedAt = serverCompletedAt ?? Date.now();
         setLastQuoteRefreshAt(completedAt);
         window.localStorage.setItem(LAST_QUOTE_REFRESH_STORAGE_KEY, `${completedAt}`);
 
         const failed = Array.isArray(payload?.failed) ? payload.failed : [];
-        const updatedCount = Array.isArray(payload?.updated)
-          ? payload.updated.length
+        const updatedCount = Number.isFinite(payload?.updated_count)
+          ? Number(payload?.updated_count)
+          : Array.isArray(payload?.updated)
+            ? payload.updated.length
+            : 0;
+        const supabaseUpdated = Number.isFinite(payload?.supabase?.updated)
+          ? Number(payload?.supabase?.updated)
+          : updatedCount;
+        const supabaseFailed = Number.isFinite(payload?.supabase?.failed)
+          ? Number(payload?.supabase?.failed)
           : 0;
+        const source =
+          typeof payload?.source === "string" && payload.source.trim()
+            ? payload.source
+            : "KIS_REST";
 
         if (failed.length > 0) {
           const preview = failed
@@ -622,7 +655,9 @@ export default function PortfolioPage() {
         }
 
         setQuoteRefreshSummary(
-          `성공 ${updatedCount}건 / 실패 ${failed.length}건`,
+          `${source} 성공 ${updatedCount}건 / 실패 ${failed.length}건 / DB 저장 ${supabaseUpdated}건${
+            supabaseFailed > 0 ? ` / DB 실패 ${supabaseFailed}건` : ""
+          }`,
         );
         await refresh();
         return;
@@ -1143,8 +1178,16 @@ export default function PortfolioPage() {
     const refreshTimestamp = lastQuoteRefreshAt ?? latestPriceUpdatedAtMs;
     const refreshValue = refreshTimestamp ? formatKstTime(refreshTimestamp) : "-";
 
-    return `${fxDate} : ₩${fxValue} / (Last Refresh ${refreshValue})`;
-  }, [fxAsOf, fxRate, lastQuoteRefreshAt, latestPriceUpdatedAtMs]);
+    return `${fxDate} : ₩${fxValue} / 시세 업데이트 ${refreshValue} / ${
+      quoteRefreshSummary
+    }`;
+  }, [
+    fxAsOf,
+    fxRate,
+    lastQuoteRefreshAt,
+    latestPriceUpdatedAtMs,
+    quoteRefreshSummary,
+  ]);
   const quoteWarningLine = useMemo(() => {
     const messages: string[] = [];
     const hasSkippedOrUnsupportedTickers =

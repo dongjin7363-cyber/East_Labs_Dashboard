@@ -44,13 +44,19 @@ async function main() {
   console.log(
     JSON.stringify(
       {
+        source: result.source,
         scanned: result.scanned,
-        updated: result.updated.length,
+        updated: result.updatedCount,
         krUpdated: result.krUpdated,
         usUpdated: result.usUpdated,
+        supabaseUpdated: result.supabase.updated,
+        supabaseFailed: result.supabase.failed,
+        failedCount: result.failedCount,
         failed: result.failed,
+        skippedCount: result.skippedCount,
         skipped: result.skipped,
         extended: result.extended,
+        lastUpdated: result.lastUpdated,
         startedAt: result.startedAt,
         finishedAt: result.finishedAt,
       },

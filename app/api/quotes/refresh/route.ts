@@ -37,9 +37,40 @@ export async function POST(request: NextRequest) {
     | null;
   const includeExtended =
     typeof body?.includeExtended === "boolean" ? body.includeExtended : true;
-  const result = await updatePortfolioQuotes({ userId, includeExtended });
+  let result: Awaited<ReturnType<typeof updatePortfolioQuotes>>;
 
-  return NextResponse.json(result, {
-    status: result.updated.length > 0 || result.failed.length === 0 ? 200 : 207,
-  });
+  try {
+    result = await updatePortfolioQuotes({ userId, includeExtended });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "quote refresh failed";
+    console.error("[api/quotes/refresh] fatal quote refresh error", {
+      userId,
+      includeExtended,
+      message,
+    });
+
+    return NextResponse.json(
+      {
+        ok: false,
+        message,
+        source: "KIS_REST",
+        updated_count: 0,
+        last_updated: null,
+      },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json(
+    {
+      ...result,
+      last_updated: result.lastUpdated,
+      source: result.source,
+      updated_count: result.updatedCount,
+    },
+    {
+      status: result.updated.length > 0 || result.failed.length === 0 ? 200 : 207,
+    },
+  );
 }

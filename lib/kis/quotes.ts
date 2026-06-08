@@ -1,5 +1,8 @@
-import { KisClient } from "@/lib/kis/client";
-import { getKisAccessToken } from "@/lib/kis/token";
+import { KisApiError, KisClient, KisRequestOptions } from "@/lib/kis/client";
+import {
+  getKisAccessToken,
+  invalidateKisAccessToken,
+} from "@/lib/kis/token";
 
 const DOMESTIC_STOCK_PRICE_TR_ID = "FHKST01010100";
 const DOMESTIC_STOCK_PRICE_PATH =
@@ -144,6 +147,61 @@ function debugOverseasQuoteMapping(
   });
 }
 
+function isKisExpiredTokenError(error: unknown): boolean {
+  if (!(error instanceof KisApiError)) {
+    return false;
+  }
+
+  const payload = error.payload;
+  const message = error.message;
+
+  if (payload && typeof payload === "object") {
+    const msgCode = (payload as Record<string, unknown>).msg_cd;
+    const msg = (payload as Record<string, unknown>).msg1;
+
+    if (msgCode === "EGW00123") {
+      return true;
+    }
+
+    if (typeof msg === "string" && /만료된\s*token|expired\s*token/i.test(msg)) {
+      return true;
+    }
+  }
+
+  return /EGW00123|만료된\s*token|expired\s*token/i.test(message);
+}
+
+async function requestKisQuote<T>(
+  client: KisClient,
+  options: Omit<KisRequestOptions, "accessToken">,
+  context: Record<string, string>,
+): Promise<T> {
+  const accessToken = await getKisAccessToken();
+
+  try {
+    return await client.request<T>({
+      ...options,
+      accessToken,
+    });
+  } catch (error) {
+    if (!isKisExpiredTokenError(error)) {
+      throw error;
+    }
+
+    console.warn("[kis:quote] access token expired; refreshing and retrying", {
+      ...context,
+      trId: options.trId,
+    });
+    await invalidateKisAccessToken("KIS API returned expired token");
+    const refreshedAccessToken = await getKisAccessToken();
+
+    return client.request<T>({
+      ...options,
+      accessToken: refreshedAccessToken,
+    });
+  }
+}
+
 export function normalizeDomesticStockCode(value: string): string | null {
   const normalized = value.trim().toUpperCase().replace(/[^0-9A-Z]/g, "");
 
@@ -174,16 +232,18 @@ export async function fetchDomesticStockQuote(
     throw new Error(`Invalid domestic stock code: ${code}`);
   }
 
-  const accessToken = await getKisAccessToken();
-  const payload = await client.request<KisDomesticQuotePayload>({
-    path: DOMESTIC_STOCK_PRICE_PATH,
-    accessToken,
-    trId: DOMESTIC_STOCK_PRICE_TR_ID,
-    searchParams: {
-      FID_COND_MRKT_DIV_CODE: "J",
-      FID_INPUT_ISCD: normalizedCode,
+  const payload = await requestKisQuote<KisDomesticQuotePayload>(
+    client,
+    {
+      path: DOMESTIC_STOCK_PRICE_PATH,
+      trId: DOMESTIC_STOCK_PRICE_TR_ID,
+      searchParams: {
+        FID_COND_MRKT_DIV_CODE: "J",
+        FID_INPUT_ISCD: normalizedCode,
+      },
     },
-  });
+    { market: "KR", code: normalizedCode },
+  );
 
   const output = payload.output ?? {};
   const currentPrice = parseNumber(output.stck_prpr);
@@ -227,17 +287,19 @@ export async function fetchKisOverseasQuote(
     throw new Error(`Invalid US exchange code: ${exchange}`);
   }
 
-  const accessToken = await getKisAccessToken();
-  const payload = await client.request<KisOverseasQuotePayload>({
-    path: OVERSEAS_STOCK_PRICE_PATH,
-    accessToken,
-    trId: OVERSEAS_STOCK_PRICE_TR_ID,
-    searchParams: {
-      AUTH: "",
-      EXCD: normalizedExchange,
-      SYMB: symbol,
+  const payload = await requestKisQuote<KisOverseasQuotePayload>(
+    client,
+    {
+      path: OVERSEAS_STOCK_PRICE_PATH,
+      trId: OVERSEAS_STOCK_PRICE_TR_ID,
+      searchParams: {
+        AUTH: "",
+        EXCD: normalizedExchange,
+        SYMB: symbol,
+      },
     },
-  });
+    { market: "US", ticker: symbol, exchange: normalizedExchange },
+  );
 
   const output = Array.isArray(payload.output)
     ? payload.output[0] ?? {}
@@ -342,18 +404,20 @@ export async function fetchDomesticNxtQuote(
     return null;
   }
 
-  const accessToken = await getKisAccessToken();
-  const payload = await client.request<KisDomesticNxtQuotePayload>({
-    path: DOMESTIC_STOCK_PRICE_2_PATH,
-    accessToken,
-    trId: DOMESTIC_STOCK_PRICE_2_TR_ID,
-    searchParams: {
-      // KIS [v1_국내주식-054] 주식현재가 시세2:
-      // - J: KRX, NX: NXT, UN: 통합
-      FID_COND_MRKT_DIV_CODE: "NX",
-      FID_INPUT_ISCD: normalizedCode,
+  const payload = await requestKisQuote<KisDomesticNxtQuotePayload>(
+    client,
+    {
+      path: DOMESTIC_STOCK_PRICE_2_PATH,
+      trId: DOMESTIC_STOCK_PRICE_2_TR_ID,
+      searchParams: {
+        // KIS [v1_국내주식-054] 주식현재가 시세2:
+        // - J: KRX, NX: NXT, UN: 통합
+        FID_COND_MRKT_DIV_CODE: "NX",
+        FID_INPUT_ISCD: normalizedCode,
+      },
     },
-  });
+    { market: "KR_NXT", code: normalizedCode },
+  );
 
   const output = payload.output ?? {};
   debugDomesticNxtQuote(normalizedCode, output);

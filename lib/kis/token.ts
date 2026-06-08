@@ -105,6 +105,24 @@ async function saveToken(accessToken: string, expiresAt: number): Promise<boolea
   return true;
 }
 
+async function deleteStoredToken(reason: string): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("kis_tokens")
+    .delete()
+    .eq("id", KIS_TOKEN_ID);
+
+  if (error) {
+    console.warn("[kis:token] Supabase token delete failed", {
+      reason,
+      error: error.message,
+    });
+    return;
+  }
+
+  console.warn("[kis:token] Stored KIS token invalidated", { reason });
+}
+
 async function issueKisAccessToken(): Promise<{
   accessToken: string;
   expiresAt: number;
@@ -157,4 +175,9 @@ export async function getKisAccessToken(): Promise<string> {
   console.info(saved ? "KIS token issued and saved" : "KIS token issued");
 
   return tokenCache.accessToken;
+}
+
+export async function invalidateKisAccessToken(reason: string): Promise<void> {
+  tokenCache = null;
+  await deleteStoredToken(reason);
 }
