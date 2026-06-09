@@ -1,12 +1,14 @@
 import { PageHeader } from "@/components/PageHeader";
+import { MarketMomentumBoard } from "@/components/market/MarketMomentumBoard";
 
 export default function MarketMomentumPage() {
   return (
     <section>
-      <PageHeader title="Momentum" />
-      <div className="panel" style={{ padding: "48px 0", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-        준비 중
-      </div>
+      <PageHeader
+        title="Momentum"
+        description="섹터 모멘텀 맵, Z-Score, 이동 변화, AI 해석"
+      />
+      <MarketMomentumBoard />
     </section>
   );
 }
