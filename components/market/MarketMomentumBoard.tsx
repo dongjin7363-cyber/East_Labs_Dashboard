@@ -35,13 +35,16 @@ const MOMENTUM_IMAGES: MomentumImage[] = [
 function MomentumImageCard({
   image,
   onZoom,
+  cacheKey,
   className = "",
 }: {
   image: MomentumImage;
   onZoom: (image: MomentumImage) => void;
+  cacheKey: string;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
+  const imageSrc = `${image.src}?v=${encodeURIComponent(cacheKey)}`;
 
   return (
     <article className={`panel momentum-card momentum-image-card ${className}`.trim()}>
@@ -53,7 +56,7 @@ function MomentumImageCard({
         className="momentum-image-button"
         onClick={() => {
           if (!failed) {
-            onZoom(image);
+            onZoom({ ...image, src: imageSrc });
           }
         }}
         disabled={failed}
@@ -66,7 +69,7 @@ function MomentumImageCard({
         ) : (
           <img
             className="momentum-card-image"
-            src={image.src}
+            src={imageSrc}
             alt={image.alt}
             loading="lazy"
             onError={() => setFailed(true)}
@@ -175,11 +178,13 @@ function AnalysisCard({
 }
 
 export function MarketMomentumBoard() {
+  const [fallbackCacheKey] = useState(() => String(Date.now()));
   const [analysis, setAnalysis] = useState<MomentumAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<MomentumImage | null>(null);
   const lastUpdated = useMemo(() => formatLastUpdated(analysis), [analysis]);
+  const assetCacheKey = analysis?.generated_at || fallbackCacheKey;
 
   useEffect(() => {
     let cancelled = false;
@@ -189,7 +194,7 @@ export function MarketMomentumBoard() {
       setError(null);
 
       try {
-        const response = await fetch("/momentum/latest/analysis.json", {
+        const response = await fetch(`/momentum/latest/analysis.json?v=${Date.now()}`, {
           cache: "no-store",
         });
 
@@ -228,16 +233,19 @@ export function MarketMomentumBoard() {
         <MomentumImageCard
           image={MOMENTUM_IMAGES[0]}
           onZoom={setZoomImage}
+          cacheKey={assetCacheKey}
           className="momentum-card-map"
         />
         <MomentumImageCard
           image={MOMENTUM_IMAGES[1]}
           onZoom={setZoomImage}
+          cacheKey={assetCacheKey}
           className="momentum-card-z"
         />
         <MomentumImageCard
           image={MOMENTUM_IMAGES[2]}
           onZoom={setZoomImage}
+          cacheKey={assetCacheKey}
           className="momentum-card-movement"
         />
         <AnalysisCard analysis={analysis} loading={loading} error={error} />
