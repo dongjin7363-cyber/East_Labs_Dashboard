@@ -3485,6 +3485,15 @@ table tfoot td {
   grid-area: analysis;
 }
 
+.momentum-last-updated {
+  display: flex;
+  justify-content: flex-end;
+  margin: -8px 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .momentum-card {
   min-width: 0;
   border-color: #dce6f2;
@@ -3983,6 +3992,11 @@ table tfoot td {
       "movement"
       "analysis";
     grid-template-columns: 1fr;
+  }
+
+  .momentum-last-updated {
+    justify-content: flex-start;
+    margin-top: -4px;
   }
 
   .momentum-image-button {

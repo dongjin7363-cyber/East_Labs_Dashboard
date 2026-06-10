@@ -10,7 +10,7 @@ import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -382,7 +382,10 @@ def generate_claude_analysis(
 def write_analysis_json(output_dir: Path, analysis: Mapping[str, str]) -> Path:
     path = output_dir / "analysis.json"
 
-    payload = {"analysis_text": str(analysis.get("analysis_text", "")).strip()}
+    payload = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "analysis_text": str(analysis.get("analysis_text", "")).strip(),
+    }
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

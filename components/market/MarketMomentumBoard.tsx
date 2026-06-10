@@ -1,21 +1,11 @@
 "use client";
 
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
-
-type AnalysisSections = {
-  summary: string;
-  strong: string;
-  weak: string;
-  watch: string;
-  conclusion: string;
-};
 
 type MomentumAnalysis = {
   generated_at?: string;
-  source?: string;
   analysis_text?: string;
-  sections?: Partial<AnalysisSections>;
 };
 
 type MomentumImage = {
@@ -114,6 +104,42 @@ function renderInlineMarkdown(text: string): ReactNode[] {
   return nodes;
 }
 
+function formatKstDateTime(value: string): string | null {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day} ${byType.hour}:${byType.minute} KST`;
+}
+
+function formatLastUpdated(analysis: MomentumAnalysis | null): string {
+  if (analysis?.generated_at) {
+    const formatted = formatKstDateTime(analysis.generated_at);
+    if (formatted) {
+      return formatted;
+    }
+  }
+
+  const textDate = analysis?.analysis_text?.match(/^\[(\d{4}-\d{2}-\d{2})\]/)?.[1];
+  if (textDate) {
+    return `${textDate} KST`;
+  }
+
+  return "-";
+}
+
 function AnalysisCard({
   analysis,
   loading,
@@ -153,6 +179,7 @@ export function MarketMomentumBoard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoomImage, setZoomImage] = useState<MomentumImage | null>(null);
+  const lastUpdated = useMemo(() => formatLastUpdated(analysis), [analysis]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,6 +222,8 @@ export function MarketMomentumBoard() {
 
   return (
     <>
+      <div className="momentum-last-updated">Last Updated: {lastUpdated}</div>
+
       <div className="momentum-grid">
         <MomentumImageCard
           image={MOMENTUM_IMAGES[0]}
