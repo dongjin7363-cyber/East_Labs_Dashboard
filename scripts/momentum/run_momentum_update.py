@@ -120,9 +120,6 @@ def promote_output(step: MomentumStep, output_dir: Path) -> Path | None:
         return None
 
     canonical_path = output_dir / step.canonical_output
-    if canonical_path.exists():
-        return canonical_path
-
     source = latest_file(output_dir, step.legacy_patterns)
     if source is None and LEGACY_OUTPUT_DIR.exists():
         source = latest_file(LEGACY_OUTPUT_DIR, step.legacy_patterns)
@@ -130,7 +127,14 @@ def promote_output(step: MomentumStep, output_dir: Path) -> Path | None:
     if source is None:
         return None
 
-    shutil.copy2(source, canonical_path)
+    if source.resolve() == canonical_path.resolve():
+        return canonical_path
+
+    if canonical_path.exists():
+        canonical_path.unlink()
+
+    shutil.copyfile(source, canonical_path)
+    print(f"[alias] {source} -> {canonical_path}")
     return canonical_path
 
 
