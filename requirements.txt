@@ -2,7 +2,7 @@ pandas
 openpyxl
 requests
 python-dotenv
-FinanceDataReader
+finance-datareader
 holidays
 matplotlib
 numpy
