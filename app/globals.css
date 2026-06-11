@@ -1266,7 +1266,7 @@ textarea {
 
 .memo-page-actions {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
