@@ -279,10 +279,6 @@ export default function MemoPage() {
                   }
                 />
               </label>
-              <div className="memo-selected-date">
-                <span>선택 날짜</span>
-                <strong>{selectedDate}</strong>
-              </div>
             </>
           ) : null}
         </div>
