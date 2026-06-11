@@ -1266,10 +1266,43 @@ textarea {
 
 .memo-page-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.memo-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  border: 1px solid #dbe4ee;
+  border-radius: 8px;
+  background: #f7fafc;
+  padding: 3px;
+  gap: 2px;
+}
+
+.memo-view-toggle button {
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 12px;
+}
+
+.memo-view-toggle button.is-active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
 }
 
 .memo-layout {
@@ -1391,6 +1424,43 @@ textarea {
   z-index: 1;
 }
 
+.memo-day-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-height: 12px;
+}
+
+.memo-type-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  flex: 0 0 auto;
+}
+
+.memo-type-dot.is-market-note,
+.memo-day-card.is-market-note::before {
+  background: #ef4444;
+}
+
+.memo-type-dot.is-investment-idea,
+.memo-day-card.is-investment-idea::before {
+  background: #16a34a;
+}
+
+.memo-type-dot.is-macro,
+.memo-day-card.is-macro::before {
+  background: #f97316;
+}
+
+.memo-type-dot.is-trading-diary,
+.memo-day-card.is-trading-diary::before {
+  background: #2563eb;
+}
+
 .memo-day-panel {
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1404,18 +1474,34 @@ textarea {
   gap: 10px;
 }
 
+.memo-feed-list {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+}
+
 .memo-day-card {
   border: 1px solid #e4e9f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #f8fafc;
   text-align: left;
-  padding: 10px;
+  padding: 12px 12px 12px 18px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.memo-day-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #cbd5e1;
 }
 
 .memo-day-card.is-selected {
@@ -1434,11 +1520,56 @@ textarea {
   color: var(--muted);
 }
 
+.memo-day-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.memo-type-chip,
+.memo-sentiment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.memo-day-card.is-investment-idea .memo-type-chip {
+  color: #15803d;
+}
+
+.memo-day-card-title {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 .memo-day-card-comment {
   font-size: 13px;
   color: var(--text);
-  line-height: 1.35;
+  line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.memo-legacy-tickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.memo-legacy-tickers span {
+  border: 1px solid #e1e8f0;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #fff;
 }
 
 .memo-day-card-time {
@@ -1544,6 +1675,10 @@ textarea {
   min-height: 220px;
   height: 220px;
   resize: vertical;
+}
+
+.memo-form-grid select {
+  width: 100%;
 }
 
 .memo-image-section {

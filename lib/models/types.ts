@@ -171,9 +171,24 @@ export interface ExpenseEntry {
   createdAt: string;
 }
 
+export const MEMO_TYPES = [
+  "Market Note",
+  "Investment Idea",
+  "Macro",
+  "Trading Diary",
+] as const;
+export type MemoType = (typeof MEMO_TYPES)[number];
+export const DEFAULT_MEMO_TYPE: MemoType = "Market Note";
+export const MEMO_SENTIMENTS = ["Bear", "Neutral", "Bull"] as const;
+export type MemoSentiment = (typeof MEMO_SENTIMENTS)[number];
+
 export interface MemoEntry {
   id: string;
   date: string;
+  title: string;
+  content: string;
+  memoType: MemoType;
+  sentiment?: MemoSentiment | "";
   buyTickers: string;
   sellTickers: string;
   comment: string;

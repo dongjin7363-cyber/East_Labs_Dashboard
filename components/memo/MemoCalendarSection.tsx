@@ -1,6 +1,7 @@
 "use client";
 
 import CalendarDayNumber from "@/components/common/CalendarDayNumber";
+import { MemoEntry, MemoType } from "@/lib/models/types";
 
 interface CalendarDayInfo {
   dow: number;
@@ -12,7 +13,7 @@ interface MemoCalendarSectionProps {
   monthDates: string[];
   leadingBlankCount: number;
   calendarMap: Record<string, CalendarDayInfo>;
-  entriesCountByDate: Map<string, number>;
+  entriesByDate: Map<string, MemoEntry[]>;
   selectedDate: string;
   today: string;
   onSelectDate: (date: string) => void;
@@ -20,12 +21,16 @@ interface MemoCalendarSectionProps {
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
+function memoTypeClass(type: MemoType): string {
+  return type.toLowerCase().replace(/\s+/g, "-");
+}
+
 export function MemoCalendarSection({
   selectedMonth,
   monthDates,
   leadingBlankCount,
   calendarMap,
-  entriesCountByDate,
+  entriesByDate,
   selectedDate,
   today,
   onSelectDate,
@@ -59,7 +64,7 @@ export function MemoCalendarSection({
           const isSelected = date === selectedDate;
           const isRed = Boolean(info?.isHoliday) || info?.dow === 0;
           const isBlue = !isRed && info?.dow === 6;
-          const count = entriesCountByDate.get(date) ?? 0;
+          const entries = entriesByDate.get(date) ?? [];
 
           return (
             <button
@@ -75,7 +80,16 @@ export function MemoCalendarSection({
                   tone={isRed ? "red" : isBlue ? "blue" : "default"}
                 />
               </div>
-              {count > 0 ? <span className="memo-day-badge">{count}</span> : null}
+              {entries.length > 0 ? (
+                <div className="memo-day-dots" aria-label={`${entries.length} memos`}>
+                  {entries.map((entry, index) => (
+                    <span
+                      key={`${entry.id}-${index}`}
+                      className={`memo-type-dot is-${memoTypeClass(entry.memoType)}`}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </button>
           );
         })}

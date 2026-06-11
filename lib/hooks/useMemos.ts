@@ -2,7 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { MemoEntry } from "@/lib/models/types";
+import {
+  DEFAULT_MEMO_TYPE,
+  MEMO_SENTIMENTS,
+  MEMO_TYPES,
+  MemoEntry,
+  MemoSentiment,
+  MemoType,
+} from "@/lib/models/types";
 import {
   createMemoRepository,
   getLocalMemoEntries,
@@ -14,8 +21,24 @@ import { createId } from "@/lib/utils/id";
 
 export interface MemoEntryInput {
   date: string;
-  buyTickers: string;
-  sellTickers: string;
+  title: string;
+  content: string;
+  memoType?: MemoType;
+  sentiment?: MemoSentiment | "";
+  buyTickers?: string;
+  sellTickers?: string;
+  comment?: string;
+  imagePaths?: string[];
+}
+
+interface NormalizedMemoEntryInput {
+  date: string;
+  title: string;
+  content: string;
+  memoType: MemoType;
+  sentiment: MemoSentiment | "";
+  buyTickers?: string;
+  sellTickers?: string;
   comment: string;
   imagePaths?: string[];
 }
@@ -32,12 +55,26 @@ function sortEntries(entries: MemoEntry[]): MemoEntry[] {
   });
 }
 
-function normalizeInput(input: MemoEntryInput): MemoEntryInput {
+function normalizeMemoType(value: MemoType | undefined): MemoType {
+  return value && MEMO_TYPES.includes(value) ? value : DEFAULT_MEMO_TYPE;
+}
+
+function normalizeSentiment(value: MemoSentiment | "" | undefined): MemoSentiment | "" {
+  return value && MEMO_SENTIMENTS.includes(value) ? value : "";
+}
+
+function normalizeInput(input: MemoEntryInput): NormalizedMemoEntryInput {
+  const content = input.content.trim();
+
   return {
     date: input.date,
-    buyTickers: input.buyTickers.trim(),
-    sellTickers: input.sellTickers.trim(),
-    comment: input.comment.trim(),
+    title: input.title.trim(),
+    content,
+    memoType: normalizeMemoType(input.memoType),
+    sentiment: normalizeSentiment(input.sentiment),
+    buyTickers: input.buyTickers?.trim(),
+    sellTickers: input.sellTickers?.trim(),
+    comment: (input.comment ?? content).trim(),
     imagePaths: (input.imagePaths ?? []).filter((path) => path.trim() !== ""),
   };
 }
@@ -150,8 +187,12 @@ export function useMemos() {
           const next: MemoEntry = {
             id: createId(),
             date: normalized.date,
-            buyTickers: normalized.buyTickers,
-            sellTickers: normalized.sellTickers,
+            title: normalized.title,
+            content: normalized.content,
+            memoType: normalized.memoType,
+            sentiment: normalized.sentiment,
+            buyTickers: normalized.buyTickers ?? "",
+            sellTickers: normalized.sellTickers ?? "",
             comment: normalized.comment,
             imagePaths: normalized.imagePaths ?? [],
             createdAt: nowIso,
@@ -189,8 +230,12 @@ export function useMemos() {
           const next: MemoEntry = {
             ...target,
             date: normalized.date,
-            buyTickers: normalized.buyTickers,
-            sellTickers: normalized.sellTickers,
+            title: normalized.title,
+            content: normalized.content,
+            memoType: normalized.memoType,
+            sentiment: normalized.sentiment,
+            buyTickers: normalized.buyTickers ?? target.buyTickers,
+            sellTickers: normalized.sellTickers ?? target.sellTickers,
             comment: normalized.comment,
             imagePaths: normalized.imagePaths ?? target.imagePaths,
             updatedAt: new Date().toISOString(),

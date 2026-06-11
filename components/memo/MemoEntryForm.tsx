@@ -1,13 +1,24 @@
 "use client";
 
+import { MEMO_SENTIMENTS, MEMO_TYPES, MemoSentiment, MemoType } from "@/lib/models/types";
+
+const TYPE_OPTION_PREFIX: Record<MemoType, string> = {
+  "Market Note": "🔴",
+  "Investment Idea": "🟢",
+  Macro: "🟠",
+  "Trading Diary": "🔵",
+};
+
 interface MemoEntryFormProps {
   isEditing: boolean;
-  buyTickersInput: string;
-  sellTickersInput: string;
-  commentInput: string;
-  onBuyTickersChange: (value: string) => void;
-  onSellTickersChange: (value: string) => void;
-  onCommentChange: (value: string) => void;
+  titleInput: string;
+  contentInput: string;
+  memoTypeInput: MemoType;
+  sentimentInput: MemoSentiment | "";
+  onTitleChange: (value: string) => void;
+  onContentChange: (value: string) => void;
+  onMemoTypeChange: (value: MemoType) => void;
+  onSentimentChange: (value: MemoSentiment | "") => void;
   onNew: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -17,12 +28,14 @@ interface MemoEntryFormProps {
 
 export function MemoEntryForm({
   isEditing,
-  buyTickersInput,
-  sellTickersInput,
-  commentInput,
-  onBuyTickersChange,
-  onSellTickersChange,
-  onCommentChange,
+  titleInput,
+  contentInput,
+  memoTypeInput,
+  sentimentInput,
+  onTitleChange,
+  onContentChange,
+  onMemoTypeChange,
+  onSentimentChange,
   onNew,
   onSave,
   onDelete,
@@ -32,7 +45,7 @@ export function MemoEntryForm({
   return (
     <section className="memo-form-wrap">
       <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-        <h3>{isEditing ? "메모 수정" : "새 메모"}</h3>
+        <h3>{isEditing ? "저널 수정" : "새 저널"}</h3>
         <button
           type="button"
           className="ghost-button"
@@ -44,32 +57,55 @@ export function MemoEntryForm({
       </div>
       <div className="form-grid memo-form-grid">
         <label className="full">
-          매수 종목 (Buy Tickers)
+          Title *
           <input
-            value={buyTickersInput}
-            onChange={(event) => onBuyTickersChange(event.target.value)}
-            placeholder="AAPL, NVDA"
+            value={titleInput}
+            onChange={(event) => onTitleChange(event.target.value)}
+            placeholder="CPI 우려 지속"
             disabled={!isAuthed}
+            required
           />
         </label>
-        <label className="full">
-          매도 종목 (Sell Tickers)
-          <input
-            value={sellTickersInput}
-            onChange={(event) => onSellTickersChange(event.target.value)}
-            placeholder="TSLA"
+        <label>
+          Type *
+          <select
+            value={memoTypeInput}
+            onChange={(event) => onMemoTypeChange(event.target.value as MemoType)}
             disabled={!isAuthed}
-          />
+            required
+          >
+            {MEMO_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {TYPE_OPTION_PREFIX[type]} {type}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Sentiment
+          <select
+            value={sentimentInput}
+            onChange={(event) => onSentimentChange(event.target.value as MemoSentiment | "")}
+            disabled={!isAuthed}
+          >
+            <option value="">미선택</option>
+            {MEMO_SENTIMENTS.map((sentiment) => (
+              <option key={sentiment} value={sentiment}>
+                {sentiment}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="full memo-form-comment-label">
-          코멘트 (Comment)
+          Content *
           <textarea
             className="memo-form-comment-textarea"
             rows={6}
-            value={commentInput}
-            onChange={(event) => onCommentChange(event.target.value)}
-            placeholder="매매 회고/시장 대응 기록"
+            value={contentInput}
+            onChange={(event) => onContentChange(event.target.value)}
+            placeholder="시장 판단, 아이디어, 매매 회고를 기록"
             disabled={!isAuthed}
+            required
           />
         </label>
       </div>
