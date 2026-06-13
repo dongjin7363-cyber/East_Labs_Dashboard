@@ -3,10 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import MemoCalendarSection from "@/components/memo/MemoCalendarSection";
-import MemoEntriesList from "@/components/memo/MemoEntriesList";
+import MemoEntriesList, { type MemoTypeFilter } from "@/components/memo/MemoEntriesList";
 import MemoEntryForm from "@/components/memo/MemoEntryForm";
 import { useMemos } from "@/lib/hooks/useMemos";
-import { DEFAULT_MEMO_TYPE, MemoEntry, MemoSentiment, MemoType } from "@/lib/models/types";
+import {
+  DEFAULT_MEMO_TYPE,
+  MEMO_TYPES,
+  MemoEntry,
+  MemoSentiment,
+  MemoType,
+} from "@/lib/models/types";
 import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
 
 interface CalendarDayMeta {
@@ -43,6 +49,7 @@ export default function MemoPage() {
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
   const [viewMode, setViewMode] = useState<MemoViewMode>("calendar");
+  const [feedTypeFilter, setFeedTypeFilter] = useState<MemoTypeFilter>("All");
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [titleInput, setTitleInput] = useState("");
@@ -76,7 +83,30 @@ export default function MemoPage() {
     [entriesByDate, selectedDate],
   );
 
-  const feedEntries = useMemo(() => sortEntriesLatestFirst(entries), [entries]);
+  const feedTypeCounts = useMemo(() => {
+    const counts: Record<MemoTypeFilter, number> = {
+      All: entries.length,
+      "Market Note": 0,
+      "Investment Idea": 0,
+      Macro: 0,
+      "Trading Diary": 0,
+    };
+
+    entries.forEach((entry) => {
+      counts[entry.memoType] += 1;
+    });
+
+    return counts;
+  }, [entries]);
+
+  const feedEntries = useMemo(() => {
+    const filteredEntries =
+      feedTypeFilter === "All"
+        ? entries
+        : entries.filter((entry) => entry.memoType === feedTypeFilter);
+
+    return sortEntriesLatestFirst(filteredEntries);
+  }, [entries, feedTypeFilter]);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === editingId),
@@ -344,6 +374,10 @@ export default function MemoPage() {
           onSelectEntry={handleSelectEntry}
           onZoomImage={setZoomImageUrl}
           showDate
+          typeFilterOptions={["All", ...MEMO_TYPES]}
+          activeTypeFilter={feedTypeFilter}
+          typeFilterCounts={feedTypeCounts}
+          onTypeFilterChange={setFeedTypeFilter}
         />
       )}
 
