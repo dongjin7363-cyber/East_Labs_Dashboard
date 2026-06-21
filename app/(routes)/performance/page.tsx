@@ -968,10 +968,18 @@ export default function PerformancePage() {
               <button
                 type="button"
                 className="perf-nav-record-btn"
-                onClick={() => void recordSnapshot(today)}
-                disabled={!mounted || !isAuthenticated || isRecording || portfolioLoading}
+                onClick={() => void recordSnapshot(navSelectedDate)}
+                disabled={!mounted || !isAuthenticated || isRecording || portfolioLoading || !isValidDate(navSelectedDate)}
               >
-                {isRecording ? "기록 중..." : "Today Record"}
+                {isRecording
+                  ? "기록 중..."
+                  : !isValidDate(navSelectedDate)
+                  ? "날짜 선택"
+                  : navSelectedDate === today
+                  ? "오늘 기록"
+                  : monthSnapshots.some((s) => s.date === navSelectedDate)
+                  ? `${Number(navSelectedDate.slice(5, 7))}/${Number(navSelectedDate.slice(8, 10))} 수정`
+                  : `${Number(navSelectedDate.slice(5, 7))}/${Number(navSelectedDate.slice(8, 10))} 기록`}
               </button>
             )}
           </div>
