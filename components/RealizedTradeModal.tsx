@@ -151,6 +151,7 @@ export function RealizedTradeModal({
       open={open}
       title={mode === "create" ? "Realized Position" : "Realized Position 수정"}
       onClose={onClose}
+      cardClassName="rtm-form-modal"
     >
       <form onSubmit={handleSubmit}>
         <div className="rtm-grid">

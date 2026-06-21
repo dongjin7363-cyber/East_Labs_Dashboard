@@ -1015,7 +1015,7 @@ textarea {
 
 .ta-day-amount {
   color: var(--brand);
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.25;
   font-weight: 600;
   overflow: hidden;
@@ -3019,7 +3019,7 @@ table tfoot td {
 }
 
 .portfolio-form-modal {
-  width: min(530px, 100%);
+  width: min(380px, 100%);
 }
 
 .modal-header {
@@ -5813,7 +5813,9 @@ body {
   background: var(--east-bg);
   border: 1px solid var(--east-border-md);
   border-radius: var(--east-radius-sm);
-  padding: 5px 9px;
+  padding: 6px 9px !important;
+  height: 32px;
+  box-sizing: border-box;
   width: 138px;
   outline: none;
 }
@@ -6353,8 +6355,8 @@ body {
 }
 
 .pf-money-symbol {
-  font-size: 0.82em;
-  opacity: 0.5;
+  font-size: 0.5em;
+  opacity: 0.45;
   margin-right: 1px;
 }
 
@@ -6539,23 +6541,21 @@ body {
 
 .modal-card.portfolio-form-modal .form-grid label,
 .modal-card.portfolio-form-modal .portfolio-form-field-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.04em;
   color: var(--east-text-3);
-  text-transform: uppercase;
 }
 
 .modal-card.portfolio-form-modal .form-grid input,
 .modal-card.portfolio-form-modal .form-grid select,
 .modal-card.portfolio-form-modal .form-grid textarea {
   font-family: var(--east-mono);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--east-text-1);
   background: var(--east-bg);
   border: 1px solid var(--east-border-md);
-  border-radius: var(--east-radius-sm);
-  padding: 7px 11px;
+  border-radius: 8px;
+  padding: 8px 10px;
   outline: none;
   transition: border-color 0.12s;
 }
@@ -6633,6 +6633,86 @@ body {
 
 .modal-card.portfolio-form-modal .form-actions .danger-button:hover {
   background: var(--east-neg-bg);
+}
+
+/* Portfolio Form Modal — pfm layout (3-row grid) */
+.pfm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pfm-row {
+  display: grid;
+  gap: 10px;
+  align-items: end;
+}
+
+.pfm-row-1 {
+  grid-template-columns: 1fr auto;
+}
+
+.pfm-row-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.pfm-row-3 {
+  grid-template-columns: 2fr 1fr 2fr;
+}
+
+.pfm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--east-text-3);
+}
+
+.pfm-field input,
+.pfm-field select {
+  font-family: var(--east-mono);
+  font-size: 12px;
+  color: var(--east-text-1);
+  background: var(--east-bg);
+  border: 1px solid var(--east-border-md);
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.12s;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.pfm-field input:focus,
+.pfm-field select:focus {
+  border-color: var(--east-cobalt);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+}
+
+.pfm-field input::placeholder {
+  color: var(--east-text-3);
+}
+
+.pfm-credit {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.pfm-credit input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  border-radius: 3px;
+  accent-color: var(--east-cobalt);
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: unset;
 }
 
 /* ================================================================
@@ -6795,9 +6875,124 @@ body {
 }
 
 .perf-money-symbol {
-  font-size: 0.78em;
+  font-size: 0.5em;
   opacity: 0.45;
   margin-right: 1px;
+}
+
+/* Panel tab chips (포트폴리오 vs 지수 / 일별 자산) */
+.perf-main-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.perf-main-tabs-left {
+  display: flex;
+  gap: 4px;
+}
+
+.perf-main-tab {
+  font-size: 11.5px;
+  padding: 5px 12px;
+  border-radius: var(--east-radius-sm);
+  border: 1px solid var(--east-border-md);
+  background: var(--east-bg);
+  color: var(--east-text-2);
+  cursor: pointer;
+  font-family: var(--east-font);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.perf-main-tab.is-active {
+  background: var(--east-cobalt-bg);
+  color: var(--east-cobalt-txt);
+  border-color: var(--east-cobalt-bg);
+  font-weight: 500;
+}
+
+.perf-main-tab:hover:not(.is-active) {
+  background: var(--east-surface);
+}
+
+/* NAV tab content */
+.perf-nav-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.perf-nav-reminder {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #FEF3C7;
+  border-radius: var(--east-radius-sm);
+  font-size: 11px;
+  color: #92400E;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.perf-nav-reminder button {
+  font-size: 10.5px;
+  padding: 4px 10px;
+  border-radius: var(--east-radius-sm);
+  border: 1px solid #D97706;
+  background: #F59E0B;
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--east-font);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.perf-nav-reminder button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.perf-nav-record-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--east-border);
+  flex-shrink: 0;
+}
+
+.perf-nav-date-label {
+  font-size: 12px;
+  font-family: var(--east-mono);
+  color: var(--east-text-2);
+}
+
+.perf-nav-record-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: var(--east-radius-sm);
+  border: none;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+  font-family: var(--east-font);
+  transition: background 0.12s;
+}
+
+.perf-nav-record-btn:hover:not(:disabled) {
+  background: #374151;
+}
+
+.perf-nav-record-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Main 2-col grid */
@@ -7185,9 +7380,13 @@ body {
 }
 
 /* ── RTM: Trade form modal ── */
+.rtm-form-modal {
+  width: min(380px, 100%);
+}
+
 .rtm-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 10px;
   margin-bottom: 16px;
 }

@@ -222,24 +222,26 @@ function formatKstLiveLabel(timestampMs: number): string {
   }).format(new Date(timestampMs));
 }
 
-function formatCompactKrw(amount: number): string {
+const SYM_KRW = <span className="pf-money-symbol">₩</span>;
+
+function CompactKrw({ amount }: { amount: number }) {
   if (!Number.isFinite(amount) || amount <= 0) {
-    return "₩0";
+    return <>{SYM_KRW}0</>;
   }
 
   if (amount >= 100_000_000) {
-    return `₩${(amount / 100_000_000).toFixed(1)}억`;
+    return <>{SYM_KRW}{(amount / 100_000_000).toFixed(1)}억</>;
   }
 
   if (amount >= 10_000_000) {
-    return `₩${(amount / 1_000_000).toFixed(1)}M`;
+    return <>{SYM_KRW}{(amount / 1_000_000).toFixed(1)}M</>;
   }
 
   if (amount >= 1_000_000) {
-    return `₩${(amount / 1_000_000).toFixed(2)}M`;
+    return <>{SYM_KRW}{(amount / 1_000_000).toFixed(2)}M</>;
   }
 
-  return moneyFormat("KRW", amount);
+  return <>{SYM_KRW}{moneyFormat("KRW", amount).replace("₩", "")}</>;
 }
 
 function formatDailyChangeLabel(rate: number): string {
@@ -1691,7 +1693,7 @@ export default function PortfolioPage() {
             <div className="pf-donut-outer">
               <DonutChart slices={donutSlices} total={donutTotal} />
               <div className="pf-donut-center">
-                <div className="pf-donut-center-val">{formatCompactKrw(totalAssetKrw)}</div>
+                <div className="pf-donut-center-val"><CompactKrw amount={totalAssetKrw} /></div>
                 <div className="pf-donut-center-sub">총 자산</div>
               </div>
             </div>

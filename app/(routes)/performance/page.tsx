@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { RealizedTradeModal } from "@/components/RealizedTradeModal";
+import { TotalAssetCalendar } from "@/components/TotalAssetCalendar";
 import {
   AssetTrendBenchmarkKey,
   AssetTrendBenchmarkPoint,
@@ -10,9 +11,12 @@ import {
   createEmptyIndexHistorySeries,
   IndexHistorySeriesMap,
 } from "@/lib/asset-trend/benchmark";
+import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
-import { Market, RealizedTrade, TotalAssetSnapshot } from "@/lib/models/types";
+import { Currency, Market, PortfolioHolding, RealizedTrade, TotalAssetSnapshot } from "@/lib/models/types";
+import { calculatePortfolioTotalAsset } from "@/lib/services/portfolioService";
+import { readPortfolioCashSettings } from "@/lib/services/totalAssetService";
 import {
   buildDailyNetSeries,
   buildMonthlyNetSeriesByYear,
@@ -29,7 +33,6 @@ import {
   toYmd,
 } from "@/lib/utils/date";
 import { moneyFormat, moneyFormatParts, percentFormat } from "@/lib/utils/money";
-import { Currency } from "@/lib/models/types";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const DEFAULT_FX_RATE = 1350;
@@ -77,6 +80,12 @@ interface FxApiResponse {
   asOf: string;
 }
 
+interface CalendarDayInfo {
+  dow: number;
+  isHoliday: boolean;
+  holidayName?: string;
+}
+
 function isValidDate(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && value !== SSR_SAFE_DATE;
 }
@@ -104,27 +113,29 @@ function MoneyText({
   );
 }
 
-function formatCompactKrw(amount: number): string {
+const SYM_KRW = <span className="perf-money-symbol">₩</span>;
+
+function CompactKrw({ amount }: { amount: number }) {
   if (!Number.isFinite(amount) || amount === 0) {
-    return "₩0";
+    return <>{SYM_KRW}0</>;
   }
 
   const sign = amount < 0 ? "-" : "";
   const abs = Math.abs(amount);
 
   if (abs >= 100_000_000) {
-    return `${sign}₩${(abs / 100_000_000).toFixed(1)}억`;
+    return <>{sign}{SYM_KRW}{(abs / 100_000_000).toFixed(1)}억</>;
   }
 
   if (abs >= 10_000_000) {
-    return `${sign}₩${(abs / 1_000_000).toFixed(1)}M`;
+    return <>{sign}{SYM_KRW}{(abs / 1_000_000).toFixed(1)}M</>;
   }
 
   if (abs >= 1_000) {
-    return `${sign}₩${(abs / 1_000_000).toFixed(2)}M`;
+    return <>{sign}{SYM_KRW}{(abs / 1_000_000).toFixed(2)}M</>;
   }
 
-  return `${sign}₩${abs}`;
+  return <>{sign}{SYM_KRW}{abs}</>;
 }
 
 function computePeriodRange(
@@ -477,7 +488,8 @@ export default function PerformancePage() {
     update,
     remove,
   } = useRealizedTrades();
-  const { snapshots } = useTotalAssets();
+  const { snapshots, upsertSnapshot } = useTotalAssets();
+  const { holdings, loading: portfolioLoading } = usePortfolio();
 
   const [mounted, setMounted] = useState(false);
   const [today, setToday] = useState(SSR_SAFE_DATE);
@@ -501,6 +513,10 @@ export default function PerformancePage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RealizedTrade | undefined>();
   const [selected, setSelected] = useState<RealizedTrade | undefined>();
+  const [chartTab, setChartTab] = useState<"benchmark" | "nav">("benchmark");
+  const [navSelectedDate, setNavSelectedDate] = useState(SSR_SAFE_DATE);
+  const [navCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
+  const [isRecording, setIsRecording] = useState(false);
   const benchmarkRequestSeqRef = useRef(0);
 
   useEffect(() => {
@@ -512,6 +528,7 @@ export default function PerformancePage() {
     setCustomRange({ from: monthRange.from, to: t });
     setCustomDraft({ from: monthRange.from, to: t });
     setFxRate(readStoredFx());
+    setNavSelectedDate(t);
     setMounted(true);
   }, []);
 
@@ -750,6 +767,73 @@ export default function PerformancePage() {
 
   const monthOptions = useMemo(() => getMonthOptions(today, 12), [today]);
 
+  const fetchNavFxRate = useCallback(async (): Promise<{ rate: number }> => {
+    try {
+      const res = await fetch("/api/fx", { cache: "no-store" });
+      if (!res.ok) return { rate: readStoredFx() };
+      const data = (await res.json()) as Partial<FxApiResponse>;
+      const rate = Number(data.rate);
+      if (!Number.isFinite(rate) || rate <= 0) return { rate: readStoredFx() };
+      window.localStorage.setItem(FX_STORAGE_KEY, `${rate}`);
+      setFxRate(rate);
+      return { rate };
+    } catch {
+      return { rate: readStoredFx() };
+    }
+  }, []);
+
+  const refreshHoldingQuotes = useCallback(
+    async (sourceHoldings: PortfolioHolding[]): Promise<PortfolioHolding[]> => {
+      const usTargets = sourceHoldings.filter((h) => h.market === "US");
+      if (usTargets.length === 0) return sourceHoldings;
+      const updates: { id: string; price: number }[] = [];
+      await Promise.all(
+        usTargets.map(async (h) => {
+          try {
+            const res = await fetch(
+              `/api/quote?market=US&ticker=${encodeURIComponent(h.ticker)}`,
+              { cache: "no-store" },
+            );
+            if (!res.ok) return;
+            const data = (await res.json()) as { priceInt?: number };
+            const price = Number(data.priceInt);
+            if (Number.isFinite(price) && price > 0) updates.push({ id: h.id, price });
+          } catch {}
+        }),
+      );
+      if (updates.length === 0) return sourceHoldings;
+      const priceMap = new Map(updates.map((u) => [u.id, u.price]));
+      return sourceHoldings.map((h) => {
+        const p = priceMap.get(h.id);
+        return p !== undefined ? { ...h, currentPrice: p } : h;
+      });
+    },
+    [],
+  );
+
+  const recordSnapshot = useCallback(
+    async (targetDate: string) => {
+      if (!mounted || !isAuthenticated || targetDate === SSR_SAFE_DATE) return;
+      setIsRecording(true);
+      try {
+        const updatedHoldings = await refreshHoldingQuotes(holdings);
+        const { rate } = await fetchNavFxRate();
+        const cash = readPortfolioCashSettings();
+        const computed = calculatePortfolioTotalAsset({
+          holdings: updatedHoldings,
+          fxRate: rate,
+          depositKrw: cash.depositKrw,
+          depositUsdCents: cash.depositUsdCents,
+          cashKrw: cash.cashKrw,
+        });
+        upsertSnapshot({ date: targetDate, totalAssetKrwInt: computed.totalAssetKrw, fxRate: rate });
+      } finally {
+        setIsRecording(false);
+      }
+    },
+    [mounted, isAuthenticated, holdings, fetchNavFxRate, refreshHoldingQuotes, upsertSnapshot],
+  );
+
   return (
     <div className="perf-page">
       {/* Page header */}
@@ -862,107 +946,151 @@ export default function PerformancePage() {
       <div className="perf-main-grid">
         {/* LEFT: chart */}
         <div className="perf-col-chart">
-          <div className="perf-chart-header">
-            <span className="perf-chart-title">포트폴리오 vs 지수</span>
-            <div className="perf-period-tabs">
-              {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`perf-period-tab${period === key ? " is-active" : ""}`}
-                  onClick={() => handlePeriodClick(key)}
-                >
-                  {PERIOD_LABELS[key]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {period === "custom" ? (
-            <div className="perf-custom-range">
-              <input
-                type="date"
-                className="perf-date-input"
-                value={customDraft.from === SSR_SAFE_DATE ? "" : customDraft.from}
-                onChange={(event) =>
-                  setCustomDraft((prev) => ({ ...prev, from: event.target.value }))
-                }
-              />
-              <span className="perf-custom-dash">–</span>
-              <input
-                type="date"
-                className="perf-date-input"
-                value={customDraft.to === SSR_SAFE_DATE ? "" : customDraft.to}
-                onChange={(event) =>
-                  setCustomDraft((prev) => ({ ...prev, to: event.target.value }))
-                }
-              />
-              <button type="button" className="perf-apply-btn" onClick={handleApplyCustom}>
-                적용
+          {/* Panel tab chips */}
+          <div className="perf-main-tabs">
+            <div className="perf-main-tabs-left">
+              <button
+                type="button"
+                className={`perf-main-tab${chartTab === "benchmark" ? " is-active" : ""}`}
+                onClick={() => setChartTab("benchmark")}
+              >
+                포트폴리오 vs 지수
+              </button>
+              <button
+                type="button"
+                className={`perf-main-tab${chartTab === "nav" ? " is-active" : ""}`}
+                onClick={() => setChartTab("nav")}
+              >
+                일별 자산
               </button>
             </div>
-          ) : null}
+            {chartTab === "nav" && (
+              <button
+                type="button"
+                className="perf-nav-record-btn"
+                onClick={() => void recordSnapshot(today)}
+                disabled={!mounted || !isAuthenticated || isRecording || portfolioLoading}
+              >
+                {isRecording ? "기록 중..." : "Today Record"}
+              </button>
+            )}
+          </div>
 
-          <div className="perf-chart-legend">
-            {SERIES_ORDER.map((key) => (
-              <div className="perf-cl-item" key={key}>
-                <span
-                  className="perf-cl-line"
-                  style={{
-                    background: SERIES_COLOR[key],
-                    height: key === "portfolio" ? 2.5 : 2,
-                  }}
-                />
-                {SERIES_LABEL[key]}
+          {chartTab === "benchmark" ? (
+            <>
+              <div className="perf-chart-header">
+                <span className="perf-chart-title">포트폴리오 vs 지수</span>
+                <div className="perf-period-tabs">
+                  {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`perf-period-tab${period === key ? " is-active" : ""}`}
+                      onClick={() => handlePeriodClick(key)}
+                    >
+                      {PERIOD_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
 
-          <div className="perf-chart-svg-wrap">
-            <BenchmarkLineChart
-              data={benchmarkData}
-              visible={{
-                portfolio: true,
-                kospi: true,
-                sp500: true,
-                kosdaq: true,
-              }}
-            />
-          </div>
+              {period === "custom" ? (
+                <div className="perf-custom-range">
+                  <input
+                    type="date"
+                    className="perf-date-input"
+                    value={customDraft.from === SSR_SAFE_DATE ? "" : customDraft.from}
+                    onChange={(event) =>
+                      setCustomDraft((prev) => ({ ...prev, from: event.target.value }))
+                    }
+                  />
+                  <span className="perf-custom-dash">–</span>
+                  <input
+                    type="date"
+                    className="perf-date-input"
+                    value={customDraft.to === SSR_SAFE_DATE ? "" : customDraft.to}
+                    onChange={(event) =>
+                      setCustomDraft((prev) => ({ ...prev, to: event.target.value }))
+                    }
+                  />
+                  <button type="button" className="perf-apply-btn" onClick={handleApplyCustom}>
+                    적용
+                  </button>
+                </div>
+              ) : null}
 
-          {/* Rate strip */}
-          <div className="perf-rate-strip">
-            {SERIES_ORDER.map((key) => {
-              const period = benchmarkSummary[key].periodReturnPct;
-              const daily = benchmarkSummary[key].dailyReturnPct;
-              return (
-                <div className="perf-rate-item" key={key}>
-                  <div className="perf-rate-name">
+              <div className="perf-chart-legend">
+                {SERIES_ORDER.map((key) => (
+                  <div className="perf-cl-item" key={key}>
                     <span
-                      className="perf-rate-dot"
-                      style={{ background: SERIES_COLOR[key] }}
+                      className="perf-cl-line"
+                      style={{
+                        background: SERIES_COLOR[key],
+                        height: key === "portfolio" ? 2.5 : 2,
+                      }}
                     />
                     {SERIES_LABEL[key]}
                   </div>
-                  <div
-                    className={`perf-rate-today ${
-                      daily === null ? "" : daily > 0 ? "is-pos" : daily < 0 ? "is-neg" : ""
-                    }`}
-                  >
-                    {daily === null
-                      ? "—"
-                      : `${daily > 0 ? "+" : ""}${daily.toFixed(2)}%`}
-                  </div>
-                  <div className="perf-rate-period">
-                    기간{" "}
-                    {period === null
-                      ? "—"
-                      : `${period > 0 ? "+" : ""}${period.toFixed(2)}%`}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+
+              <div className="perf-chart-svg-wrap">
+                <BenchmarkLineChart
+                  data={benchmarkData}
+                  visible={{
+                    portfolio: true,
+                    kospi: true,
+                    sp500: true,
+                    kosdaq: true,
+                  }}
+                />
+              </div>
+
+              <div className="perf-rate-strip">
+                {SERIES_ORDER.map((key) => {
+                  const period = benchmarkSummary[key].periodReturnPct;
+                  const daily = benchmarkSummary[key].dailyReturnPct;
+                  return (
+                    <div className="perf-rate-item" key={key}>
+                      <div className="perf-rate-name">
+                        <span
+                          className="perf-rate-dot"
+                          style={{ background: SERIES_COLOR[key] }}
+                        />
+                        {SERIES_LABEL[key]}
+                      </div>
+                      <div
+                        className={`perf-rate-today ${
+                          daily === null ? "" : daily > 0 ? "is-pos" : daily < 0 ? "is-neg" : ""
+                        }`}
+                      >
+                        {daily === null
+                          ? "—"
+                          : `${daily > 0 ? "+" : ""}${daily.toFixed(2)}%`}
+                      </div>
+                      <div className="perf-rate-period">
+                        기간{" "}
+                        {period === null
+                          ? "—"
+                          : `${period > 0 ? "+" : ""}${period.toFixed(2)}%`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="perf-nav-content">
+              <TotalAssetCalendar
+                month={selectedMonth}
+                selectedDate={navSelectedDate}
+                today={today}
+                snapshots={monthSnapshots}
+                calendarMap={navCalendarMap}
+                onSelectDate={setNavSelectedDate}
+              />
+            </div>
+          )}
         </div>
 
         {/* RIGHT: table */}
@@ -1080,7 +1208,7 @@ export default function PerformancePage() {
                 yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""
               }`}
             >
-              {formatCompactKrw(yearlyCumulative)}
+              <CompactKrw amount={yearlyCumulative} />
             </span>
           </p>
           <div className="perf-bars">
@@ -1125,7 +1253,7 @@ export default function PerformancePage() {
                 monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""
               }`}
             >
-              {formatCompactKrw(monthlyTotal)}
+              <CompactKrw amount={monthlyTotal} />
             </span>
           </p>
           <DailyBarsChart

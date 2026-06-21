@@ -32,13 +32,11 @@ interface PortfolioFormState {
   displayName: string;
   tickerCode: string;
   logoUrl: string;
-  comment: string;
   quoteDisabled: boolean;
   isCredit: boolean;
   sector: PortfolioSector;
   qty: string;
   avgPrice: string;
-  currentPrice: string;
 }
 
 const EMPTY_FORM: PortfolioFormState = {
@@ -47,13 +45,11 @@ const EMPTY_FORM: PortfolioFormState = {
   displayName: "",
   tickerCode: "",
   logoUrl: "",
-  comment: "",
   quoteDisabled: false,
   isCredit: false,
   sector: "Other",
   qty: "",
   avgPrice: "",
-  currentPrice: "",
 };
 
 function currencyByMarket(market: Market): Currency {
@@ -86,16 +82,11 @@ export function PortfolioFormModal({
         displayName: holding.displayName ?? "",
         tickerCode: holding.tickerCode ?? holding.krCode ?? "",
         logoUrl: holding.logoUrl ?? "",
-        comment: holding.comment ?? "",
         quoteDisabled: holding.quoteDisabled ?? false,
         isCredit: holding.isCredit === true,
         sector: holding.sector ?? "Other",
         qty: `${holding.qty}`,
         avgPrice: priceIntToInput(currency, holding.avgPrice),
-        currentPrice:
-          holding.currentPrice > 0
-            ? priceIntToInput(currency, holding.currentPrice)
-            : "",
       });
       return;
     }
@@ -140,28 +131,7 @@ export function PortfolioFormModal({
       return;
     }
 
-    const currentPriceInput = form.currentPrice.trim();
-    let currentPrice = 0;
-    if (currentPriceInput) {
-      const parsedCurrentPrice = parsePriceInputToInt(currency, form.currentPrice);
-      if (parsedCurrentPrice === null) {
-        window.alert(
-          currency === "KRW"
-            ? "CurrentPrice는 KRW 정수로 입력하세요."
-            : "CurrentPrice는 USD 소수점 2자리까지 입력하세요. (예: 13.61)",
-        );
-        return;
-      }
-
-      currentPrice = parsedCurrentPrice;
-    }
-
     const normalizedTicker = form.ticker.trim();
-    const nextQuoteDisabled =
-      currentPriceInput ||
-      (mode === "edit" && (holding?.currentPrice ?? 0) > 0 && currentPrice === 0)
-        ? true
-        : form.quoteDisabled;
 
     onSubmit({
       market: form.market,
@@ -170,13 +140,13 @@ export function PortfolioFormModal({
       displayName: form.displayName.trim(),
       tickerCode: normalizedTicker,
       logoUrl: form.logoUrl,
-      comment: form.comment,
-      quoteDisabled: nextQuoteDisabled,
+      comment: holding?.comment ?? "",
+      quoteDisabled: form.quoteDisabled,
       isCredit: form.isCredit,
       sector: form.sector,
       qty,
       avgPrice,
-      currentPrice,
+      currentPrice: 0,
     });
     onClose();
   };
@@ -189,133 +159,101 @@ export function PortfolioFormModal({
       cardClassName="portfolio-form-modal"
     >
       <form onSubmit={handleSubmit}>
-        <div className="form-grid">
-          <div className="portfolio-form-market-row">
-            <label>
+        <div className="pfm-form">
+          {/* Row 1: Market | 신용종목 */}
+          <div className="pfm-row pfm-row-1">
+            <label className="pfm-field">
               Market
               <select
                 value={form.market}
                 onChange={(event) => {
                   const nextMarket = event.target.value as Market;
-                  setForm((prev) => ({
-                    ...prev,
-                    market: nextMarket,
-                  }));
+                  setForm((prev) => ({ ...prev, market: nextMarket }));
                 }}
               >
                 <option value="KR">KR</option>
                 <option value="US">US</option>
               </select>
             </label>
-          </div>
-
-          <div className="portfolio-form-identity-row">
-            <label className="portfolio-form-credit-field">
-              <span className="portfolio-form-field-label">신용종목</span>
-              <span className="portfolio-form-field-control portfolio-form-credit-control">
-                <input
-                  type="checkbox"
-                  checked={form.isCredit}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, isCredit: event.target.checked }))
-                  }
-                />
-              </span>
-            </label>
-
-            <label>
-              <span className="portfolio-form-field-label">종목코드(티커)</span>
-              <span className="portfolio-form-field-control">
-                <input
-                  value={form.ticker}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, ticker: event.target.value }))
-                  }
-                  placeholder="예: 475830 / AAPL"
-                />
-              </span>
-            </label>
-
-            <label>
-              <span className="portfolio-form-field-label">종목명</span>
-              <span className="portfolio-form-field-control">
-                <input
-                  value={form.displayName}
-                  onChange={(event) =>
-                    setForm((prev) => ({ ...prev, displayName: event.target.value }))
-                  }
-                  placeholder="예: 오름테라퓨틱 / Apple"
-                />
-              </span>
+            <label className="pfm-field pfm-credit">
+              신용종목
+              <input
+                type="checkbox"
+                checked={form.isCredit}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, isCredit: event.target.checked }))
+                }
+              />
             </label>
           </div>
 
-          <label>
-            Sector
-            <select
-              value={form.sector}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  sector: event.target.value as PortfolioSector,
-                }))
-              }
-            >
-              {PORTFOLIO_SECTORS.map((sector) => (
-                <option key={sector} value={sector}>
-                  {sector}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Row 2: 종목코드(티커) | 종목명 */}
+          <div className="pfm-row pfm-row-2">
+            <label className="pfm-field">
+              종목코드(티커)
+              <input
+                value={form.ticker}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, ticker: event.target.value }))
+                }
+                placeholder="예: 475830 / AAPL"
+              />
+            </label>
+            <label className="pfm-field">
+              종목명
+              <input
+                value={form.displayName}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, displayName: event.target.value }))
+                }
+                placeholder="예: 오름테라퓨틱 / Apple"
+              />
+            </label>
+          </div>
 
-          <label>
-            Qty
-            <FormattedNumberInput
-              value={form.qty}
-              onValueChange={(rawValue) =>
-                setForm((prev) => ({ ...prev, qty: rawValue }))
-              }
-              placeholder="예: 10"
-            />
-          </label>
-
-          <label>
-            AvgPrice ({currency === "KRW" ? "KRW 정수" : "USD 소수점 2자리"})
-            <FormattedNumberInput
-              value={form.avgPrice}
-              allowDecimal={currency === "USD"}
-              maxDecimals={currency === "USD" ? 2 : undefined}
-              onValueChange={(rawValue) =>
-                setForm((prev) => ({ ...prev, avgPrice: rawValue }))
-              }
-              placeholder={priceInputPlaceholder(currency)}
-            />
-          </label>
-
-          <label>
-            CurrentPrice ({currency === "KRW" ? "KRW 정수" : "USD 소수점 2자리"}, 비워두면 자동조회)
-            <FormattedNumberInput
-              value={form.currentPrice}
-              allowDecimal={currency === "USD"}
-              maxDecimals={currency === "USD" ? 2 : undefined}
-              onValueChange={(rawValue) =>
-                setForm((prev) => ({ ...prev, currentPrice: rawValue }))
-              }
-              placeholder={priceInputPlaceholder(currency)}
-            />
-          </label>
-
-          <label className="full">
-            Comment
-            <input
-              value={form.comment}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, comment: event.target.value }))
-              }
-              placeholder="한 줄 메모"
-            />
-          </label>
+          {/* Row 3: Sector | Qty | AvgPrice */}
+          <div className="pfm-row pfm-row-3">
+            <label className="pfm-field">
+              Sector
+              <select
+                value={form.sector}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    sector: event.target.value as PortfolioSector,
+                  }))
+                }
+              >
+                {PORTFOLIO_SECTORS.map((sector) => (
+                  <option key={sector} value={sector}>
+                    {sector}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="pfm-field">
+              Qty
+              <FormattedNumberInput
+                value={form.qty}
+                onValueChange={(rawValue) =>
+                  setForm((prev) => ({ ...prev, qty: rawValue }))
+                }
+                placeholder="예: 10"
+              />
+            </label>
+            <label className="pfm-field">
+              AvgPrice
+              <FormattedNumberInput
+                value={form.avgPrice}
+                allowDecimal={currency === "USD"}
+                maxDecimals={currency === "USD" ? 2 : undefined}
+                onValueChange={(rawValue) =>
+                  setForm((prev) => ({ ...prev, avgPrice: rawValue }))
+                }
+                placeholder={priceInputPlaceholder(currency)}
+              />
+            </label>
+          </div>
         </div>
 
         <div className="form-actions">

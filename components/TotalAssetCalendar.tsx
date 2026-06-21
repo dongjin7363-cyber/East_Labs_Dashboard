@@ -22,13 +22,20 @@ interface TotalAssetCalendarProps {
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
-function formatCompactKrw(amount: number): string {
-  const compact = new Intl.NumberFormat("ko-KR", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(amount);
+const SYM = <span style={{ fontSize: "0.5em", opacity: 0.45 }}>₩</span>;
 
-  return `₩${compact}`;
+function CompactKrw({ amount }: { amount: number }) {
+  if (!Number.isFinite(amount) || amount === 0) return <>{SYM}0</>;
+  const sign = amount < 0 ? "-" : "";
+  const abs = Math.abs(amount);
+
+  if (abs >= 100_000_000) {
+    return <>{sign}{SYM}{(abs / 100_000_000).toFixed(2)}억</>;
+  }
+  if (abs >= 10_000) {
+    return <>{sign}{SYM}{Math.round(abs / 10_000).toLocaleString("ko-KR")}만</>;
+  }
+  return <>{sign}{SYM}{abs.toLocaleString("ko-KR")}</>;
 }
 
 export function TotalAssetCalendar({
@@ -126,7 +133,7 @@ export function TotalAssetCalendar({
                       : moneyFormat("KRW", snapshot.totalAssetKrwInt)
                   }
                 >
-                  {formatCompactKrw(snapshot.totalAssetKrwInt)}
+                  <CompactKrw amount={snapshot.totalAssetKrwInt} />
                 </span>
               ) : null}
             </button>
