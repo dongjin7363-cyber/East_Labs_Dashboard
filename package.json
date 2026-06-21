@@ -10,6 +10,8 @@
     "check": "npm run lint && npm run build",
     "quotes:update": "tsx scripts/update-quotes.ts",
     "export:parse": "python3 scripts/parse_export.py",
+    "export:check-latest": "node scripts/check-export-latest.js",
+    "export:auto": "bash scripts/export-auto-update.sh",
     "export:sync-items": "python3 scripts/sync_export_items_metadata.py",
     "finviz:sync": "python3 scripts/sync_finviz_watchlist.py"
   },

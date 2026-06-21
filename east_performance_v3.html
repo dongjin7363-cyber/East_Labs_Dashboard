@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>East Labs — Performance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #FFFFFF;
+      --surface:   #F5F7FB;
+      --surface-2: #E8EDF5;
+      --border:    rgba(0,0,0,0.08);
+      --border-md: rgba(0,0,0,0.14);
+      --text-1:    #111827;
+      --text-2:    #6B7280;
+      --text-3:    #9CA3AF;
+      --cobalt:    #1D4ED8;
+      --cobalt-dk: #1E3A8A;
+      --cobalt-bg: #EFF6FF;
+      --cobalt-txt:#1E3A8A;
+      --pos:       #059669;
+      --pos-bg:    #ECFDF5;
+      --neg:       #DC2626;
+      --neg-bg:    #FEF2F2;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --font:      'Inter', system-ui, sans-serif;
+      --mono:      'JetBrains Mono', monospace;
+    }
+    body {
+      font-family: var(--font);
+      background: var(--surface);
+      color: var(--text-1);
+      font-size: 13px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 16px;
+    }
+    .shell {
+      display: flex;
+      width: 100%;
+      max-width: 1200px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.05);
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 188px; flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .logo-wrap { padding: 18px 16px 12px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 18px; font-weight: 500; letter-spacing: 0.13em; color: var(--cobalt); }
+    .logo-sub { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+    nav { padding: 8px; flex: 1; display: flex; flex-direction: column; gap: 1px; }
+    .nav-sep { height: 1px; background: var(--border); margin: 5px 3px; }
+    nav a {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px; border-radius: var(--radius-sm);
+      text-decoration: none; color: var(--text-2); font-size: 12px;
+      transition: background 0.12s;
+    }
+    nav a:hover { background: var(--surface-2); color: var(--text-1); }
+    nav a.active { background: var(--cobalt-bg); color: var(--cobalt-txt); font-weight: 500; }
+    .sidebar-footer { padding: 10px 12px; border-top: 1px solid var(--border); }
+    .user-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--cobalt-bg); color: var(--cobalt-txt);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 500; flex-shrink: 0;
+    }
+    .user-name  { font-size: 11px; font-weight: 500; }
+    .user-email { font-size: 10px; color: var(--text-3); }
+    .btn-kakao {
+      width: 100%; padding: 7px; border-radius: var(--radius-sm);
+      background: #FEE500; border: none; cursor: pointer;
+      font-size: 11px; font-weight: 500; color: #191919;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      margin-bottom: 5px; font-family: var(--font);
+    }
+    .btn-email {
+      width: 100%; padding: 7px; border-radius: var(--radius-sm);
+      background: none; border: 1px solid var(--border-md);
+      cursor: pointer; font-size: 11px; color: var(--text-2);
+      font-family: var(--font);
+    }
+
+    /* ── MAIN ── */
+    .main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Page header */
+    .page-header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    }
+    .page-title { font-size: 16px; font-weight: 500; margin-right: 4px; }
+    .select-sm {
+      font-family: var(--font); font-size: 11px; color: var(--text-1);
+      border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+      background: var(--bg); padding: 4px 8px; cursor: pointer; outline: none;
+    }
+    .chip {
+      font-size: 11px; padding: 4px 10px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border-md);
+      background: var(--bg); color: var(--text-2);
+      cursor: pointer; font-family: var(--font);
+      transition: background 0.12s, color 0.12s;
+    }
+    .chip.active { background: var(--cobalt); color: #fff; border-color: var(--cobalt); }
+    .btn-add {
+      margin-left: auto; font-size: 11px; font-weight: 500;
+      padding: 6px 14px; background: var(--cobalt); color: #fff;
+      border: none; border-radius: var(--radius-sm); cursor: pointer;
+      font-family: var(--font);
+    }
+
+    /* Summary cards */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 8px; padding: 10px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .scard {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 10px 14px;
+    }
+    .scard-label { font-size: 10px; color: var(--text-3); margin-bottom: 4px; letter-spacing: 0.03em; }
+    .scard-val   { font-size: 17px; font-weight: 500; font-family: var(--mono); }
+    .scard-sub   { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+    .cur { font-size: 0.78em; opacity: 0.45; }
+
+    /* Main 2-column */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 55% 45%;
+      flex: 1;
+      min-height: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Left: chart column */
+    .col-chart {
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 14px 16px;
+    }
+    .chart-header {
+      display: flex; align-items: center;
+      justify-content: space-between; margin-bottom: 10px;
+    }
+    .chart-title { font-size: 13px; font-weight: 500; }
+
+    /* Period selector */
+    .period-tabs { display: flex; gap: 3px; }
+    .period-tab {
+      font-size: 11px; padding: 4px 10px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border-md);
+      background: var(--bg); color: var(--text-2);
+      cursor: pointer; font-family: var(--font);
+      transition: background 0.12s, color 0.12s;
+    }
+    .period-tab.active {
+      background: var(--cobalt-bg); color: var(--cobalt-txt);
+      border-color: var(--cobalt-bg); font-weight: 500;
+    }
+    .period-tab:hover:not(.active) { background: var(--surface); }
+
+    .custom-range {
+      display: none; align-items: center; gap: 6px;
+      margin-top: 6px; font-size: 11px; color: var(--text-2);
+    }
+    .custom-range.show { display: flex; }
+    .date-input {
+      font-family: var(--mono); font-size: 11px; color: var(--text-1);
+      border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+      padding: 3px 7px; background: var(--bg); outline: none;
+    }
+    .date-input:focus { border-color: var(--cobalt); }
+
+    /* Chart legend */
+    .chart-legend { display: flex; gap: 12px; margin-bottom: 6px; }
+    .cl-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-2); }
+    .cl-line { width: 14px; height: 2px; border-radius: 1px; }
+
+    /* SVG chart */
+    .chart-svg-wrap { flex: 1; min-height: 0; position: relative; }
+    .chart-svg-wrap svg { width: 100%; height: 100%; }
+
+    /* Rate strip */
+    .rate-strip {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 6px; margin-top: 10px; padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .rate-item {
+      background: var(--surface);
+      border-radius: var(--radius-sm);
+      padding: 7px 10px;
+    }
+    .rate-name { font-size: 10px; color: var(--text-2); margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+    .rate-dot  { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .rate-today { font-size: 12px; font-weight: 500; font-family: var(--mono); }
+    .rate-period { font-size: 10px; font-family: var(--mono); color: var(--text-3); }
+
+    /* Right: table column */
+    .col-table { display: flex; flex-direction: column; }
+    .tbl-head {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface); flex-shrink: 0;
+    }
+    .tbl-chip {
+      font-size: 11px; padding: 4px 9px;
+      border-radius: var(--radius-sm); border: 1px solid var(--border-md);
+      background: var(--bg); color: var(--text-2);
+      cursor: pointer; font-family: var(--font);
+    }
+    .tbl-chip.active { background: var(--cobalt); color: #fff; border-color: var(--cobalt); }
+    .search-sm {
+      flex: 1; font-family: var(--font); font-size: 11px;
+      border: 1px solid var(--border-md); border-radius: var(--radius-sm);
+      padding: 4px 8px; background: var(--bg); color: var(--text-1); outline: none;
+    }
+    .search-sm:focus { border-color: var(--cobalt); }
+    .search-sm::placeholder { color: var(--text-3); }
+    .tbl-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    thead { position: sticky; top: 0; z-index: 1; }
+    thead tr { background: var(--surface); }
+    th {
+      padding: 7px 12px; text-align: right;
+      font-size: 10px; font-weight: 500; color: var(--text-3);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap; letter-spacing: 0.02em;
+    }
+    th:first-child { text-align: left; }
+    td {
+      padding: 8px 12px; text-align: right;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono); white-space: nowrap;
+    }
+    td:first-child { text-align: left; font-family: var(--font); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface); }
+
+    .mkt-kr { font-size: 9px; background: #FEF3DC; color: #92400E; padding: 1px 5px; border-radius: 3px; font-weight: 500; }
+    .mkt-us { font-size: 9px; background: var(--cobalt-bg); color: var(--cobalt-txt); padding: 1px 5px; border-radius: 3px; font-weight: 500; }
+    .ret-pos { color: var(--pos); font-weight: 500; }
+    .ret-neg { color: var(--neg); font-weight: 500; }
+    .pnl-pos { color: var(--pos); font-weight: 600; }
+    .pnl-neg { color: var(--neg); font-weight: 600; }
+
+    /* Bottom strip */
+    .bottom-strip {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      flex-shrink: 0; height: 148px;
+    }
+    .bs-col {
+      padding: 10px 14px;
+      border-right: 1px solid var(--border);
+    }
+    .bs-col:last-child { border-right: none; }
+    .bs-title { font-size: 11px; font-weight: 500; color: var(--text-2); margin-bottom: 2px; }
+    .bs-sub   { font-size: 10px; color: var(--text-3); margin-bottom: 6px; }
+
+    /* Bar chart */
+    .bars { display: flex; align-items: flex-end; gap: 3px; height: 64px; }
+    .bar-wrap { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+    .bar { width: 100%; border-radius: 2px 2px 0 0; min-height: 2px; }
+    .bar-lbl { font-size: 8px; color: var(--text-3); margin-top: 3px; text-align: center; }
+
+    /* Daily bars (mixed +/-) centered on axis */
+    .daily-bars { display: flex; align-items: center; gap: 2px; height: 64px; }
+    .dbar-wrap { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .dbar-pos { width: 100%; border-radius: 2px 2px 0 0; align-self: flex-end; }
+    .dbar-neg { width: 100%; border-radius: 0 0 2px 2px; align-self: flex-start; }
+
+    /* NAV heatmap calendar */
+    .heatmap { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 2px; }
+    .hm-dow {
+      text-align: center; font-size: 8px;
+      color: var(--text-3); padding: 0 0 2px; font-weight: 500;
+    }
+    .hm-cell {
+      height: 14px; border-radius: 2px;
+      cursor: pointer; transition: opacity 0.1s;
+    }
+    .hm-cell:hover { opacity: 0.7; }
+    .hm-cell.empty { background: transparent; }
+    .hm-cell.today { outline: 1.5px solid var(--cobalt); outline-offset: 1px; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo-wrap">
+      <div class="logo">EAST</div>
+      <p class="logo-sub">리서치 대시보드</p>
+    </div>
+    <nav>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Portfolio
+      </a>
+      <a href="#" class="active">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        Performance
+      </a>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Expenditure
+      </a>
+      <div class="nav-sep"></div>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Market Screening
+      </a>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="18 9 12 15 9 12 3 18"/></svg>
+        수출입 데이터
+      </a>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Momentum
+      </a>
+      <div class="nav-sep"></div>
+      <a href="#">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        Membership
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-row">
+        <div class="avatar">KP</div>
+        <div>
+          <p class="user-name">Kevin Park</p>
+          <p class="user-email">kevin7363@naver.com</p>
+        </div>
+      </div>
+      <button class="btn-kakao">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="#191919"><path d="M12 3C6.48 3 2 6.69 2 11.25c0 2.88 1.87 5.41 4.68 6.9L5.6 21.5l4.27-2.48A12.3 12.3 0 0 0 12 19.5c5.52 0 10-3.69 10-8.25S17.52 3 12 3z"/></svg>
+        카카오로 로그인
+      </button>
+      <button class="btn-email">이메일로 로그인</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- Header -->
+    <div class="page-header">
+      <h1 class="page-title">Performance</h1>
+      <select class="select-sm" id="month-sel">
+        <option>2026년 6월</option>
+        <option>2026년 5월</option>
+        <option>2026년 4월</option>
+      </select>
+      <button class="chip active">ALL</button>
+      <button class="chip">KR</button>
+      <button class="chip">US</button>
+      <button class="btn-add">+ 거래 추가</button>
+    </div>
+
+    <!-- Summary -->
+    <div class="stats-row">
+      <div class="scard">
+        <p class="scard-label">월 순수익</p>
+        <p class="scard-val" style="color:var(--pos)"><span class="cur">₩</span>9,784,230</p>
+      </div>
+      <div class="scard">
+        <p class="scard-label">총 거래</p>
+        <p class="scard-val">18<span style="font-size:11px;color:var(--text-3);font-weight:400"> 건</span></p>
+        <p class="scard-sub">수익 8건 · 44.44%</p>
+      </div>
+      <div class="scard">
+        <p class="scard-label">포트폴리오 수익률</p>
+        <p class="scard-val" style="color:var(--neg)">-8.38%</p>
+        <p class="scard-sub">KOSPI +4.58% 대비</p>
+      </div>
+      <div class="scard">
+        <p class="scard-label">연 누적 순수익</p>
+        <p class="scard-val" style="color:var(--pos)"><span class="cur">₩</span>52,260,526</p>
+      </div>
+    </div>
+
+    <!-- 2-column grid -->
+    <div class="main-grid">
+
+      <!-- LEFT: Chart -->
+      <div class="col-chart">
+        <div class="chart-header">
+          <span class="chart-title">포트폴리오 vs 지수</span>
+          <div class="period-tabs">
+            <button class="period-tab" data-period="1m">이번 달</button>
+            <button class="period-tab" data-period="3m">3개월</button>
+            <button class="period-tab" data-period="6m">6개월</button>
+            <button class="period-tab" data-period="1y">1년</button>
+            <button class="period-tab" data-period="custom">직접 입력</button>
+          </div>
+        </div>
+        <div class="custom-range" id="custom-range">
+          <input type="date" class="date-input" value="2026-05-01">
+          <span style="color:var(--text-3)">–</span>
+          <input type="date" class="date-input" value="2026-06-17">
+          <button class="chip active" style="font-size:10px;padding:3px 8px">적용</button>
+        </div>
+
+        <div class="chart-legend">
+          <div class="cl-item"><div class="cl-line" style="background:#111827;height:2.5px"></div>Portfolio</div>
+          <div class="cl-item"><div class="cl-line" style="background:#EF4444"></div>KOSPI</div>
+          <div class="cl-item"><div class="cl-line" style="background:#10B981"></div>S&P 500</div>
+          <div class="cl-item"><div class="cl-line" style="background:#3B82F6"></div>KOSDAQ</div>
+        </div>
+
+        <div class="chart-svg-wrap">
+          <svg id="chart-svg" viewBox="0 0 520 160" preserveAspectRatio="none">
+            <!-- Grid -->
+            <line x1="40" y1="30"  x2="515" y2="30"  stroke="rgba(0,0,0,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+            <line x1="40" y1="60"  x2="515" y2="60"  stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+            <line x1="40" y1="90"  x2="515" y2="90"  stroke="rgba(0,0,0,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+            <line x1="40" y1="120" x2="515" y2="120" stroke="rgba(0,0,0,0.05)" stroke-width="1" stroke-dasharray="4,4"/>
+            <!-- Y labels -->
+            <text x="0" y="33"  font-size="9" fill="#9CA3AF" font-family="monospace">+5%</text>
+            <text x="0" y="63"  font-size="9" fill="#9CA3AF" font-family="monospace"> 0%</text>
+            <text x="0" y="93"  font-size="9" fill="#9CA3AF" font-family="monospace">-5%</text>
+            <text x="0" y="123" font-size="9" fill="#9CA3AF" font-family="monospace">-10%</text>
+            <!-- Lines rendered by JS -->
+            <polyline id="line-portfolio" fill="none" stroke="#111827" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline id="line-kospi"     fill="none" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline id="line-sp"        fill="none" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <polyline id="line-kosdaq"    fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- X labels -->
+            <text id="x-start" x="40"  y="155" font-size="9" fill="#9CA3AF" font-family="monospace" text-anchor="middle"></text>
+            <text id="x-end"   x="515" y="155" font-size="9" fill="#9CA3AF" font-family="monospace" text-anchor="middle"></text>
+          </svg>
+        </div>
+
+        <!-- Rate strip -->
+        <div class="rate-strip">
+          <div class="rate-item">
+            <div class="rate-name"><span class="rate-dot" style="background:#111827"></span>Portfolio</div>
+            <div class="rate-today" id="r-pf-today" style="color:var(--neg)">-8.38%</div>
+            <div class="rate-period" id="r-pf-period">기간 -8.38%</div>
+          </div>
+          <div class="rate-item">
+            <div class="rate-name"><span class="rate-dot" style="background:#EF4444"></span>KOSPI</div>
+            <div class="rate-today" style="color:var(--pos)">+1.58%</div>
+            <div class="rate-period">기간 +4.58%</div>
+          </div>
+          <div class="rate-item">
+            <div class="rate-name"><span class="rate-dot" style="background:#10B981"></span>S&P 500</div>
+            <div class="rate-today" style="color:var(--neg)">-0.57%</div>
+            <div class="rate-period">기간 -0.91%</div>
+          </div>
+          <div class="rate-item">
+            <div class="rate-name"><span class="rate-dot" style="background:#3B82F6"></span>KOSDAQ</div>
+            <div class="rate-today" style="color:var(--pos)">+1.30%</div>
+            <div class="rate-period">기간 -3.99%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Trade table -->
+      <div class="col-table">
+        <div class="tbl-head">
+          <button class="tbl-chip active">ALL</button>
+          <button class="tbl-chip">KR</button>
+          <button class="tbl-chip">US</button>
+          <input class="search-sm" type="text" placeholder="Ticker 검색...">
+        </div>
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left;width:20%">날짜</th>
+                <th style="text-align:left;width:36%">종목</th>
+                <th style="width:18%">수익률</th>
+                <th style="width:26%">PnL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>06-01</td><td style="text-align:left;font-family:var(--font)">레인보우로보틱스</td><td class="ret-pos">11.13%</td><td class="pnl-pos"><span class="cur">₩</span>1,040,000</td></tr>
+              <tr><td>06-01</td><td style="text-align:left;font-family:var(--font)">현대차</td><td class="ret-pos">4.91%</td><td class="pnl-pos"><span class="cur">₩</span>1,483,027</td></tr>
+              <tr><td>06-01</td><td style="text-align:left;font-family:var(--font)">롯데에너지머트리얼즈</td><td class="ret-pos">16.76%</td><td class="pnl-pos"><span class="cur">₩</span>1,681,500</td></tr>
+              <tr><td>06-01</td><td style="text-align:left;font-family:var(--font)">NOWL</td><td class="ret-pos">107.71%</td><td class="pnl-pos"><span class="cur">$</span>4,330.00</td></tr>
+              <tr><td>06-02</td><td style="text-align:left;font-family:var(--font)">삼성SDI</td><td class="ret-pos">12.63%</td><td class="pnl-pos"><span class="cur">₩</span>1,296,000</td></tr>
+              <tr><td>06-04</td><td style="text-align:left;font-family:var(--font)">INTW</td><td class="ret-pos">5.00%</td><td class="pnl-pos"><span class="cur">$</span>100.16</td></tr>
+              <tr><td>06-05</td><td style="text-align:left;font-family:var(--font)">오스코텍</td><td class="ret-neg">-4.51%</td><td class="pnl-neg">-<span class="cur">₩</span>452,400</td></tr>
+              <tr><td>06-08</td><td style="text-align:left;font-family:var(--font)">RKLX</td><td class="ret-neg">-4.39%</td><td class="pnl-neg">-<span class="cur">$</span>85.50</td></tr>
+              <tr><td>06-09</td><td style="text-align:left;font-family:var(--font)">삼성SDI</td><td class="ret-neg">-2.69%</td><td class="pnl-neg">-<span class="cur">₩</span>438,976</td></tr>
+              <tr><td>06-09</td><td style="text-align:left;font-family:var(--font)">HODU</td><td class="ret-neg">-4.95%</td><td class="pnl-neg">-<span class="cur">$</span>148.47</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom strip -->
+    <div class="bottom-strip">
+
+      <!-- Monthly bars -->
+      <div class="bs-col">
+        <p class="bs-title">월별 순수익</p>
+        <p class="bs-sub">연 누적 <span style="color:var(--pos);font-family:var(--mono)">₩52.3M</span></p>
+        <div class="bars">
+          <div class="bar-wrap"><div class="bar" style="height:12%;background:var(--pos)"></div><div class="bar-lbl">2월</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:6%;background:var(--pos)"></div><div class="bar-lbl">3월</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:32%;background:var(--pos)"></div><div class="bar-lbl">4월</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:28%;background:var(--pos)"></div><div class="bar-lbl">5월</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:100%;background:var(--cobalt)"></div><div class="bar-lbl" style="color:var(--cobalt);font-weight:500">6월</div></div>
+          <div class="bar-wrap"><div class="bar" style="height:3%;background:var(--surface-2)"></div><div class="bar-lbl">7월~</div></div>
+        </div>
+      </div>
+
+      <!-- Daily bars -->
+      <div class="bs-col">
+        <p class="bs-title">일별 순수익</p>
+        <p class="bs-sub">6월 · 누적 <span style="color:var(--pos);font-family:var(--mono)">₩9.8M</span></p>
+        <!-- SVG bar chart: 0선 기준, 수익=초록(위), 손실=빨강(아래) -->
+        <svg viewBox="0 0 340 82" width="100%" style="margin-top:2px">
+          <!-- 0선 -->
+          <line x1="0" y1="50" x2="340" y2="50" stroke="rgba(0,0,0,0.15)" stroke-width="0.8"/>
+          <!-- y축 레이블 -->
+          <text x="0" y="14"  font-size="7" fill="#9CA3AF" font-family="monospace">+10M</text>
+          <text x="0" y="54"  font-size="7" fill="#9CA3AF" font-family="monospace">0</text>
+          <text x="0" y="80"  font-size="7" fill="#9CA3AF" font-family="monospace">-4M</text>
+          <!-- 막대: 각 값(만원 단위), 양수=초록 위로, 음수=빨강 아래로 -->
+          <!-- 스케일: 10M = 40px, 1M = 4px -->
+          <!-- 6/1: +10.5M → 42px 위 → y=8, h=42 -->
+          <rect x="22"  y="8"  width="8" height="42" fill="#059669" rx="1"/>
+          <!-- 6/3: +1.2M → 5px → y=45, h=5 -->
+          <rect x="44"  y="45" width="8" height="5"  fill="#059669" rx="1"/>
+          <!-- 6/5: -0.5M → 2px 아래 → y=50, h=2 -->
+          <rect x="66"  y="50" width="8" height="2"  fill="#DC2626" rx="1"/>
+          <!-- 6/7: -0.4M -->
+          <rect x="88"  y="50" width="8" height="2"  fill="#DC2626" rx="1"/>
+          <!-- 6/9: -0.6M → 3px -->
+          <rect x="110" y="50" width="8" height="3"  fill="#DC2626" rx="1"/>
+          <!-- 6/11: -0.3M -->
+          <rect x="132" y="50" width="8" height="2"  fill="#DC2626" rx="1"/>
+          <!-- 6/13: -0.5M -->
+          <rect x="154" y="50" width="8" height="2"  fill="#DC2626" rx="1"/>
+          <!-- 6/15: -3.2M → 13px -->
+          <rect x="176" y="50" width="8" height="13" fill="#DC2626" rx="1"/>
+          <!-- 6/17: +2.8M → 11px 위 → y=39, h=11 -->
+          <rect x="198" y="39" width="8" height="11" fill="#059669" rx="1"/>
+          <!-- x 레이블 -->
+          <text x="22"  y="79" font-size="7" fill="#9CA3AF" font-family="monospace" text-anchor="middle">6/1</text>
+          <text x="110" y="79" font-size="7" fill="#9CA3AF" font-family="monospace" text-anchor="middle">6/9</text>
+          <text x="198" y="79" font-size="7" fill="#9CA3AF" font-family="monospace" text-anchor="middle">6/17</text>
+        </svg>
+      </div>
+
+      <!-- NAV heatmap -->
+      <div class="bs-col" style="border-right:none">
+        <p class="bs-title">일별 NAV 히트맵</p>
+        <p class="bs-sub">6월 · 색이 진할수록 높은 NAV</p>
+        <div class="heatmap">
+          <div class="hm-dow">일</div><div class="hm-dow">월</div><div class="hm-dow">화</div>
+          <div class="hm-dow">수</div><div class="hm-dow">목</div><div class="hm-dow">금</div><div class="hm-dow">토</div>
+          <div class="hm-cell empty"></div>
+          <div class="hm-cell" style="background:#059669" title="1: ₩9620만"></div>
+          <div class="hm-cell" style="background:#22C55E" title="2: ₩9417만"></div>
+          <div class="hm-cell" style="background:#4ADE80" title="3: ₩9329만"></div>
+          <div class="hm-cell" style="background:#86EFAC" title="4: ₩8839만"></div>
+          <div class="hm-cell" style="background:#BBF7D0" title="5: ₩8834만"></div>
+          <div class="hm-cell" style="background:#FCA5A5" title="6: ₩8181만"></div>
+          <div class="hm-cell" style="background:#FCA5A5" title="7: ₩8181만"></div>
+          <div class="hm-cell" style="background:#FCD34D" title="8: ₩8346만"></div>
+          <div class="hm-cell" style="background:#FDE68A" title="9: ₩8484만"></div>
+          <div class="hm-cell" style="background:#FCD34D" title="10: ₩8360만"></div>
+          <div class="hm-cell" style="background:#FDE68A" title="11: ₩8402만"></div>
+          <div class="hm-cell" style="background:#D1FAE5" title="12: ₩8671만"></div>
+          <div class="hm-cell" style="background:#D1FAE5" title="13: ₩8644만"></div>
+          <div class="hm-cell" style="background:#D1FAE5" title="14: ₩8644만"></div>
+          <div class="hm-cell" style="background:#D1FAE5" title="15: ₩8678만"></div>
+          <div class="hm-cell" style="background:#FCA5A5" title="16: ₩8266만"></div>
+          <div class="hm-cell today" style="background:#FDE68A" title="17: ₩8580만"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+          <div class="hm-cell" style="background:var(--surface-2)"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// Chart data per period
+// y = 60 - (pct * 6)  →  0% = 60, +5% = 30, -10% = 120
+const Y0 = 60;
+const SCALE = 6;
+function toY(pct) { return Y0 - pct * SCALE; }
+
+const X_START = 42, X_END = 512;
+function pts(arr) {
+  const n = arr.length;
+  return arr.map((v,i) => {
+    const x = X_START + (i / (n-1)) * (X_END - X_START);
+    return `${x.toFixed(1)},${toY(v).toFixed(1)}`;
+  }).join(' ');
+}
+
+const data = {
+  '1m': {
+    label: ['Jun 1', 'Jun 17'],
+    pf:     [0,-2,-5,-7,-9,-12,-15,-13,-12,-11,-10,-9,-9,-8,-9,-10,-8.38],
+    kospi:  [0,0.5,1,1.5,2,2,1.5,2,2.5,3,3.2,3.5,3.8,4,4.2,4.4,4.58],
+    sp:     [0,-0.2,-0.1,-0.3,-0.2,-0.5,-0.4,-0.3,-0.5,-0.4,-0.6,-0.5,-0.7,-0.6,-0.8,-0.85,-0.91],
+    kosdaq: [0,-0.5,-1,-1.5,-2,-2.5,-3,-3.2,-3.5,-3.8,-3.5,-3.6,-3.8,-4,-3.9,-3.95,-3.99],
+  },
+  '3m': {
+    label: ['Apr 1', 'Jun 17'],
+    pf:     [0,3,6,9,7,3,-1,-4,-7,-10,-12,-10,-8.38],
+    kospi:  [0,1,2,4,6,7,8,7,7.5,8,7.5,8,9],
+    sp:     [0,-0.5,-1,-0.5,-1.5,-1,-2,-1.5,-1,-1.5,-1,-1.2,-0.91],
+    kosdaq: [0,-0.5,-1,-2,-3,-3.5,-4,-4.5,-5,-5.5,-5,-4.5,-3.99],
+  },
+  '6m': {
+    label: ['Jan 1', 'Jun 17'],
+    pf:     [0,5,10,15,20,18,12,8,4,0,-3,-6,-9,-12,-10,-9,-8.38],
+    kospi:  [0,1,2,3,5,6,7,8,7,8,9,8,9,9.5,8.5,9,9],
+    sp:     [0,1,0,-1,0,-0.5,-1,-0.5,-1,-1.5,-1,-1.2,-0.8,-0.91,-1,-0.95,-0.91],
+    kosdaq: [0,0,-1,-2,-3,-4,-5,-4,-5,-6,-5.5,-5,-4.5,-4,-4.2,-4,-3.99],
+  },
+  '1y': {
+    label: ['Jun 2025', 'Jun 2026'],
+    pf:     [0,5,8,12,15,20,25,22,18,15,10,5,2,-2,-5,-8,-8.38],
+    kospi:  [0,1,2,3,4,5,6,5,6,7,8,8.5,9,9.5,9,9,9],
+    sp:     [0,2,1,0,1,0,-1,0,-0.5,-1,-0.5,-0.8,-0.91,-1,-0.8,-0.91,-0.91],
+    kosdaq: [0,-1,-2,-1,-2,-3,-4,-3,-4,-5,-4.5,-4,-3.99,-4,-3.9,-3.95,-3.99],
+  },
+};
+
+function renderChart(period) {
+  const d = data[period];
+  if (!d) return;
+  document.getElementById('line-portfolio').setAttribute('points', pts(d.pf));
+  document.getElementById('line-kospi').setAttribute('points', pts(d.kospi));
+  document.getElementById('line-sp').setAttribute('points', pts(d.sp));
+  document.getElementById('line-kosdaq').setAttribute('points', pts(d.kosdaq));
+  document.getElementById('x-start').textContent = d.label[0];
+  document.getElementById('x-end').textContent = d.label[1];
+}
+
+// Period tabs
+document.querySelectorAll('.period-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = btn.dataset.period;
+    const cr = document.getElementById('custom-range');
+    if (p === 'custom') {
+      cr.classList.add('show');
+    } else {
+      cr.classList.remove('show');
+      renderChart(p);
+    }
+  });
+});
+
+// Header chips
+document.querySelectorAll('.page-header .chip').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.page-header .chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  });
+});
+
+// Table chips
+document.querySelectorAll('.tbl-chip').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.tbl-chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+  });
+});
+
+// Init
+renderChart('1m');
+document.querySelector('[data-period="1m"]').classList.add('active');
+</script>
+</body>
+</html>

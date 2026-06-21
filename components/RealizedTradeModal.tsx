@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
-import { Currency, Market, RealizedTrade, TradeRating } from "@/lib/models/types";
+import { Currency, Market, RealizedTrade } from "@/lib/models/types";
 import { RealizedTradeInput } from "@/lib/services/realizedTradeService";
 import { todayYmd } from "@/lib/utils/date";
 import { parsePriceInputToInt, priceIntToInput } from "@/lib/utils/money";
@@ -22,12 +22,8 @@ interface RealizedTradeFormState {
   ticker: string;
   qty: string;
   buyPriceInt: string;
-  buyAmountInt: string;
   sellPriceInt: string;
-  sellAmountInt: string;
   returnPct: string;
-  rating: TradeRating;
-  content: string;
 }
 
 const EMPTY_FORM: RealizedTradeFormState = {
@@ -36,12 +32,8 @@ const EMPTY_FORM: RealizedTradeFormState = {
   ticker: "",
   qty: "",
   buyPriceInt: "",
-  buyAmountInt: "",
   sellPriceInt: "",
-  sellAmountInt: "",
   returnPct: "",
-  rating: "",
-  content: "",
 };
 
 function currencyByMarket(market: Market): Currency {
@@ -89,12 +81,8 @@ export function RealizedTradeModal({
         ticker: trade.ticker,
         qty: `${trade.qty}`,
         buyPriceInt: priceIntToInput(tradeCurrency, trade.buyPriceInt),
-        buyAmountInt: priceIntToInput(tradeCurrency, trade.buyAmountInt),
         sellPriceInt: priceIntToInput(tradeCurrency, trade.sellPriceInt),
-        sellAmountInt: priceIntToInput(tradeCurrency, trade.sellAmountInt),
         returnPct: `${trade.returnPct}`,
-        rating: trade.rating,
-        content: trade.content,
       });
       return;
     }
@@ -133,35 +121,6 @@ export function RealizedTradeModal({
       return;
     }
 
-    const buyAmountInt = form.buyAmountInt.trim()
-      ? parsePriceInputToInt(currency, form.buyAmountInt)
-      : undefined;
-    if (form.buyAmountInt.trim() && buyAmountInt === null) {
-      window.alert(
-        currency === "KRW"
-          ? "Buy Amount는 KRW 정수(원)로 입력하세요."
-          : "Buy Amount는 USD 소수점 2자리까지 입력하세요.",
-      );
-      return;
-    }
-
-    const sellAmountInt = form.sellAmountInt.trim()
-      ? parsePriceInputToInt(currency, form.sellAmountInt)
-      : undefined;
-    if (form.sellAmountInt.trim() && sellAmountInt === null) {
-      window.alert(
-        currency === "KRW"
-          ? "Sell Amount는 KRW 정수(원)로 입력하세요."
-          : "Sell Amount는 USD 소수점 2자리까지 입력하세요.",
-      );
-      return;
-    }
-
-    const normalizedBuyAmountInt =
-      buyAmountInt === null ? undefined : buyAmountInt;
-    const normalizedSellAmountInt =
-      sellAmountInt === null ? undefined : sellAmountInt;
-
     const returnPct = form.returnPct.trim()
       ? Number(form.returnPct.replace(/,/g, ""))
       : undefined;
@@ -176,12 +135,12 @@ export function RealizedTradeModal({
       ticker: form.ticker,
       qty,
       buyPriceInt,
-      buyAmountInt: normalizedBuyAmountInt,
+      buyAmountInt: undefined,
       sellPriceInt,
-      sellAmountInt: normalizedSellAmountInt,
+      sellAmountInt: undefined,
       returnPct,
-      content: form.content,
-      rating: form.rating,
+      content: "",
+      rating: "",
     });
 
     onClose();
@@ -194,11 +153,12 @@ export function RealizedTradeModal({
       onClose={onClose}
     >
       <form onSubmit={handleSubmit}>
-        <div className="form-grid">
-          <label>
+        <div className="rtm-grid">
+          <label className="rtm-label">
             Date
             <input
               type="date"
+              className="rtm-input"
               value={form.date}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, date: event.target.value }))
@@ -206,20 +166,18 @@ export function RealizedTradeModal({
             />
           </label>
 
-          <label>
+          <label className="rtm-label">
             Market
             <select
+              className="rtm-input"
               value={form.market}
               onChange={(event) => {
                 const nextMarket = event.target.value as Market;
-
                 setForm((prev) => ({
                   ...prev,
                   market: nextMarket,
                   buyPriceInt: "",
-                  buyAmountInt: "",
                   sellPriceInt: "",
-                  sellAmountInt: "",
                 }));
               }}
             >
@@ -228,9 +186,10 @@ export function RealizedTradeModal({
             </select>
           </label>
 
-          <label>
+          <label className="rtm-label">
             Ticker
             <input
+              className="rtm-input"
               value={form.ticker}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, ticker: event.target.value }))
@@ -239,9 +198,10 @@ export function RealizedTradeModal({
             />
           </label>
 
-          <label>
+          <label className="rtm-label">
             Qty
             <FormattedNumberInput
+              className="rtm-input"
               value={form.qty}
               onValueChange={(rawValue) =>
                 setForm((prev) => ({ ...prev, qty: rawValue }))
@@ -249,9 +209,10 @@ export function RealizedTradeModal({
             />
           </label>
 
-          <label>
+          <label className="rtm-label">
             Buy Price ({currency === "KRW" ? "KRW" : "USD"})
             <FormattedNumberInput
+              className="rtm-input"
               value={form.buyPriceInt}
               allowDecimal={currency === "USD"}
               maxDecimals={currency === "USD" ? 2 : undefined}
@@ -262,22 +223,10 @@ export function RealizedTradeModal({
             />
           </label>
 
-          <label>
-            Buy Amount (선택)
-            <FormattedNumberInput
-              value={form.buyAmountInt}
-              allowDecimal={currency === "USD"}
-              maxDecimals={currency === "USD" ? 2 : undefined}
-              onValueChange={(rawValue) =>
-                setForm((prev) => ({ ...prev, buyAmountInt: rawValue }))
-              }
-              placeholder={currency === "KRW" ? "예: 300000" : "예: 1200.50"}
-            />
-          </label>
-
-          <label>
+          <label className="rtm-label">
             Sell Price ({currency === "KRW" ? "KRW" : "USD"})
             <FormattedNumberInput
+              className="rtm-input"
               value={form.sellPriceInt}
               allowDecimal={currency === "USD"}
               maxDecimals={currency === "USD" ? 2 : undefined}
@@ -288,22 +237,10 @@ export function RealizedTradeModal({
             />
           </label>
 
-          <label>
-            Sell Amount (선택)
-            <FormattedNumberInput
-              value={form.sellAmountInt}
-              allowDecimal={currency === "USD"}
-              maxDecimals={currency === "USD" ? 2 : undefined}
-              onValueChange={(rawValue) =>
-                setForm((prev) => ({ ...prev, sellAmountInt: rawValue }))
-              }
-              placeholder={currency === "KRW" ? "예: 310000" : "예: 1280.20"}
-            />
-          </label>
-
-          <label>
+          <label className="rtm-label">
             Return% (선택)
             <FormattedNumberInput
+              className="rtm-input"
               value={form.returnPct}
               allowDecimal
               maxDecimals={2}
@@ -313,41 +250,13 @@ export function RealizedTradeModal({
               placeholder="비우면 자동 계산"
             />
           </label>
-
-          <label>
-            Rating
-            <select
-              value={form.rating}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, rating: event.target.value as TradeRating }))
-              }
-            >
-              <option value="">-</option>
-              <option value="Best">Best</option>
-              <option value="Good">Good</option>
-              <option value="Normal">Normal</option>
-              <option value="Bad">Bad</option>
-            </select>
-          </label>
-
-          <label className="full">
-            Content
-            <textarea
-              rows={3}
-              value={form.content}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, content: event.target.value }))
-              }
-              placeholder="매매 코멘트"
-            />
-          </label>
         </div>
 
-        <div className="form-actions">
-          <button type="button" className="ghost-button" onClick={onClose}>
+        <div className="rtm-actions">
+          <button type="button" className="rtm-btn-cancel" onClick={onClose}>
             취소
           </button>
-          <button type="submit" className="primary-button">
+          <button type="submit" className="rtm-btn-save">
             저장
           </button>
         </div>
