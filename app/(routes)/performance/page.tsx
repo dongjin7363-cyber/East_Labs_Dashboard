@@ -1137,10 +1137,10 @@ export default function PerformancePage() {
             <table className="perf-table" style={{ tableLayout: 'fixed', width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', width: '48px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>마켓</th>
-                  <th style={{ textAlign: 'left', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>종목</th>
-                  <th style={{ textAlign: 'right', width: '64px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL%</th>
-                  <th style={{ textAlign: 'right', width: '90px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL</th>
+                  <th style={{ textAlign: 'left', width: '12%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>마켓</th>
+                  <th style={{ textAlign: 'left', width: '44%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>종목</th>
+                  <th style={{ textAlign: 'right', width: '20%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL%</th>
+                  <th style={{ textAlign: 'right', width: '24%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1165,19 +1165,19 @@ export default function PerformancePage() {
                         className="perf-row-click"
                         onClick={() => setSelected(trade)}
                       >
-                        <td style={{ fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', width: '48px' }}>
+                        <td style={{ width: '12%', fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
                           <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
                             {trade.market}
                           </span>
                         </td>
-                        <td style={{ fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <td style={{ width: '44%', fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {trade.ticker}
                         </td>
                         <td style={{
+                          width: '20%',
                           fontSize: '12px',
                           padding: '6px 8px',
                           borderBottom: '1px solid #f3f4f6',
-                          width: '64px',
                           textAlign: 'right',
                           fontFamily: 'JetBrains Mono, monospace',
                           color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280',
@@ -1185,10 +1185,10 @@ export default function PerformancePage() {
                           {trade.returnPct > 0 ? '+' : ''}{percentFormat(trade.returnPct)}
                         </td>
                         <td style={{
+                          width: '24%',
                           fontSize: '12px',
                           padding: '6px 8px',
                           borderBottom: '1px solid #f3f4f6',
-                          width: '90px',
                           textAlign: 'right',
                           fontFamily: 'JetBrains Mono, monospace',
                           color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280',
