@@ -1555,7 +1555,7 @@ export default function PortfolioPage() {
 
       {/* Input row */}
       <div className="pf-input-row">
-        <div className="pf-ig">
+        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
           <label htmlFor="pf-deposit-krw">예수금 (KRW)</label>
           <FormattedNumberInput
             id="pf-deposit-krw"
@@ -1563,10 +1563,10 @@ export default function PortfolioPage() {
             value={depositKrwInput}
             onValueChange={handleDepositKrwInputChange}
             disabled={!isAuthed}
-            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
+            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
-        <div className="pf-ig">
+        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
           <label htmlFor="pf-deposit-usd">예수금 (USD)</label>
           <FormattedNumberInput
             id="pf-deposit-usd"
@@ -1582,10 +1582,10 @@ export default function PortfolioPage() {
             allowDecimal
             maxDecimals={2}
             disabled={!isAuthed}
-            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
+            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
-        <div className="pf-ig">
+        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
           <label htmlFor="pf-cash">현금 (KRW)</label>
           <FormattedNumberInput
             id="pf-cash"
@@ -1593,7 +1593,7 @@ export default function PortfolioPage() {
             value={cashInput}
             onValueChange={handleCashInputChange}
             disabled={!isAuthed}
-            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
+            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
         <div className="pf-rate-info">
@@ -1731,40 +1731,31 @@ export default function PortfolioPage() {
             ) : (
               <div
                 className="pf-legend"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '6px 12px',
-                  alignContent: 'center',
-                  flex: 1,
-                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, justifyContent: 'center' }}
               >
                 {donutSlices.map((slice) => (
                   <div
                     key={slice.key}
                     style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                      padding: '5px 8px',
-                      background: '#f8fafc',
-                      borderRadius: '6px',
+                      display: 'grid',
+                      gridTemplateColumns: '16px 130px 120px 55px',
+                      alignItems: 'center',
+                      gap: '0px 10px',
+                      padding: '3px 0',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <div className="pf-ldot" style={{ background: slice.color }} />
-                      <span className="pf-lname">{slice.label}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' }}>
-                      <span className="pf-lval">
-                        <Money currency="KRW" amountInt={slice.amountKrw} />
-                      </span>
-                      <span>
-                        {donutTotal > 0
-                          ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
-                          : "0.00%"}
-                      </span>
-                    </div>
+                    <div className="pf-ldot" style={{ background: slice.color }} />
+                    <span style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {slice.label}
+                    </span>
+                    <span style={{ fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>
+                      <Money currency="KRW" amountInt={slice.amountKrw} />
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                      {donutTotal > 0
+                        ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
+                        : "0.00%"}
+                    </span>
                   </div>
                 ))}
               </div>
