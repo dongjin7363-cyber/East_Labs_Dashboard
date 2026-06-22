@@ -1700,14 +1700,8 @@ export default function PortfolioPage() {
           </div>
 
           {/* Right: Donut chart */}
-          <div
-            className="pf-chart-card"
-            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '24px', padding: '16px 20px' }}
-          >
-            <div
-              className="pf-donut-outer"
-              style={{ width: '180px', height: '180px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-            >
+          <div className="pf-chart-card">
+            <div className="pf-donut-outer">
               <DonutChart slices={donutSlices} total={donutTotal} />
               <div className="pf-donut-center">
                 <div className="pf-donut-center-val"><CompactKrw amount={totalAssetKrw} /></div>
@@ -1717,21 +1711,9 @@ export default function PortfolioPage() {
             {donutSlices.length === 0 ? (
               <div className="pf-empty-chart">데이터가 없습니다.</div>
             ) : (
-              <div
-                className="pf-legend"
-                style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, justifyContent: 'center' }}
-              >
+              <div className="pf-legend">
                 {donutSlices.map((slice) => (
-                  <div
-                    key={slice.key}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '16px 130px 120px 55px',
-                      alignItems: 'center',
-                      gap: '0px 10px',
-                      padding: '3px 0',
-                    }}
-                  >
+                  <div key={slice.key} className="pf-legend-item">
                     <div className="pf-ldot" style={{ background: slice.color }} />
                     <span style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {slice.label}
