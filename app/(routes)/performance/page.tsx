@@ -1134,13 +1134,13 @@ export default function PerformancePage() {
             />
           </div>
           <div className="perf-tbl-scroll">
-            <table className="perf-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="perf-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '4%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
-                  <th style={{ width: '15%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
-                  <th style={{ width: '10%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
-                  <th style={{ width: '10%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
+                  <th style={{ width: '10%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
+                  <th style={{ width: '42%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
+                  <th style={{ width: '20%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
+                  <th style={{ width: '28%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1165,33 +1165,33 @@ export default function PerformancePage() {
                         className="perf-row-click"
                         onClick={() => setSelected(trade)}
                       >
-                        <td style={{ width: '4%', padding: '6px 8px', verticalAlign: 'middle' }}>
+                        <td style={{ width: '10%', padding: '6px 8px', verticalAlign: 'middle' }}>
                           <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
                             {trade.market}
                           </span>
                         </td>
-                        <td style={{ width: '15%', padding: '6px 4px', fontSize: '12px', color: '#111827', textAlign: 'left' }}>
+                        <td style={{ width: '42%', padding: '6px 4px', fontSize: '12px', color: '#111827', textAlign: 'left' }}>
                           {trade.ticker}
                         </td>
                         <td style={{
-                          width: '10%',
+                          width: '20%',
                           padding: '6px 8px',
                           textAlign: 'left',
                           fontSize: '12px',
                           color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280',
                         }}>
-                          {trade.returnPct > 0 ? '+' : ''}{trade.returnPct}%
+                          {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
                         </td>
                         <td style={{
-                          width: '10%',
+                          width: '28%',
                           padding: '6px 8px',
                           textAlign: 'left',
                           fontSize: '12px',
                           color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280',
                         }}>
                           {currency === 'KRW'
-                            ? (trade.pnlInt > 0 ? '+₩' : '-₩') + Math.abs(trade.pnlInt).toLocaleString()
-                            : (trade.pnlInt > 0 ? '+$' : '-$') + Math.abs(trade.pnlInt / 100).toFixed(2)}
+                            ? <span><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</span>
+                            : <span><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</span>}
                         </td>
                       </tr>
                     );
