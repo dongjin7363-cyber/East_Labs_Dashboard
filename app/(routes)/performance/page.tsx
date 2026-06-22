@@ -1137,10 +1137,10 @@ export default function PerformancePage() {
             <table className="perf-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '12%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
-                  <th style={{ width: '40%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
-                  <th style={{ width: '20%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
-                  <th style={{ width: '28%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
+                  <th style={{ width: '10%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
+                  <th style={{ width: '38%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
+                  <th style={{ width: '22%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
+                  <th style={{ width: '30%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1165,15 +1165,16 @@ export default function PerformancePage() {
                         className="perf-row-click"
                         onClick={() => setSelected(trade)}
                       >
-                        <td style={{ padding: '6px 8px', verticalAlign: 'middle' }}>
+                        <td style={{ width: '10%', padding: '6px 8px', verticalAlign: 'middle' }}>
                           <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
                             {trade.market}
                           </span>
                         </td>
-                        <td style={{ padding: '6px 8px', fontSize: '12px', color: '#111827' }}>
+                        <td style={{ width: '38%', padding: '6px 4px', fontSize: '12px', color: '#111827', textAlign: 'left' }}>
                           {trade.ticker}
                         </td>
                         <td style={{
+                          width: '22%',
                           padding: '6px 8px',
                           textAlign: 'right',
                           fontSize: '12px',
@@ -1182,6 +1183,7 @@ export default function PerformancePage() {
                           {trade.returnPct > 0 ? '+' : ''}{trade.returnPct}%
                         </td>
                         <td style={{
+                          width: '30%',
                           padding: '6px 8px',
                           textAlign: 'right',
                           fontSize: '12px',
