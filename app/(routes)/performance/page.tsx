@@ -1133,14 +1133,14 @@ export default function PerformancePage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="perf-tbl-scroll" style={{ overflowX: 'hidden' }}>
-            <table className="perf-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <div className="perf-tbl-scroll">
+            <table className="perf-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: 'left', width: '12%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>마켓</th>
-                  <th style={{ textAlign: 'left', width: '44%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>종목</th>
-                  <th style={{ textAlign: 'right', width: '20%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL%</th>
-                  <th style={{ textAlign: 'right', width: '24%', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL</th>
+                  <th style={{ width: '12%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
+                  <th style={{ width: '40%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
+                  <th style={{ width: '20%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
+                  <th style={{ width: '28%', textAlign: 'right', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1165,35 +1165,31 @@ export default function PerformancePage() {
                         className="perf-row-click"
                         onClick={() => setSelected(trade)}
                       >
-                        <td style={{ width: '12%', fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: '6px 8px', verticalAlign: 'middle' }}>
                           <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
                             {trade.market}
                           </span>
                         </td>
-                        <td style={{ width: '44%', fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 8px', fontSize: '12px', color: '#111827' }}>
                           {trade.ticker}
                         </td>
                         <td style={{
-                          width: '20%',
-                          fontSize: '12px',
                           padding: '6px 8px',
-                          borderBottom: '1px solid #f3f4f6',
                           textAlign: 'right',
-                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: '12px',
                           color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280',
                         }}>
-                          {trade.returnPct > 0 ? '+' : ''}{percentFormat(trade.returnPct)}
+                          {trade.returnPct > 0 ? '+' : ''}{trade.returnPct}%
                         </td>
                         <td style={{
-                          width: '24%',
-                          fontSize: '12px',
                           padding: '6px 8px',
-                          borderBottom: '1px solid #f3f4f6',
                           textAlign: 'right',
-                          fontFamily: 'JetBrains Mono, monospace',
+                          fontSize: '12px',
                           color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280',
                         }}>
-                          <MoneyText currency={currency} amountInt={trade.pnlInt} signed />
+                          {currency === 'KRW'
+                            ? (trade.pnlInt > 0 ? '+₩' : '-₩') + Math.abs(trade.pnlInt).toLocaleString()
+                            : (trade.pnlInt > 0 ? '+$' : '-$') + Math.abs(trade.pnlInt / 100).toFixed(2)}
                         </td>
                       </tr>
                     );
