@@ -259,8 +259,8 @@ function CategoryAnalysisPanel({
       <div style={{ marginTop: 16 }}>
         {renderCatGroup("변동비", variableTotal, [
           { label: "여행/여가", color: "#22C55E", amt: travelAmt },
-          { label: "생활지출", color: "#374151", amt: spendingAmt },
           { label: "특별지출", color: "#F59E0B", amt: luxuryAmt  },
+          { label: "생활지출", color: "#374151", amt: spendingAmt },
         ])}
       </div>
 
@@ -353,21 +353,31 @@ function FinanceDayModal({
   const setField = (key: string, val: string) =>
     setDraft((prev) => ({ ...prev, [key]: val }));
 
-  const renderField = (cat: CategoryDef, spanFull = false) => (
-    <div key={cat.key} className="fin-modal-field" style={spanFull ? { gridColumn: "span 2" } : undefined}>
-      <label className="fin-modal-label">
-        <span className="fin-modal-dot" style={{ background: cat.color }} />
-        {cat.label}
-      </label>
-      <input
-        type="text"
-        className="fin-modal-input"
-        placeholder="0"
-        value={draft[cat.key] ?? ""}
-        onChange={(e) => setField(cat.key, e.target.value)}
-      />
-    </div>
-  );
+  const renderField = (cat: CategoryDef, spanFull = false) => {
+    const rawVal = draft[cat.key] ?? "";
+    const displayVal = rawVal !== "" ? Number(rawVal).toLocaleString("ko-KR") : "";
+    return (
+      <div key={cat.key} className="fin-modal-field" style={spanFull ? { gridColumn: "span 2" } : undefined}>
+        <label className="fin-modal-label">
+          <span className="fin-modal-dot" style={{ background: cat.color }} />
+          {cat.label}
+        </label>
+        <input
+          type="text"
+          inputMode="numeric"
+          className="fin-modal-input"
+          placeholder="0"
+          value={displayVal}
+          onChange={(e) => {
+            const raw = e.target.value.replace(/,/g, "");
+            if (raw === "" || /^\d+$/.test(raw)) {
+              setField(cat.key, raw);
+            }
+          }}
+        />
+      </div>
+    );
+  };
 
   return (
     <div
