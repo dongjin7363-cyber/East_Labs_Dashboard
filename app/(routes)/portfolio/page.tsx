@@ -1890,11 +1890,23 @@ export default function PortfolioPage() {
                       <td>
                         <Money currency={holding.currency} amountInt={computed.marketValue} />
                       </td>
-                      <td className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}>
+                      <td
+                        className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}
+                        style={{
+                          color: computed.pnl > 0 ? "#16a34a" : computed.pnl < 0 ? "#dc2626" : "#6b7280",
+                          fontWeight: computed.pnl !== 0 ? 600 : undefined,
+                        }}
+                      >
                         <Money currency={holding.currency} amountInt={computed.pnl} signed />
                       </td>
-                      <td className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}>
-                        {percentFormat(computed.pnlRate)}
+                      <td
+                        className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}
+                        style={{
+                          color: computed.pnlRate > 0 ? "#16a34a" : computed.pnlRate < 0 ? "#dc2626" : "#6b7280",
+                          fontWeight: computed.pnlRate !== 0 ? 600 : undefined,
+                        }}
+                      >
+                        {computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)}
                       </td>
                       <td className="pf-muted">{weightPct.toFixed(2)}%</td>
                     </tr>

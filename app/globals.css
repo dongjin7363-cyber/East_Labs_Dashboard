@@ -5986,7 +5986,9 @@ body {
   padding: 6px 9px !important;
   height: 32px;
   box-sizing: border-box;
-  width: 148px !important;
+  width: 130px !important;
+  min-width: 0;
+  max-width: 130px;
   outline: none;
 }
 
@@ -6200,7 +6202,7 @@ body {
   padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
 .pf-chart-toolbar {
@@ -6272,13 +6274,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  min-width: 0;
-  max-width: 80px;
-  flex-shrink: 1;
+  max-width: 120px;
+  flex-shrink: 0;
 }
 
 .pf-lval {
-  font-size: 11px;
+  font-size: 12px;
   font-family: var(--east-mono);
   color: var(--east-text-2);
   white-space: nowrap;
@@ -6288,9 +6289,9 @@ body {
 .pf-lpct {
   font-size: 11px;
   font-family: var(--east-mono);
-  color: var(--east-text-3);
+  color: #6b7280;
   white-space: nowrap;
-  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .pf-empty-chart {
