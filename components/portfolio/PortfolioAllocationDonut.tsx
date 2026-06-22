@@ -320,13 +320,33 @@ export function PortfolioAllocationDonut({
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number, _name, payload) => {
-                        const amount = Number(value);
-                        const ratio = total > 0 ? `${((amount / total) * 100).toFixed(2)}%` : "0.00%";
-                        return [
-                          `${moneyFormat("KRW", amount)} (${ratio})`,
-                          payload?.payload?.label ?? "비중",
-                        ];
+                      content={({ active, payload: tp }) => {
+                        if (!active || !tp || tp.length === 0) return null;
+                        const item = tp[0];
+                        const amount = Number(item?.value ?? 0);
+                        const label = (item?.payload as SliceRow | undefined)?.label ?? "";
+                        const color = (item?.payload as SliceRow | undefined)?.color ?? "#999";
+                        const ratio = total > 0 ? `${((amount / total) * 100).toFixed(1)}%` : "0.0%";
+                        return (
+                          <div style={{
+                            background: "#fff",
+                            border: "1px solid rgba(0,0,0,0.08)",
+                            borderRadius: 8,
+                            boxShadow: "0 4px 14px rgba(15,23,42,0.10)",
+                            padding: "8px 12px",
+                            minWidth: 140,
+                            pointerEvents: "none",
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>{label}</span>
+                            </div>
+                            <div style={{ fontSize: 12, color: "#111827", fontFamily: "JetBrains Mono, monospace", marginBottom: 2 }}>
+                              {moneyFormat("KRW", amount)}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#6b7280" }}>{ratio}</div>
+                          </div>
+                        );
                       }}
                     />
                   </PieChart>

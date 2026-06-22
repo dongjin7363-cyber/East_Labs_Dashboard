@@ -404,12 +404,18 @@ function FinanceDayModal({
 
 // ── EarningsBarChart (Wage + Stock stacked) ───────────────────────────────────
 function EarningsBarChart({ months }: { months: SalaryMonthRow[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
   const W = 280;
   const chartH = 80;
   const barW = 16;
   const slotW = 20;
 
   const maxVal = Math.max(...months.map((m) => m.earnings), 1);
+
+  const hoveredRow = hovered !== null ? months[hovered] : null;
+  const tooltipLeft = hovered !== null
+    ? `${((22 + hovered * slotW + barW / 2) / W) * 100}%`
+    : "0%";
 
   return (
     <div className="fin-chart-panel">
@@ -433,9 +439,12 @@ function EarningsBarChart({ months }: { months: SalaryMonthRow[] }) {
           const wageY   = chartH - wageH;
           const stockY  = wageY - stockH;
           return (
-            <g key={row.month}>
+            <g key={row.month}
+               onMouseEnter={() => setHovered(i)}
+               onMouseLeave={() => setHovered(null)}>
               {row.presence.income && <rect x={x} y={wageY}  width={barW} height={wageH}  fill="#1E3A8A" rx={2} />}
               {row.presence.stock  && <rect x={x} y={stockY} width={barW} height={stockH} fill="#F59E0B" rx={2} />}
+              <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
               <text x={x + barW / 2} y={chartH + 10} fontSize={8} fill="#9CA3AF" fontFamily="monospace" textAnchor="middle">
                 {row.month}월
               </text>
@@ -443,12 +452,33 @@ function EarningsBarChart({ months }: { months: SalaryMonthRow[] }) {
           );
         })}
       </svg>
+      {hoveredRow !== null && (
+        <div className="fin-chart-tooltip" style={{ left: tooltipLeft }}>
+          <div className="fin-chart-tooltip-month">{hoveredRow.month}월</div>
+          <div className="fin-chart-tooltip-row">
+            <span className="fin-chart-tooltip-dot" style={{ background: "#1E3A8A" }} />
+            <span>급여</span>
+            <span>{fmtCompact(hoveredRow.income)}</span>
+          </div>
+          <div className="fin-chart-tooltip-row">
+            <span className="fin-chart-tooltip-dot" style={{ background: "#F59E0B" }} />
+            <span>주식</span>
+            <span>{fmtCompact(hoveredRow.stock)}</span>
+          </div>
+          <div className="fin-chart-tooltip-divider" />
+          <div className="fin-chart-tooltip-row fin-chart-tooltip-total">
+            <span>합계</span>
+            <span>{fmtCompact(hoveredRow.earnings)}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── IncomeVsSpendChart ────────────────────────────────────────────────────────
 function IncomeVsSpendChart({ months }: { months: SalaryMonthRow[] }) {
+  const [hovered, setHovered] = useState<number | null>(null);
   const W = 280;
   const chartH = 80;
   const barW = 7;
@@ -456,6 +486,11 @@ function IncomeVsSpendChart({ months }: { months: SalaryMonthRow[] }) {
   const slotW = barW * 2 + innerGap + 5; // 20
 
   const maxVal = Math.max(...months.flatMap((m) => [m.earnings, m.spending]), 1);
+
+  const hoveredRow = hovered !== null ? months[hovered] : null;
+  const tooltipLeft = hovered !== null
+    ? `${((22.5 + hovered * slotW + barW + innerGap / 2) / W) * 100}%`
+    : "0%";
 
   return (
     <div className="fin-chart-panel">
@@ -479,9 +514,12 @@ function IncomeVsSpendChart({ months }: { months: SalaryMonthRow[] }) {
           const incX  = x;
           const expX  = x + barW + innerGap;
           return (
-            <g key={row.month}>
+            <g key={row.month}
+               onMouseEnter={() => setHovered(i)}
+               onMouseLeave={() => setHovered(null)}>
               {row.presence.earnings  && <rect x={incX} y={chartH - incH} width={barW} height={incH} fill="#1D9E75" rx={2} />}
               {row.presence.spending  && <rect x={expX} y={chartH - expH} width={barW} height={expH} fill="#D94848" rx={2} />}
+              <rect x={x} y={0} width={barW * 2 + innerGap} height={chartH} fill="transparent" />
               <text x={x + barW} y={chartH + 10} fontSize={8} fill="#9CA3AF" fontFamily="monospace" textAnchor="middle">
                 {row.month}월
               </text>
@@ -489,6 +527,28 @@ function IncomeVsSpendChart({ months }: { months: SalaryMonthRow[] }) {
           );
         })}
       </svg>
+      {hoveredRow !== null && (
+        <div className="fin-chart-tooltip" style={{ left: tooltipLeft }}>
+          <div className="fin-chart-tooltip-month">{hoveredRow.month}월</div>
+          <div className="fin-chart-tooltip-row">
+            <span className="fin-chart-tooltip-dot" style={{ background: "#1D9E75" }} />
+            <span>수입</span>
+            <span>{fmtCompact(hoveredRow.earnings)}</span>
+          </div>
+          <div className="fin-chart-tooltip-row">
+            <span className="fin-chart-tooltip-dot" style={{ background: "#D94848" }} />
+            <span>지출</span>
+            <span>{fmtCompact(hoveredRow.spending)}</span>
+          </div>
+          <div className="fin-chart-tooltip-divider" />
+          <div className="fin-chart-tooltip-row fin-chart-tooltip-total">
+            <span>순수익</span>
+            <span style={{ color: hoveredRow.earnings - hoveredRow.spending >= 0 ? "#059669" : "#dc2626" }}>
+              {fmtCompact(hoveredRow.earnings - hoveredRow.spending)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

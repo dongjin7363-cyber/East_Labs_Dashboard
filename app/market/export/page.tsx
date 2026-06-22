@@ -146,7 +146,7 @@ export default function MarketExportPage() {
   }, [itemsLoading, sectorItems, selectedItemId]);
 
   return (
-    <section className="export-page">
+    <div className="market-page export-page">
       <PageHeader title="수출입 데이터" />
 
       <div className="panel export-sector-tabs">
@@ -277,6 +277,6 @@ export default function MarketExportPage() {
           항목을 선택하면 차트가 표시됩니다
         </div>
       )}
-    </section>
+    </div>
   );
 }

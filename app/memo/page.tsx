@@ -277,7 +277,7 @@ export default function MemoPage() {
   };
 
   return (
-    <>
+    <div className="memo-page">
       <section className="memo-page-header">
         <h1>Investment Journal</h1>
         <div className="filter-row memo-header-row memo-page-actions">
@@ -393,6 +393,6 @@ export default function MemoPage() {
           </div>
         ) : null}
       </Modal>
-    </>
+    </div>
   );
 }
