@@ -221,7 +221,7 @@ export function Sidebar() {
   return (
     <aside className="east-sidebar">
       <div className="east-logo-wrap">
-        <Link href="/portfolio" className="east-logo" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '0.05em', color: '#111827' }}>
+        <Link href="/portfolio" className="east-logo" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '0.05em' }}>
           EAST
         </Link>
         <p className="east-logo-sub" style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>리서치 대시보드</p>
