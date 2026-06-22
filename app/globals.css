@@ -5967,6 +5967,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 0 0 auto;
 }
 
 .pf-ig label {
@@ -5985,7 +5986,7 @@ body {
   padding: 6px 9px !important;
   height: 32px;
   box-sizing: border-box;
-  width: 138px;
+  width: 148px !important;
   outline: none;
 }
 
@@ -6252,10 +6253,9 @@ body {
 }
 
 .pf-legend-row {
-  display: grid;
-  grid-template-columns: 7px minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 1px 0;
 }
 
@@ -6272,26 +6272,25 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding-right: 2px;
+  min-width: 0;
+  max-width: 80px;
+  flex-shrink: 1;
 }
 
 .pf-lval {
   font-size: 11px;
   font-family: var(--east-mono);
   color: var(--east-text-2);
-  text-align: right;
   white-space: nowrap;
-  padding-left: 4px;
+  flex-shrink: 0;
 }
 
 .pf-lpct {
   font-size: 11px;
   font-family: var(--east-mono);
   color: var(--east-text-3);
-  text-align: right;
   white-space: nowrap;
-  padding-left: 4px;
-  min-width: 40px;
+  flex-shrink: 0;
 }
 
 .pf-empty-chart {
@@ -6506,7 +6505,7 @@ body {
 }
 
 .pf-pnl-pos {
-  color: var(--east-pos);
+  color: #16a34a;
   font-weight: 600;
 }
 

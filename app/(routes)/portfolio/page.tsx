@@ -552,6 +552,11 @@ export default function PortfolioPage() {
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  const [marketIndexes, setMarketIndexes] = useState<{
+    kospi: { price: number; changePercent: number } | null;
+    kosdaq: { price: number; changePercent: number } | null;
+    sp500: { price: number; changePercent: number } | null;
+  }>({ kospi: null, kosdaq: null, sp500: null });
   const quoteRefreshInFlightRef = useRef(false);
   const depositUsdInputFocusedRef = useRef(false);
   const isAuthed = isCloudMode;
@@ -584,6 +589,21 @@ export default function PortfolioPage() {
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
     return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const fetchIndexes = async () => {
+      try {
+        const res = await fetch("/api/market-index");
+        if (!res.ok) return;
+        const data = (await res.json()) as typeof marketIndexes;
+        setMarketIndexes(data);
+      } catch {}
+    };
+    void fetchIndexes();
+    const id = window.setInterval(fetchIndexes, 30_000);
+    return () => window.clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -1890,18 +1910,42 @@ export default function PortfolioPage() {
       <div className="pf-ticker">
         <div className="pf-tick-item">
           <span className="pf-tick-label">KOSPI</span>
-          <span className="pf-tick-val">—</span>
-          <span className="pf-badge is-flat">—</span>
+          <span className="pf-tick-val">
+            {marketIndexes.kospi
+              ? marketIndexes.kospi.price.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+              : "—"}
+          </span>
+          <span className={`pf-badge ${marketIndexes.kospi == null ? "is-flat" : marketIndexes.kospi.changePercent > 0 ? "is-up" : marketIndexes.kospi.changePercent < 0 ? "is-down" : "is-flat"}`}>
+            {marketIndexes.kospi
+              ? `${marketIndexes.kospi.changePercent > 0 ? "+" : ""}${marketIndexes.kospi.changePercent.toFixed(2)}%`
+              : "—"}
+          </span>
         </div>
         <div className="pf-tick-item">
           <span className="pf-tick-label">KOSDAQ</span>
-          <span className="pf-tick-val">—</span>
-          <span className="pf-badge is-flat">—</span>
+          <span className="pf-tick-val">
+            {marketIndexes.kosdaq
+              ? marketIndexes.kosdaq.price.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+              : "—"}
+          </span>
+          <span className={`pf-badge ${marketIndexes.kosdaq == null ? "is-flat" : marketIndexes.kosdaq.changePercent > 0 ? "is-up" : marketIndexes.kosdaq.changePercent < 0 ? "is-down" : "is-flat"}`}>
+            {marketIndexes.kosdaq
+              ? `${marketIndexes.kosdaq.changePercent > 0 ? "+" : ""}${marketIndexes.kosdaq.changePercent.toFixed(2)}%`
+              : "—"}
+          </span>
         </div>
         <div className="pf-tick-item">
           <span className="pf-tick-label">S&amp;P 500</span>
-          <span className="pf-tick-val">—</span>
-          <span className="pf-badge is-flat">—</span>
+          <span className="pf-tick-val">
+            {marketIndexes.sp500
+              ? marketIndexes.sp500.price.toLocaleString("en-US", { maximumFractionDigits: 2 })
+              : "—"}
+          </span>
+          <span className={`pf-badge ${marketIndexes.sp500 == null ? "is-flat" : marketIndexes.sp500.changePercent > 0 ? "is-up" : marketIndexes.sp500.changePercent < 0 ? "is-down" : "is-flat"}`}>
+            {marketIndexes.sp500
+              ? `${marketIndexes.sp500.changePercent > 0 ? "+" : ""}${marketIndexes.sp500.changePercent.toFixed(2)}%`
+              : "—"}
+          </span>
         </div>
         <div className="pf-tick-item">
           <span className="pf-tick-label">USD/KRW</span>
