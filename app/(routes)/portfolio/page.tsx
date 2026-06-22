@@ -1563,6 +1563,7 @@ export default function PortfolioPage() {
             value={depositKrwInput}
             onValueChange={handleDepositKrwInputChange}
             disabled={!isAuthed}
+            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
           />
         </div>
         <div className="pf-ig">
@@ -1581,6 +1582,7 @@ export default function PortfolioPage() {
             allowDecimal
             maxDecimals={2}
             disabled={!isAuthed}
+            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
           />
         </div>
         <div className="pf-ig">
@@ -1591,6 +1593,7 @@ export default function PortfolioPage() {
             value={cashInput}
             onValueChange={handleCashInputChange}
             disabled={!isAuthed}
+            style={{ width: '110px', minWidth: 0, maxWidth: '110px' }}
           />
         </div>
         <div className="pf-rate-info">
@@ -1709,8 +1712,14 @@ export default function PortfolioPage() {
           </div>
 
           {/* Right: Donut chart */}
-          <div className="pf-chart-card">
-            <div className="pf-donut-outer">
+          <div
+            className="pf-chart-card"
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '24px', padding: '16px 20px' }}
+          >
+            <div
+              className="pf-donut-outer"
+              style={{ width: '180px', height: '180px', flexShrink: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+            >
               <DonutChart slices={donutSlices} total={donutTotal} />
               <div className="pf-donut-center">
                 <div className="pf-donut-center-val"><CompactKrw amount={totalAssetKrw} /></div>
@@ -1720,19 +1729,42 @@ export default function PortfolioPage() {
             {donutSlices.length === 0 ? (
               <div className="pf-empty-chart">데이터가 없습니다.</div>
             ) : (
-              <div className="pf-legend">
+              <div
+                className="pf-legend"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '6px 12px',
+                  alignContent: 'center',
+                  flex: 1,
+                }}
+              >
                 {donutSlices.map((slice) => (
-                  <div className="pf-legend-row" key={slice.key}>
-                    <div className="pf-ldot" style={{ background: slice.color }} />
-                    <span className="pf-lname">{slice.label}</span>
-                    <span className="pf-lval">
-                      <Money currency="KRW" amountInt={slice.amountKrw} />
-                    </span>
-                    <span className="pf-lpct">
-                      {donutTotal > 0
-                        ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
-                        : "0.00%"}
-                    </span>
+                  <div
+                    key={slice.key}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      padding: '5px 8px',
+                      background: '#f8fafc',
+                      borderRadius: '6px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div className="pf-ldot" style={{ background: slice.color }} />
+                      <span className="pf-lname">{slice.label}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#6b7280' }}>
+                      <span className="pf-lval">
+                        <Money currency="KRW" amountInt={slice.amountKrw} />
+                      </span>
+                      <span>
+                        {donutTotal > 0
+                          ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
+                          : "0.00%"}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
