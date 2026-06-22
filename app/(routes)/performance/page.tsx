@@ -517,6 +517,8 @@ export default function PerformancePage() {
   const [navSelectedDate, setNavSelectedDate] = useState(SSR_SAFE_DATE);
   const [navCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [isRecording, setIsRecording] = useState(false);
+  const [sortCol, setSortCol] = useState<'returnPct' | 'pnlInt' | null>(null);
+  const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const benchmarkRequestSeqRef = useRef(0);
 
   useEffect(() => {
@@ -667,6 +669,23 @@ export default function PerformancePage() {
       }),
     [tableTrades],
   );
+
+  const handleSort = (col: 'returnPct' | 'pnlInt') => {
+    if (sortCol === col) {
+      setSortDir(prev => prev === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSortCol(col);
+      setSortDir('desc');
+    }
+  };
+
+  const sortedTrades = useMemo(() => {
+    if (!sortCol) return sortedTableTrades;
+    return [...sortedTableTrades].sort((a, b) => {
+      const diff = Number(a[sortCol]) - Number(b[sortCol]);
+      return sortDir === 'desc' ? -diff : diff;
+    });
+  }, [sortedTableTrades, sortCol, sortDir]);
 
   const summary = useMemo(
     () => summarizeRealizedTrades(monthFilteredTrades, { fxRate, includeUsd: true }),
@@ -1137,15 +1156,25 @@ export default function PerformancePage() {
             <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>
               <span>마켓</span>
               <span>종목</span>
-              <span style={{ textAlign: 'right' }}>PnL%</span>
-              <span style={{ textAlign: 'right' }}>PnL</span>
+              <span onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+                PnL%
+                <span style={{ fontSize: '10px', color: sortCol === 'returnPct' ? '#1D4ED8' : '#9ca3af' }}>
+                  {sortCol === 'returnPct' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
+                </span>
+              </span>
+              <span onClick={() => handleSort('pnlInt')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+                PnL
+                <span style={{ fontSize: '10px', color: sortCol === 'pnlInt' ? '#1D4ED8' : '#9ca3af' }}>
+                  {sortCol === 'pnlInt' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
+                </span>
+              </span>
             </div>
             {tradesLoading ? (
               <div className="perf-empty-row">로딩 중...</div>
-            ) : sortedTableTrades.length === 0 ? (
+            ) : sortedTrades.length === 0 ? (
               <div className="perf-empty-row">거래 내역이 없습니다.</div>
             ) : (
-              sortedTableTrades.map((trade) => {
+              sortedTrades.map((trade) => {
                 const currency = resolveTradeCurrency(trade.market);
                 return (
                   <div
@@ -1167,9 +1196,9 @@ export default function PerformancePage() {
                     </span>
                     <span style={{ fontSize: '12px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
                       {currency === 'KRW' ? (
-                        <><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
+                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
                       ) : (
-                        <><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</>
+                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</>
                       )}
                     </span>
                   </div>
