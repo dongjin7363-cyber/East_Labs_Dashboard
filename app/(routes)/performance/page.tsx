@@ -1133,14 +1133,14 @@ export default function PerformancePage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="perf-tbl-scroll">
-            <table className="perf-table">
+          <div className="perf-tbl-scroll" style={{ overflowX: 'hidden' }}>
+            <table className="perf-table" style={{ tableLayout: 'fixed', width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign: "left", width: "13%" }}>날짜</th>
-                  <th style={{ textAlign: "left", width: "37%" }}>종목</th>
-                  <th style={{ width: "17%" }}>수익률</th>
-                  <th style={{ width: "33%" }}>PnL</th>
+                  <th style={{ textAlign: 'left', width: '48px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>마켓</th>
+                  <th style={{ textAlign: 'left', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>종목</th>
+                  <th style={{ textAlign: 'right', width: '64px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL%</th>
+                  <th style={{ textAlign: 'right', width: '90px', fontSize: '11px', color: '#6b7280', fontWeight: 500, padding: '6px 8px' }}>PnL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1165,33 +1165,34 @@ export default function PerformancePage() {
                         className="perf-row-click"
                         onClick={() => setSelected(trade)}
                       >
-                        <td>{trade.date.slice(5)}</td>
-                        <td className="perf-td-ticker">
+                        <td style={{ fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', width: '48px' }}>
                           <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
                             {trade.market}
                           </span>
-                          {" "}{trade.ticker}
                         </td>
-                        <td
-                          className={
-                            trade.returnPct > 0
-                              ? "perf-ret-pos"
-                              : trade.returnPct < 0
-                                ? "perf-ret-neg"
-                                : ""
-                          }
-                        >
-                          {percentFormat(trade.returnPct)}
+                        <td style={{ fontSize: '12px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {trade.ticker}
                         </td>
-                        <td
-                          className={
-                            trade.pnlInt > 0
-                              ? "perf-pnl-pos"
-                              : trade.pnlInt < 0
-                                ? "perf-pnl-neg"
-                                : ""
-                          }
-                        >
+                        <td style={{
+                          fontSize: '12px',
+                          padding: '6px 8px',
+                          borderBottom: '1px solid #f3f4f6',
+                          width: '64px',
+                          textAlign: 'right',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280',
+                        }}>
+                          {trade.returnPct > 0 ? '+' : ''}{percentFormat(trade.returnPct)}
+                        </td>
+                        <td style={{
+                          fontSize: '12px',
+                          padding: '6px 8px',
+                          borderBottom: '1px solid #f3f4f6',
+                          width: '90px',
+                          textAlign: 'right',
+                          fontFamily: 'JetBrains Mono, monospace',
+                          color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280',
+                        }}>
                           <MoneyText currency={currency} amountInt={trade.pnlInt} signed />
                         </td>
                       </tr>
