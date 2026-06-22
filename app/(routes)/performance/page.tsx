@@ -1133,72 +1133,49 @@ export default function PerformancePage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="perf-tbl-scroll">
-            <table className="perf-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '10%', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>마켓</th>
-                  <th style={{ width: '42%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>종목</th>
-                  <th style={{ width: '20%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL%</th>
-                  <th style={{ width: '28%', textAlign: 'left', padding: '6px 8px', fontSize: '11px', color: '#6b7280' }}>PnL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tradesLoading ? (
-                  <tr>
-                    <td colSpan={4} className="perf-empty-row">
-                      로딩 중...
-                    </td>
-                  </tr>
-                ) : sortedTableTrades.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="perf-empty-row">
-                      거래 내역이 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  sortedTableTrades.map((trade) => {
-                    const currency = resolveTradeCurrency(trade.market);
-                    return (
-                      <tr
-                        key={trade.id}
-                        className="perf-row-click"
-                        onClick={() => setSelected(trade)}
-                      >
-                        <td style={{ width: '10%', padding: '6px 8px', verticalAlign: 'middle' }}>
-                          <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
-                            {trade.market}
-                          </span>
-                        </td>
-                        <td style={{ width: '42%', padding: '6px 4px', fontSize: '12px', color: '#111827', textAlign: 'left' }}>
-                          {trade.ticker}
-                        </td>
-                        <td style={{
-                          width: '20%',
-                          padding: '6px 8px',
-                          textAlign: 'left',
-                          fontSize: '12px',
-                          color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280',
-                        }}>
-                          {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
-                        </td>
-                        <td style={{
-                          width: '28%',
-                          padding: '6px 8px',
-                          textAlign: 'left',
-                          fontSize: '12px',
-                          color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280',
-                        }}>
-                          {currency === 'KRW'
-                            ? <span><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</span>
-                            : <span><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</span>}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div className="perf-tbl-scroll" style={{ overflowX: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>
+              <span>마켓</span>
+              <span>종목</span>
+              <span style={{ textAlign: 'right' }}>PnL%</span>
+              <span style={{ textAlign: 'right' }}>PnL</span>
+            </div>
+            {tradesLoading ? (
+              <div className="perf-empty-row">로딩 중...</div>
+            ) : sortedTableTrades.length === 0 ? (
+              <div className="perf-empty-row">거래 내역이 없습니다.</div>
+            ) : (
+              sortedTableTrades.map((trade) => {
+                const currency = resolveTradeCurrency(trade.market);
+                return (
+                  <div
+                    key={trade.id}
+                    className="perf-row-click"
+                    onClick={() => setSelected(trade)}
+                    style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
+                  >
+                    <span>
+                      <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
+                        {trade.market}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: '12px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {trade.ticker}
+                    </span>
+                    <span style={{ fontSize: '12px', textAlign: 'right', color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280' }}>
+                      {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: '12px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
+                      {currency === 'KRW' ? (
+                        <><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
+                      ) : (
+                        <><span style={{ fontSize: '0.5em', opacity: 0.45 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</>
+                      )}
+                    </span>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
