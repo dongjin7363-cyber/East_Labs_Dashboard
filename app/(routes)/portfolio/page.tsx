@@ -1506,29 +1506,17 @@ export default function PortfolioPage() {
         <h1 className="pf-page-title">Portfolio</h1>
         <span className="pf-hd">|</span>
         <span className="pf-header-stat">
-          총 자산(KRW){" "}
+          총 자산{" "}
           <strong>
             <Money currency="KRW" amountInt={totalAssetKrw} />
           </strong>
         </span>
         <span className="pf-hd">|</span>
         <span className="pf-header-stat">
-          총 PNL%{" "}
-          <strong
-            className={
-              totalPnlPct === null
-                ? ""
-                : pnlToneClass(totalPnlPct, "is-pos", "is-neg")
-            }
-          >
-            {totalPnlPct === null ? "—" : percentFormat(totalPnlPct)}
-          </strong>
-        </span>
-        <span className="pf-hd">|</span>
-        <span className="pf-header-stat">
-          총 계좌 손익(KRW){" "}
+          총 계좌 손익{" "}
           <strong className={pnlToneClass(accountPnlKrw, "is-pos", "is-neg")}>
             <Money currency="KRW" amountInt={accountPnlKrw} />
+            {totalPnlPct !== null && <>{" "}({percentFormat(totalPnlPct)})</>}
           </strong>
         </span>
         <div className="pf-header-actions">
