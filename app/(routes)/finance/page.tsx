@@ -448,27 +448,30 @@ function FinanceDayModal({
           <span className="fin-modal-dot" style={{ background: cat.color }} />
           {cat.label}
         </label>
-        <input
-          type="text"
-          inputMode="numeric"
-          className="fin-modal-input"
-          placeholder="0"
-          value={displayVal}
-          onChange={(e) => {
-            const raw = e.target.value.replace(/,/g, "");
-            if (raw === "" || /^\d+$/.test(raw)) {
-              setField(cat.key, raw);
-            }
-          }}
-        />
-        <label style={{ fontSize: "0.7rem", color: "#9CA3AF", marginTop: 5, display: "block" }}>메모 (선택)</label>
-        <input
-          type="text"
-          className="fin-modal-input"
-          placeholder="예) 넷플릭스, 마트, 카드론..."
-          value={draft[`memo_${cat.key}`] ?? ""}
-          onChange={(e) => setField(`memo_${cat.key}`, e.target.value)}
-        />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input
+            type="text"
+            className="fin-modal-input"
+            placeholder="예) 넷플릭스, 마트, 카드론..."
+            value={draft[`memo_${cat.key}`] ?? ""}
+            onChange={(e) => setField(`memo_${cat.key}`, e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <input
+            type="text"
+            inputMode="numeric"
+            className="fin-modal-input"
+            placeholder="0"
+            value={displayVal}
+            onChange={(e) => {
+              const raw = e.target.value.replace(/,/g, "");
+              if (raw === "" || /^\d+$/.test(raw)) {
+                setField(cat.key, raw);
+              }
+            }}
+            style={{ width: 120, textAlign: "right", flexShrink: 0 }}
+          />
+        </div>
       </div>
     );
   };
