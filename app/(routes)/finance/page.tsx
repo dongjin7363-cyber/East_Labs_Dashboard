@@ -455,7 +455,7 @@ function FinanceDayModal({
             placeholder="예) 넷플릭스, 마트, 카드론..."
             value={draft[`memo_${cat.key}`] ?? ""}
             onChange={(e) => setField(`memo_${cat.key}`, e.target.value)}
-            style={{ flex: 1 }}
+            style={{ flex: "0 0 60%" }}
           />
           <input
             type="text"
@@ -469,7 +469,7 @@ function FinanceDayModal({
                 setField(cat.key, raw);
               }
             }}
-            style={{ width: 120, textAlign: "right", flexShrink: 0 }}
+            style={{ flex: "0 0 calc(40% - 8px)", textAlign: "right" }}
           />
         </div>
       </div>
