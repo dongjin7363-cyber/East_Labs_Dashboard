@@ -191,6 +191,7 @@ interface CategoryAnalysisPanelProps {
   bucketTotals: { INCOME: number; SUBSCRIPTION: number; PLUS: number; SPENDING: number };
   subcategoryTotals: Record<string, number>;
   loading: boolean;
+  entries: ExpenseEntry[];
 }
 
 function CategoryAnalysisPanel({
@@ -198,12 +199,23 @@ function CategoryAnalysisPanel({
   bucketTotals,
   subcategoryTotals,
   loading,
+  entries,
 }: CategoryAnalysisPanelProps) {
-  const rentAmt        = subcategoryTotals.Rent         ?? 0;
-  const debtAmt        = subcategoryTotals.Debt         ?? 0;
+  const [selectedCatKey, setSelectedCatKey] = useState<string | null>(null);
+  const [hoveredCat, setHoveredCat] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCatKey) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setSelectedCatKey(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedCatKey]);
+
+  const rentAmt         = subcategoryTotals.Rent         ?? 0;
+  const debtAmt         = subcategoryTotals.Debt         ?? 0;
   const subscriptionAmt = subcategoryTotals.Subscription ?? 0;
-  const travelAmt       = subcategoryTotals.Travel  ?? 0;
-  const luxuryAmt       = subcategoryTotals.Luxury  ?? 0;
+  const travelAmt       = subcategoryTotals.Travel       ?? 0;
+  const luxuryAmt       = subcategoryTotals.Luxury       ?? 0;
   const spendingAmt     = bucketTotals.SPENDING;
 
   const fixedTotal    = rentAmt + debtAmt + subscriptionAmt;
@@ -214,7 +226,7 @@ function CategoryAnalysisPanel({
   const renderCatGroup = (
     groupLabel: string,
     total: number,
-    cats: Array<{ label: string; color: string; amt: number }>,
+    cats: Array<{ label: string; color: string; amt: number; catKey: string }>,
   ) => (
     <div className="fin-cat-group">
       <div className="fin-cat-group-head">
@@ -222,10 +234,22 @@ function CategoryAnalysisPanel({
         <span className="fin-cat-group-amt">{loading ? "—" : <MoneyDisplay amountInt={total} />}</span>
       </div>
       <div className="fin-cat-list">
-        {cats.map(({ label, color, amt }) => {
+        {cats.map(({ label, color, amt, catKey }) => {
           const pct = grandTotal > 0 ? (amt / grandTotal) * 100 : 0;
           return (
-            <div key={label} className="fin-cat-item">
+            <div
+              key={label}
+              className="fin-cat-item"
+              style={{
+                cursor: "pointer",
+                background: hoveredCat === catKey ? "rgba(29,78,216,0.04)" : "transparent",
+                borderRadius: 6,
+                transition: "background 0.12s",
+              }}
+              onClick={() => setSelectedCatKey(catKey)}
+              onMouseEnter={() => setHoveredCat(catKey)}
+              onMouseLeave={() => setHoveredCat(null)}
+            >
               <div className="fin-cat-header">
                 <div className="fin-cat-name-wrap">
                   <div className="fin-cat-dot" style={{ background: color }} />
@@ -244,6 +268,12 @@ function CategoryAnalysisPanel({
     </div>
   );
 
+  const selectedCat = selectedCatKey ? (CATEGORIES.find((c) => c.key === selectedCatKey) ?? null) : null;
+  const popupEntries = selectedCat
+    ? [...entries].filter((e) => matchesCat(e, selectedCat)).sort((a, b) => a.date.localeCompare(b.date))
+    : [];
+  const popupTotal = popupEntries.reduce((s, e) => s + e.amountInt, 0);
+
   return (
     <div className="fin-panel">
       <p className="fin-panel-title">
@@ -251,16 +281,16 @@ function CategoryAnalysisPanel({
       </p>
 
       {renderCatGroup("고정비", fixedTotal, [
-        { label: "임대료", color: "#3B82F6", amt: rentAmt },
-        { label: "부채",   color: "#D94848", amt: debtAmt },
-        { label: "구독",   color: "#2563EB", amt: subscriptionAmt },
+        { label: "임대료", color: "#3B82F6", amt: rentAmt,         catKey: "rent"         },
+        { label: "부채",   color: "#D94848", amt: debtAmt,         catKey: "debt"         },
+        { label: "구독",   color: "#2563EB", amt: subscriptionAmt, catKey: "subscription" },
       ])}
 
       <div style={{ marginTop: 16 }}>
         {renderCatGroup("변동비", variableTotal, [
-          { label: "여행/여가", color: "#22C55E", amt: travelAmt },
-          { label: "특별지출", color: "#F59E0B", amt: luxuryAmt  },
-          { label: "생활지출", color: "#374151", amt: spendingAmt },
+          { label: "여행/여가", color: "#22C55E", amt: travelAmt,   catKey: "travel"   },
+          { label: "특별지출", color: "#F59E0B",  amt: luxuryAmt,   catKey: "luxury"   },
+          { label: "생활지출", color: "#374151",  amt: spendingAmt, catKey: "spending" },
         ])}
       </div>
 
@@ -268,6 +298,60 @@ function CategoryAnalysisPanel({
         <span className="fin-cat-total-label">총 지출</span>
         <span className="fin-cat-total-val">{loading ? "—" : <MoneyDisplay amountInt={grandTotal} />}</span>
       </div>
+
+      {selectedCat && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedCatKey(null); }}
+        >
+          <div style={{ background: "#fff", borderRadius: 12, width: 380, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.15)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: selectedCat.color, flexShrink: 0 }} />
+                <span style={{ fontWeight: 600, fontSize: "0.95rem", color: "#111827" }}>
+                  {selectedCat.label} · {mn}월 내역
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCatKey(null)}
+                style={{ border: "none", background: "none", cursor: "pointer", fontSize: "0.9rem", color: "#9CA3AF", padding: 4, lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {popupEntries.length === 0 ? (
+                <p style={{ textAlign: "center", color: "#9CA3AF", padding: "32px 0", fontSize: "0.875rem" }}>
+                  거래 내역이 없습니다.
+                </p>
+              ) : popupEntries.map((entry) => {
+                const dow = dayOfWeekFromDate(entry.date);
+                const dateLabel = `${parseInt(entry.date.slice(5, 7), 10)}월 ${parseInt(entry.date.slice(8, 10), 10)}일 (${DOWS_KO[dow]})`;
+                const isIncome = entry.bucket === "INCOME";
+                return (
+                  <div
+                    key={entry.id}
+                    style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, padding: "10px 20px", borderBottom: "1px solid #F9FAFB", alignItems: "center" }}
+                  >
+                    <span style={{ fontSize: "0.8rem", color: "#374151" }}>{dateLabel}</span>
+                    <span style={{ fontSize: "0.8rem", color: "#6B7280" }}>{entry.note}</span>
+                    <span style={{ fontSize: "0.8rem", color: isIncome ? "#16a34a" : "#dc2626", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>
+                      {isIncome ? "+" : "-"}{entry.amountInt.toLocaleString("ko-KR")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.85rem", color: "#374151" }}>이번 달 합계</span>
+              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111827", fontFamily: "'JetBrains Mono', monospace" }}>
+                {popupTotal.toLocaleString("ko-KR")}원
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -308,10 +392,10 @@ function FinanceDayModal({
     if (!open || !date) return;
     const next: Record<string, string> = {};
     for (const cat of CATEGORIES) {
-      const total = entries
-        .filter((e) => e.date === date && matchesCat(e, cat))
-        .reduce((s, e) => s + e.amountInt, 0);
+      const matching = entries.filter((e) => e.date === date && matchesCat(e, cat));
+      const total = matching.reduce((s, e) => s + e.amountInt, 0);
       next[cat.key] = total > 0 ? String(total) : "";
+      next[`memo_${cat.key}`] = matching[0]?.note ?? "";
     }
     setDraft(next);
   }, [open, date, entries]);
@@ -323,9 +407,11 @@ function FinanceDayModal({
     }
     for (const cat of CATEGORIES) {
       const newAmt = parseAmtInput(draft[cat.key] ?? "");
+      const newMemo = (draft[`memo_${cat.key}`] ?? "").trim();
       const matching = entries.filter((e) => e.date === date && matchesCat(e, cat));
       const existingTotal = matching.reduce((s, e) => s + e.amountInt, 0);
-      if (newAmt === existingTotal) continue;
+      const existingMemo = matching[0]?.note ?? "";
+      if (newAmt === existingTotal && newMemo === existingMemo) continue;
 
       // Delete all extras beyond the first
       for (const extra of matching.slice(1)) onDelete(extra.id);
@@ -339,10 +425,10 @@ function FinanceDayModal({
           bucket: cat.bucket,
           subcategory: cat.subcategory,
           amountInt: newAmt,
-          note: first.note ?? "",
+          note: newMemo,
         });
       } else {
-        onCreate({ date, bucket: cat.bucket, subcategory: cat.subcategory, amountInt: newAmt, note: "" });
+        onCreate({ date, bucket: cat.bucket, subcategory: cat.subcategory, amountInt: newAmt, note: newMemo });
       }
     }
     onClose();
@@ -374,6 +460,14 @@ function FinanceDayModal({
               setField(cat.key, raw);
             }
           }}
+        />
+        <label style={{ fontSize: "0.7rem", color: "#9CA3AF", marginTop: 5, display: "block" }}>메모 (선택)</label>
+        <input
+          type="text"
+          className="fin-modal-input"
+          placeholder="예) 넷플릭스, 마트, 카드론..."
+          value={draft[`memo_${cat.key}`] ?? ""}
+          onChange={(e) => setField(`memo_${cat.key}`, e.target.value)}
         />
       </div>
     );
@@ -902,6 +996,7 @@ export default function FinancePage() {
           bucketTotals={bucketTotals}
           subcategoryTotals={subcategoryTotals}
           loading={loading}
+          entries={monthEntries}
         />
       </div>
 
