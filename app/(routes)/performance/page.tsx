@@ -1112,7 +1112,7 @@ export default function PerformancePage() {
                 month={selectedMonth}
                 selectedDate={navSelectedDate}
                 today={today}
-                snapshots={monthSnapshots}
+                snapshots={snapshots}
                 calendarMap={navCalendarMap}
                 onSelectDate={setNavSelectedDate}
               />
