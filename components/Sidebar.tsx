@@ -14,7 +14,6 @@ type IconName =
   | "memo"
   | "screening"
   | "export"
-  | "momentum"
   | "membership";
 
 interface NavLink {
@@ -38,7 +37,6 @@ const NAV_ITEMS: NavItem[] = [
   { type: "sep" },
   { type: "link", label: "Market Screening", href: "/market/screening", icon: "screening" },
   { type: "link", label: "수출입 데이터", href: "/market/export", icon: "export" },
-  { type: "link", label: "Momentum", href: "/market/momentum", icon: "momentum" },
   { type: "sep" },
   { type: "link", label: "Membership", href: "/membership", icon: "membership" },
 ];
@@ -99,13 +97,6 @@ function Icon({ name }: { name: IconName }) {
         <svg {...common}>
           <path d="M3 3v18h18" />
           <polyline points="18 9 12 15 9 12 3 18" />
-        </svg>
-      );
-    case "momentum":
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
         </svg>
       );
     case "membership":
