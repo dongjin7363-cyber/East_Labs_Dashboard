@@ -37,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { type: "sep" },
   { type: "link", label: "Market Screening", href: "/market/screening", icon: "screening" },
   { type: "link", label: "수출입 데이터", href: "/market/export", icon: "export" },
+  { type: "link", label: "Super Stock", href: "/market/super-stock", icon: "screening" },
   { type: "sep" },
   { type: "link", label: "Membership", href: "/membership", icon: "membership" },
 ];
