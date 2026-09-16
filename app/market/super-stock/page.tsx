@@ -9,16 +9,12 @@ import {
 } from "react";
 import {
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ReferenceLine,
   LineChart,
   Line,
-  LabelList,
 } from "recharts";
 import { useAuth } from "@/lib/hooks/useAuth";
 import {
@@ -183,13 +179,6 @@ export default function SuperStockPage() {
         .sort((a, b) => a.week_date.localeCompare(b.week_date)) ?? [],
     [data, detail?.ticker],
   );
-  const biggest = [...rows]
-    .filter((r) => r.fourWeek !== null)
-    .sort((a, b) => (b.fourWeek ?? 0) - (a.fourWeek ?? 0))[0];
-  const average = (key: "quality_score" | "delta_score") =>
-    rows.length
-      ? (rows.reduce((s, r) => s + r[key], 0) / rows.length).toFixed(1)
-      : "—";
   return (
     <section className={styles.page}>
       <header className={styles.hero}>
@@ -210,9 +199,6 @@ export default function SuperStockPage() {
         </div>
       </header>
       <div className={styles.formRow}>
-        <label>평가 기록 <select aria-label="평가 기록 종류" value={researchMode ? "research" : "live"} onChange={(e) => {setView(e.target.value);setWeek("");setSelected("");}}>
-          <option value="research">과거 자료 재평가</option><option value="live">자동 주간 평가</option>
-        </select></label>
         <form onSubmit={add}>
           <label htmlFor="ticker">WATCHLIST</label>
           <div>
@@ -229,6 +215,7 @@ export default function SuperStockPage() {
             </button>
           </div>
         </form>
+        <div className={styles.toolbarActions}>
         <button
           className={styles.secondary}
           onClick={() => void refresh()}
@@ -236,6 +223,10 @@ export default function SuperStockPage() {
         >
           {loading ? "불러오는 중…" : "데이터 새로고침"}
         </button>
+        <label>평가 기록 <select aria-label="평가 기록 종류" value={researchMode ? "research" : "live"} onChange={(e) => {setView(e.target.value);setWeek("");setSelected("");}}>
+          <option value="research">과거 자료 재평가</option><option value="live">자동 주간 평가</option>
+        </select></label>
+        </div>
       </div>
       {error && (
         <div className={styles.error} role="alert">
@@ -276,39 +267,6 @@ export default function SuperStockPage() {
         9월 16일에 당시 공개된 실적·선별 공시와 과거 주가로 재구성했습니다. 당시 저장된 평가가 아닙니다.
         미확인 항목은 중립 2.5점이며, 공시 신규성을 뉴스·소셜 심리의 대용 지표로 사용합니다. 자동 평가와는 별도 기록입니다.
       </div>}
-      {researchMode && data?.benchmarks && <BenchmarkData benchmarks={data.benchmarks} week={chosen} />}
-      <div className={styles.kpis}>
-        <Kpi
-          label="WATCHLIST"
-          value={String(active.length)}
-          sub="등록한 관심종목"
-        />
-        <Kpi
-          label="AVG QUALITY"
-          value={average("quality_score")}
-          sub="기업의 현재 경쟁력 / 40"
-        />
-        <Kpi
-          label="AVG DELTA"
-          value={average("delta_score")}
-          sub="변화와 가속의 강도 / 40"
-        />
-        <Kpi
-          label="TOP SUPER STOCK"
-          value={rows[0]?.ticker ?? "—"}
-          sub={
-            rows[0]
-              ? `${rows[0].super_score.toFixed(1)} / 100`
-              : "첫 분석을 기다립니다"
-          }
-        />
-        <Kpi
-          label="BIGGEST 4W Δ"
-          value={biggest ? signed(biggest.fourWeek) : "—"}
-          sub={biggest?.ticker ?? "4주 전 기록이 필요합니다"}
-          accent
-        />
-      </div>
       <div className={styles.mainGrid}>
         <article className={styles.panel}>
           <div className={styles.panelHead}>
@@ -362,7 +320,6 @@ export default function SuperStockPage() {
                     "Super Score",
                     "WoW Δ",
                     "4W Δ",
-                    "Rank Δ",
                     "Classification",
                   ].map((h) => (
                     <th key={h}>{h}</th>
@@ -377,7 +334,9 @@ export default function SuperStockPage() {
                       detail?.ticker === r.ticker ? styles.selected : ""
                     }
                   >
-                    <td>{r.rank.toString().padStart(2, "0")}</td>
+                    <td><span className={styles.rankCell}>{r.rank.toString().padStart(2, "0")}<span className={`${styles.rankChange} ${r.rankChange && r.rankChange > 0 ? styles.rankUp : r.rankChange && r.rankChange < 0 ? styles.rankDown : ""}`} aria-label={r.rankChange === null ? "신규" : `순위 ${r.rankChange > 0 ? "상승" : r.rankChange < 0 ? "하락" : "유지"} ${Math.abs(r.rankChange)}`}>
+                      {r.rankChange === null ? "NEW" : r.rankChange === 0 ? "—" : `${r.rankChange > 0 ? "↑+" : "↓"}${r.rankChange}`}
+                    </span></span></td>
                     <td>
                       <button
                         className={styles.tickerButton}
@@ -396,13 +355,6 @@ export default function SuperStockPage() {
                     </td>
                     <td>
                       <Change value={r.fourWeek} />
-                    </td>
-                    <td>
-                      {r.rankChange === null
-                        ? "NEW"
-                        : r.rankChange === 0
-                          ? "—"
-                          : `${r.rankChange > 0 ? "▲" : "▼"}${Math.abs(r.rankChange)}`}
                     </td>
                     <td>
                       <span className={styles.badge}>{r.classification}</span>
@@ -452,50 +404,7 @@ export default function SuperStockPage() {
               <p>기업의 질과 변화의 속도를 함께 봅니다.</p>
             </div>
           </div>
-          <div className={styles.mapLegend}>
-            <span>↖ High-risk Inflection</span>
-            <span>Super Stock ↗</span>
-          </div>
-          <div className={styles.chart}>
-            <ResponsiveContainer width="100%" height="100%">
-              <ScatterChart
-                margin={{ top: 24, right: 32, bottom: 15, left: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5eaf2" />
-                <XAxis
-                  type="number"
-                  dataKey="quality_score"
-                  domain={[0, 40]}
-                  ticks={[0, 10, 20, 30, 40]}
-                  name="Quality"
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="delta_score"
-                  domain={[0, 40]}
-                  ticks={[0, 10, 20, 30, 40]}
-                  name="Delta"
-                  tick={{ fontSize: 11 }}
-                  width={30}
-                />
-                <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-                <ReferenceLine x={30} stroke="#94a3b8" strokeDasharray="4 4" />
-                <ReferenceLine y={30} stroke="#94a3b8" strokeDasharray="4 4" />
-                <Scatter data={rows} fill="#2457e8">
-                  <LabelList dataKey="ticker" position="top" fontSize={10} />
-                </Scatter>
-              </ScatterChart>
-            </ResponsiveContainer>
-          </div>
-          <div className={styles.mapLegend}>
-            <span>Story / Early Stage</span>
-            <span>Compounder →</span>
-          </div>
-          <p className={styles.footnote}>
-            경계 기준: Quality 30 / Delta 30 · 점수가 없는 종목은 표시하지
-            않습니다.
-          </p>
+          <QualityMap rows={rows} selected={detail?.ticker} onSelect={setSelected} />
         </article>
       </div>
       {detail ? (
@@ -539,25 +448,6 @@ function Change({ value }: { value: number | null }) {
     >
       {signed(value)}
     </span>
-  );
-}
-function Kpi({
-  label,
-  value,
-  sub,
-  accent = false,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className={`${styles.kpi} ${accent ? styles.accent : ""}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{sub}</small>
-    </div>
   );
 }
 function Detail({
@@ -742,10 +632,50 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
     </details>
   </section>;
 }
-function BenchmarkData({benchmarks, week}: {benchmarks: Data["benchmarks"]; week: string}) {
-  const entries = Object.entries(benchmarks);
-  if (!entries.length) return null;
-  const date = new Date(Date.parse(week)-86400000).toISOString().slice(0,10);
-  const prior = new Date(Date.parse(date)-28*86400000).toISOString().slice(0,10);
-  return <details className={styles.raw}><summary>ETF 비교 · SPY / QQQ / MAGS</summary><p>ETF는 기업의 16개 항목 평가에서 제외합니다. {date} 기준 가격수익률이며 배당을 제외합니다.</p><div className={styles.rawScroll}><table><thead><tr><th>ETF</th><th>종가 USD</th><th>거래일 거래량</th><th>4주 수익률</th><th>원자료</th></tr></thead><tbody>{entries.map(([ticker,v])=>{const p=v.rows.find(p=>p.date===date), old=v.rows.find(p=>p.date===prior);return <tr key={ticker}><th><a href={v.url} target="_blank" rel="noopener noreferrer">{ticker} ↗</a></th><td>{p?.close.toLocaleString()??"—"}</td><td>{p?.volume.toLocaleString()??"—"}</td><td>{p&&old?`${signed((p.close/old.close-1)*100)}%`:"—"}</td><td><button className={styles.secondary} onClick={()=>downloadJson(`${ticker}-historical-prices.json`,v)}>내려받기</button></td></tr>})}</tbody></table></div></details>;
+
+function QualityMap({rows, selected, onSelect}: {rows: Ranked[]; selected?: string; onSelect: (ticker: string) => void}) {
+  const [fullScale, setFullScale] = useState(false);
+  const minX = fullScale || !rows.length ? 0 : Math.max(0, Math.floor(Math.min(...rows.map(r => r.quality_score)) / 5) * 5 - 5);
+  const minY = fullScale || !rows.length ? 0 : Math.max(0, Math.floor(Math.min(...rows.map(r => r.delta_score)) / 5) * 5 - 5);
+  const x = (v: number) => 60 + (v - minX) / (40 - minX) * 970;
+  const y = (v: number) => 520 - (v - minY) / (40 - minY) * 470;
+  const points = rows.map(r => ({...r, x: x(r.quality_score), y: y(r.delta_score)}));
+  const boxes: {x: number; y: number; width: number}[] = [];
+  const labels = points.map(p => {
+    const width = p.ticker.length * 7 + 12;
+    let best = {x: p.x, y: p.y - 17, width};
+    search: for (let radius = 18; radius < 480; radius += 12) {
+      for (let step = 0; step < 24; step++) {
+        const angle = -Math.PI / 2 + step * Math.PI / 12;
+        const b = {x: p.x + Math.cos(angle) * radius, y: p.y + Math.sin(angle) * radius, width};
+        if (b.x - width / 2 < 65 || b.x + width / 2 > 1045 || b.y < 25 || b.y > 505) continue;
+        if (boxes.some(q => Math.abs(q.x-b.x) < (q.width+width)/2+5 && Math.abs(q.y-b.y) < 22)) continue;
+        if (points.some(q => Math.abs(q.x-b.x) < width/2+7 && Math.abs(q.y-b.y) < 15)) continue;
+        best = b; break search;
+      }
+    }
+    boxes.push(best);
+    return {...p, label: best};
+  });
+  return <>
+    <div className={styles.mapTools}><span>가로 Quality · 세로 Delta</span><button className={styles.secondary} onClick={() => setFullScale(v => !v)}>{fullScale ? "종목 구간 확대" : "전체 범위 0–40"}</button></div>
+    <div className={styles.chart}>
+      <svg viewBox="0 0 1100 570" role="group" aria-label="Quality와 Delta 종목 분포">
+        <text x="60" y="20" className={styles.quadrant}>↖ High-risk Inflection</text><text x="1030" y="20" textAnchor="end" className={styles.quadrant}>Super Stock ↗</text>
+        {Array.from({length: 9}, (_, i) => i * 5).map(v => <g key={v}>
+          {v >= minX && <><line x1={x(v)} x2={x(v)} y1="50" y2="520" stroke={v === 30 ? "#8da3c6" : "#e5eaf2"} strokeDasharray="4 4"/><text x={x(v)} y="542" textAnchor="middle" fontSize="11" fill="#738199">{v}</text></>}
+          {v >= minY && <><line x1="60" x2="1030" y1={y(v)} y2={y(v)} stroke={v === 30 ? "#8da3c6" : "#e5eaf2"} strokeDasharray="4 4"/><text x="46" y={y(v)+4} textAnchor="end" fontSize="11" fill="#738199">{v}</text></>}
+        </g>)}
+        {labels.map(p => <g key={p.ticker} role="button" tabIndex={0} aria-label={`${p.ticker}: Quality ${p.quality_score}, Delta ${p.delta_score}`} aria-pressed={selected === p.ticker} onClick={() => onSelect(p.ticker)} onKeyDown={e => {if(e.key === "Enter" || e.key === " "){e.preventDefault();onSelect(p.ticker);}}} className={styles.mapPoint}>
+          <title>{p.ticker} · Quality {p.quality_score} · Delta {p.delta_score}</title>
+          <line x1={p.x} y1={p.y} x2={p.label.x} y2={p.label.y} stroke={selected === p.ticker ? "#2457e8" : "#b6c4d9"} />
+          <circle cx={p.x} cy={p.y} r={selected === p.ticker ? 6 : 4} fill={selected === p.ticker ? "#152e71" : "#2457e8"} stroke="white" strokeWidth="1.5"/>
+          <rect x={p.label.x-p.label.width/2} y={p.label.y-9} width={p.label.width} height="18" rx="4" fill={selected === p.ticker ? "#e5edff" : "white"}/>
+          <text x={p.label.x} y={p.label.y+4} textAnchor="middle" fontSize="11" fontWeight="600" fill="#29466c">{p.ticker}</text>
+        </g>)}
+        <text x="60" y="564" className={styles.quadrant}>Story / Early Stage</text><text x="1030" y="564" textAnchor="end" className={styles.quadrant}>Compounder →</text>
+      </svg>
+    </div>
+    <p className={styles.footnote}>경계 기준: Quality 30 / Delta 30 · {fullScale ? "전체 점수 범위" : `종목 구간 확대: Quality ${minX}–40 / Delta ${minY}–40`} · 연결선 끝의 점이 실제 점수입니다. 종목을 선택하면 아래에서 상세 평가를 확인할 수 있습니다.</p>
+  </>;
 }
