@@ -613,7 +613,7 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
     <div className={styles.rawScroll} role="region" aria-label="5주 점수와 가격 원자료 · 가로 스크롤" tabIndex={0}>
       <table className={styles.combinedData}>
         <caption>5주 점수와 실제 가격 변화 · 가격 원자료 및 비교 기준</caption>
-        <thead><tr>{["평가 주", "거래일", "Super", "Quality", "Delta", "시가 USD", "고가 USD", "저가 USD", "종가 USD", "거래량", "1주 수익률", "4주 수익률", "SPY 4주 수익률", "SPY 대비 4주"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+        <thead><tr>{["평가 주", "거래일", "Super", "Quality", "Delta", "종가 USD", "거래량", "1주 수익률", "4주 수익률", "SPY 4주 수익률", "SPY 대비 4주"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
         <tbody>{dates.map(date => {
           const price = prices.get(date)!;
           const h = history.find(v => v.research?.prices[0]?.date === date);
@@ -623,7 +623,7 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
           return <tr key={date} className={h?.week_date === s.week_date ? styles.selected : undefined}>
             <td>{h?.week_date ?? "비교 기준"}</td><td>{date}</td>
             {(["super_score", "quality_score", "delta_score"] as const).map(key => <td key={key} className={changeClass(h && previous ? h[key] - previous[key] : null)}>{h?.[key].toFixed(1) ?? "—"}</td>)}
-            {(["open", "high", "low", "close", "volume"] as const).map(key => <td key={key} className={changeClass(previousPrice ? price[key] - previousPrice[key] : null)}>{price[key].toLocaleString()}</td>)}
+            {(["close", "volume"] as const).map(key => <td key={key} className={changeClass(previousPrice ? price[key] - previousPrice[key] : null)}>{price[key].toLocaleString()}{key === "close" && <small className={styles.currency}>$</small>}</td>)}
             <td>{percent(h?.research?.return_1w)}</td><td>{percent(h?.research?.return_4w)}</td><td>{percent(h?.research?.spy_return_4w)}</td><td>{percent(h?.research?.excess_4w, "pp")}</td>
           </tr>;
         })}</tbody>
