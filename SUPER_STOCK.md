@@ -57,3 +57,43 @@ Sources:
 
 `npm test`, `npm run lint`, `npm run build`. Live paid OpenAI evaluation is
 pending API key registration; tests use fixtures, never fabricated live ratings.
+
+## Historical research (2026-09-16)
+
+The user requested actual historical reconstruction for 2026-08-15 through
+2026-09-12. 31 equities have five ratings each; SPY, QQQ and MAGS are benchmarks
+without company ratings. Corrected source-table ticker aliases: TSMC → TSM and
+CRBS → CBRS. HOOD is included from the earlier screening set.
+
+`data/super-stock/research-*` contains the dated public-source ledger, nine
+Friday OHLCV observations per instrument, and generated snapshots. Run
+`node scripts/build-super-stock-research.cjs` to reproduce the ratings. These
+are retrospective analyst judgments, not the original provisional ratings,
+contemporaneous observations, or output from the live Analyst/Judge pipeline.
+They live in account-scoped `super_stock_research` with read-only owner RLS,
+and are displayed in a separate view. Live workers never consume these as priors.
+
+Only releases before each Saturday 00:00 UTC cutoff are eligible. Known prior
+financials carry forward until a new release. Source dates are conservatively
+represented as end-of-day UTC. Historical market observations use Friday close
+and exclude dividends; the current vendor history can include later corrections
+or split adjustments. Volume is the Friday daily volume, not weekly volume.
+
+`historical-v1` retains the 30/45/15/10 score weights. The first seven quality
+and first five delta components are explicit research judgments in the ledger.
+Unverified financial components and expectation gaps get a disclosed neutral
+2.5. Institutional flows were not retrieved; the institutional/RS component
+uses only RS. The 4-week excess return against SPY maps to RS 5/4.5/3.5/2.5/1.5/0.5
+at thresholds 10/5/0/-5/-10 percentage points. Market confirmation is
+clamp(50 + 2 × excess4w + return1w, 0, 100). Narrative is a **filing-recency
+proxy**, not a measured news/social sentiment series: clamp(30 + 30 × freshness
++ 10 × selected events in 28 days, 0, 100). Freshness is 1/.75/.5/.25 for
+release ages ≤7/≤14/≤28/>28 days. Catalyst density is min(5, 1 + 2 × freshness
++ .5 × recent event count); recent selected events add .5 to narrative change,
+TAM expansion and product/mix. This narrow event sample does not represent an
+exhaustive news archive. Selection and hindsight bias remain possible.
+
+The UI exposes financial raw metrics with period/unit/accounting labels,
+dated evidence links, five-week scores, price inputs, missing fields, formulas,
+limitations, and downloadable JSON. The cron remains paused until the user
+registers an OpenAI API key and a paid live run is verified.

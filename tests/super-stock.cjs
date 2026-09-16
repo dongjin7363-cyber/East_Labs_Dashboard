@@ -168,6 +168,7 @@ test("rank changes direction correctly and ties are deterministic", () => {
 test("private endpoints reject anonymous access before database writes", async () => {
   let called = false;
   const api = load("app/api/super-stock/route.ts", {
+    "@/data/super-stock/research-prices-20260916.json": {},
     "next/server": {
       NextResponse: {
         json: (data, opts) => ({ data, status: opts?.status ?? 200 }),

@@ -34,6 +34,8 @@ import {
 } from "@/lib/super-stock/model";
 import styles from "./super-stock.module.css";
 type Data = {
+  researchSnapshots: Snapshot[];
+  benchmarks: Record<string, {url: string; rows: {date: string; open: number; high: number; low: number; close: number; volume: number}[]}>;
   watchlist: Watch[];
   snapshots: Snapshot[];
   cohorts: { week_date: string; tickers: string[] }[];
@@ -66,8 +68,16 @@ export default function SuperStockPage() {
     [input, setInput] = useState(""),
     [selected, setSelected] = useState(""),
     [week, setWeek] = useState(""),
-    [query, setQuery] = useState("");
-  const data = stored?.owner === userId ? stored : null;
+    [query, setQuery] = useState(""),
+    [view, setView] = useState("");
+  const base = stored?.owner === userId ? stored : null;
+  const researchMode = view ? view === "research" : !!base?.researchSnapshots?.length;
+  const data = useMemo(() => {
+    if (!base || !researchMode) return base;
+    const snapshots = base.researchSnapshots ?? [];
+    const dates = [...new Set(snapshots.map((s) => s.week_date))].sort().reverse();
+    return {...base, snapshots, run: null, cohorts: dates.map((week_date) => ({week_date, tickers: snapshots.filter((s) => s.week_date === week_date).map((s) => s.ticker)}))};
+  }, [base, researchMode]);
   const generation = useRef(0);
   const token = session?.access_token;
   const refresh = useCallback(async () => {
@@ -97,6 +107,7 @@ export default function SuperStockPage() {
     setData(null);
     setSelected("");
     setWeek("");
+    setView("");
     void refresh();
     const counter = generation;
     return () => {
@@ -195,10 +206,13 @@ export default function SuperStockPage() {
           <span>WEEKLY SNAPSHOT</span>
           <strong>매주 토요일 09:00 KST</strong>
           <small>다음 기준 시각 {kst(nextUpdate())} KST</small>
-          <small>최근 분석 {data?.snapshots.length ? kst(data.snapshots.reduce((latest,s)=>s.created_at > latest ? s.created_at : latest,data.snapshots[0].created_at)) + " KST" : "아직 없음"}</small>
+          <small>{researchMode ? "과거 자료 조사일 2026.09.16" : `최근 분석 ${data?.snapshots.length ? kst(data.snapshots.reduce((latest,s)=>s.created_at > latest ? s.created_at : latest,data.snapshots[0].created_at)) + " KST" : "아직 없음"}`}</small>
         </div>
       </header>
       <div className={styles.formRow}>
+        <label>평가 기록 <select aria-label="평가 기록 종류" value={researchMode ? "research" : "live"} onChange={(e) => {setView(e.target.value);setWeek("");setSelected("");}}>
+          <option value="research">과거 자료 재평가</option><option value="live">자동 주간 평가</option>
+        </select></label>
         <form onSubmit={add}>
           <label htmlFor="ticker">WATCHLIST</label>
           <div>
@@ -257,6 +271,12 @@ export default function SuperStockPage() {
           ))}
         </div>
       )}
+      {researchMode && !!data?.snapshots.length && <div className={styles.notice}>
+        <strong>과거 자료 재평가 · 2026.08.15–09.12 / 5주</strong><br />
+        9월 16일에 당시 공개된 실적·선별 공시와 과거 주가로 재구성했습니다. 당시 저장된 평가가 아닙니다.
+        미확인 항목은 중립 2.5점이며, 공시 신규성을 뉴스·소셜 심리의 대용 지표로 사용합니다. 자동 평가와는 별도 기록입니다.
+      </div>}
+      {researchMode && data?.benchmarks && <BenchmarkData benchmarks={data.benchmarks} week={chosen} />}
       <div className={styles.kpis}>
         <Kpi
           label="WATCHLIST"
@@ -501,7 +521,7 @@ export default function SuperStockPage() {
       <p className={styles.disclaimer}>
         점수는 공개 자료를 바탕으로 한 AI 분석입니다. 유료 보고서와 비공개
         자료는 포함되지 않을 수 있습니다. 4W Δ는 정확히 4주 전 기록이 있을 때
-        표시하며, 과거 점수를 소급 생성하지 않습니다.
+        표시합니다. 과거 자료 재평가는 별도 연구 기준으로 계산하며 자동 주간 평가와 직접 비교하지 않습니다.
       </p>
     </section>
   );
@@ -564,6 +584,7 @@ function Detail({
           <small>분석 신뢰도 {Math.round(d.confidence * 100)}%</small>
         </div>
       </div>
+      {d.research && <RawData snapshot={d} history={history} />}
       <div className={styles.detailGrid}>
         <div>
           <h3>
@@ -620,8 +641,7 @@ function Detail({
           </div>
           <h3>Score change drivers</h3>
           <p className={styles.footnote}>
-            각 요인의 기여도는 AI 추정이며 실제 점수 변화의 합계와 다를 수
-            있습니다.
+            {d.research ? "이전 주 대비 점수 변화의 산술적 기여도입니다. 첫 주는 비교 기록이 없습니다." : "각 요인의 기여도는 AI 추정이며 실제 점수 변화의 합계와 다를 수 있습니다."}
           </p>
           {d.drivers.map((v, i) => (
             <div className={styles.driver} key={i}>
@@ -640,7 +660,7 @@ function Detail({
       <div className={styles.evidenceHeader}>
         <h3>Evidence feed</h3>
         <span>
-          {d.evidence.length} SOURCES · {kst(d.created_at)} KST 분석 완료
+          {d.evidence.length} SOURCES · {d.research ? `${d.research.researched_at} 과거 자료 재평가` : `${kst(d.created_at)} KST 분석 완료`}
         </span>
       </div>
       <div className={styles.evidenceGrid}>
@@ -691,4 +711,41 @@ function ComponentBar({
       <p>{reason}</p>
     </details>
   );
+}
+
+function downloadJson(name: string, value: unknown) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], {type: "application/json"}));
+  const link = document.createElement("a");
+  link.href = url; link.download = name; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[]}) {
+  const raw = s.research!;
+  return <section className={styles.raw} aria-label="평가 원자료">
+    <div className={styles.evidenceHeader}><h3>Raw data · 평가 원자료</h3><button className={styles.secondary} onClick={() => downloadJson(`${s.ticker}-5-week-research.json`, history)}>5주 원자료 내려받기</button></div>
+    <p>기준 시각 {raw.cutoff.slice(0,10)} 09:00 KST · 조사일 {raw.researched_at} · {raw.version}</p>
+    <div className={styles.rawScroll}><table><caption>5주 점수와 실제 가격 변화</caption><thead><tr><th>평가 주</th><th>Super</th><th>Quality</th><th>Delta</th><th>종가 USD</th><th>1주 수익률</th><th>4주 수익률</th><th>SPY 대비 4주</th></tr></thead><tbody>{history.map(h=><tr key={h.week_date}><td>{h.week_date}</td><td>{h.super_score}</td><td>{h.quality_score}</td><td>{h.delta_score}</td><td>{h.research?.prices[0]?.close.toLocaleString()}</td><td>{signed(h.research?.return_1w ?? null)}%</td><td>{signed(h.research?.return_4w ?? null)}%</td><td>{signed(h.research?.excess_4w ?? null)}pp</td></tr>)}</tbody></table></div>
+    <details open><summary>선택 주의 가격 원자료와 비교 기준</summary>
+      <p>금요일 일봉입니다. 거래량은 해당 거래일 수치이며 주간 합계가 아닙니다. 4주 수익률 계산에 사용한 이전 4개 금요일도 포함합니다. 배당 제외·제공업체 분할 조정 종가 기준.</p>
+      <div className={styles.rawScroll}><table><thead><tr><th>거래일</th><th>시가</th><th>고가</th><th>저가</th><th>종가</th><th>거래량</th></tr></thead><tbody>{raw.prices.map(p=><tr key={p.date}><td>{p.date}</td>{[p.open,p.high,p.low,p.close,p.volume].map((v,i)=><td key={i}>{v.toLocaleString()}</td>)}</tr>)}</tbody></table></div>
+      <p><a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a> · 동일 4주 SPY 수익률 {signed(raw.spy_return_4w)}%</p>
+    </details>
+    <details open><summary>기준 시각 이전 공개 재무지표</summary>
+      {raw.releases.map(release=><div key={release.url}><h4>{release.published_at} 발표 <a href={release.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></h4><div className={styles.rawScroll}><table><tbody>{Object.entries(release.metrics).map(([label,value])=><tr key={label}><th>{label}</th><td>{value.toLocaleString()}</td></tr>)}</tbody></table></div></div>)}
+      <p>새 실적이 없으면 이전 발표를 유지합니다. 분기·연간·TTM, GAAP·조정 수치는 항목명으로 구분합니다.</p>
+    </details>
+    <details><summary>계산 방식·미확인 항목</summary>
+      <p>Super = Quality ÷ 40 × 30 + Delta ÷ 40 × 45 + 공시 신규성 × 0.15 + 시장 확인 × 0.10.</p>
+      <p>시장 확인 = 50 + 4주 SPY 초과수익률(pp) × 2 + 1주 수익률(%), 0–100 제한. 공시 신규성 = 30 + 실적 신선도 × 30 + 최근 28일 수집 이벤트 수 × 10, 0–100 제한. 신선도는 발표 후 7/14/28일 이내에 각각 1/0.75/0.5, 그 이후 0.25입니다.</p>
+      <p>그 외 정성 항목은 출처를 해석한 연구 판단입니다. 각 항목을 펼치면 근거를 볼 수 있습니다. 미확인: {raw.missing.map(k=>LABELS[k]??k).join(", ")}.</p>
+      <ul>{raw.limitations.map(l=><li key={l}>{l}</li>)}</ul>
+    </details>
+  </section>;
+}
+function BenchmarkData({benchmarks, week}: {benchmarks: Data["benchmarks"]; week: string}) {
+  const entries = Object.entries(benchmarks);
+  if (!entries.length) return null;
+  const date = new Date(Date.parse(week)-86400000).toISOString().slice(0,10);
+  const prior = new Date(Date.parse(date)-28*86400000).toISOString().slice(0,10);
+  return <details className={styles.raw}><summary>ETF 비교 · SPY / QQQ / MAGS</summary><p>ETF는 기업의 16개 항목 평가에서 제외합니다. {date} 기준 가격수익률이며 배당을 제외합니다.</p><div className={styles.rawScroll}><table><thead><tr><th>ETF</th><th>종가 USD</th><th>거래일 거래량</th><th>4주 수익률</th><th>원자료</th></tr></thead><tbody>{entries.map(([ticker,v])=>{const p=v.rows.find(p=>p.date===date), old=v.rows.find(p=>p.date===prior);return <tr key={ticker}><th><a href={v.url} target="_blank" rel="noopener noreferrer">{ticker} ↗</a></th><td>{p?.close.toLocaleString()??"—"}</td><td>{p?.volume.toLocaleString()??"—"}</td><td>{p&&old?`${signed((p.close/old.close-1)*100)}%`:"—"}</td><td><button className={styles.secondary} onClick={()=>downloadJson(`${ticker}-historical-prices.json`,v)}>내려받기</button></td></tr>})}</tbody></table></div></details>;
 }

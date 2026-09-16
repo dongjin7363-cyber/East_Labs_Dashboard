@@ -1,4 +1,7 @@
 .page {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   max-width: 1600px;
   margin: 0 auto;
   padding: 28px 24px 32px;
@@ -609,3 +612,14 @@
     padding: 8px 14px;
   }
 }
+.raw { margin: 20px 0; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; font-size: 13px; line-height: 1.7; }
+.raw summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+.raw details { border-top: 1px solid #e2e8f0; margin-top: 12px; }
+.raw p { color: #64748b; margin: 8px 0; }
+.raw a { color: #2457e8; }
+.rawScroll { overflow-x: auto; }
+.raw table { width: 100%; border-collapse: collapse; background: white; white-space: nowrap; }
+.raw caption { text-align: left; font-weight: 700; padding: 10px 0; }
+.raw th, .raw td { padding: 9px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; }
+.raw th:first-child, .raw td:first-child { text-align: left; }
+.formRow select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; margin-left: 8px; }

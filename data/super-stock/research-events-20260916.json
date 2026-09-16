@@ -1,0 +1,58 @@
+[
+  {
+    "tickers": [
+      "PLTR",
+      "NBIS"
+    ],
+    "date": "2026-09-08",
+    "url": "https://nebius.com/newsroom/palantir-and-nebius-partner-to-deliver-a-complete-sovereign-ai-stack-to-palantir-customers",
+    "title": "Palantir·Nebius sovereign AI 제휴",
+    "summary": "Nebius 인프라와 Palantir 고객 기반을 연결하는 제휴. 매출액 확정 공시는 아님.",
+    "kind": "partnership",
+    "strength": 0.5
+  },
+  {
+    "tickers": [
+      "CBRS"
+    ],
+    "date": "2026-08-18",
+    "url": "https://investors.cerebras.ai/news-releases/news-release-details/cerebras-unveils-cs-4-30-times-faster-gpu-based-solutions",
+    "title": "CS-4 제품 발표",
+    "summary": "차세대 추론 시스템 발표. 성능 수치는 회사 주장으로 독립 검증·매출 확정과 구분.",
+    "kind": "product",
+    "strength": 0.5
+  },
+  {
+    "tickers": [
+      "CBRS"
+    ],
+    "date": "2026-09-01",
+    "url": "https://cerebras.gcs-web.com/news-releases/news-release-details/cerebras-and-compute-nordic-finland-announce-new-165-mw-ai-data",
+    "title": "핀란드 데이터센터 계획",
+    "summary": "165 MW 규모 목표와 7년 용량 계약. 전체 용량이 현재 가동 중인 것은 아님.",
+    "kind": "capacity",
+    "strength": 0.5
+  },
+  {
+    "tickers": [
+      "TSM"
+    ],
+    "date": "2026-08-10",
+    "url": "https://investor.tsmc.com/english/monthly-revenue/2026",
+    "title": "7월 월매출 공시",
+    "summary": "7월 매출 TWD 467,580mn, 전년 대비 44.7%.",
+    "kind": "monthly",
+    "strength": 0.5
+  },
+  {
+    "tickers": [
+      "TSM"
+    ],
+    "date": "2026-09-10",
+    "url": "https://investor.tsmc.com/english/monthly-revenue/2026",
+    "title": "8월 월매출 공시",
+    "summary": "8월 매출 TWD 514,806mn, 전년 대비 53.3%. 해당 월 숫자만 적용.",
+    "kind": "monthly",
+    "strength": 0.5
+  }
+]

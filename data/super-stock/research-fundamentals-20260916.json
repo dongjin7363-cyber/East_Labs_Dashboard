@@ -1,0 +1,1100 @@
+{
+  "NVDA": [
+    {
+      "published_at": "2026-05-20",
+      "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-first-quarter-fiscal-2027",
+      "metrics": {
+        "분기 매출 (USD bn)": 81.615,
+        "매출 YoY (%)": 85,
+        "GAAP 매출총이익률 (%)": 74.9,
+        "GAAP 영업이익 (USD bn)": 53.536
+      },
+      "thesis": "데이터센터 매출과 높은 이익률로 AI 연산 수요의 실적 전환을 확인.",
+      "risk": "고객의 AI 설비투자 집중과 수출 규제",
+      "quality": [
+        5,
+        5,
+        5,
+        5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        5,
+        4
+      ]
+    },
+    {
+      "published_at": "2026-08-26",
+      "url": "https://nvidianews.nvidia.com/news/nvidia-announces-financial-results-for-second-quarter-fiscal-2027",
+      "metrics": {
+        "분기 매출 (USD bn)": 96.2,
+        "매출 YoY (%)": 106,
+        "매출 QoQ (%)": 18
+      },
+      "thesis": "매출 성장률이 직전 발표보다 높아져 AI 수요 가속을 재확인.",
+      "risk": "고객 투자 집중과 높은 시장 기대",
+      "quality": [
+        5,
+        5,
+        5,
+        5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        5,
+        4.5,
+        4,
+        5,
+        4.5
+      ]
+    }
+  ],
+  "MSFT": [
+    {
+      "published_at": "2026-07-29",
+      "url": "https://www.microsoft.com/en-us/investor/earnings/fy-2026-q4/press-release-webcast",
+      "metrics": {
+        "분기 매출 (USD bn)": 90,
+        "매출 YoY (%)": 18,
+        "GAAP 영업이익 (USD bn)": 40.6,
+        "GAAP 영업이익 YoY (%)": 18
+      },
+      "thesis": "대규모 클라우드·업무 소프트웨어 기반과 영업이익 성장.",
+      "risk": "AI 투자 회수 속도와 클라우드 경쟁",
+      "quality": [
+        5,
+        5,
+        4,
+        5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        3.5,
+        3,
+        4,
+        4,
+        4
+      ]
+    }
+  ],
+  "PLTR": [
+    {
+      "published_at": "2026-08-03",
+      "url": "https://www.sec.gov/Archives/edgar/data/1321655/000132165526000039/a2026q2ex991pressrelease.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 1.935464,
+        "매출 YoY (%)": 93,
+        "GAAP 영업이익률 (%)": 47,
+        "조정 FCF (USD bn)": 1.22
+      },
+      "thesis": "고성장과 영업이익률 확대를 동시에 확인.",
+      "risk": "높은 성장 기대와 고객 계약 집중",
+      "quality": [
+        5,
+        5,
+        5,
+        5,
+        4.5,
+        4,
+        4
+      ],
+      "delta": [
+        5,
+        4.5,
+        4,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "META": [
+    {
+      "published_at": "2026-07-29",
+      "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050596/meta-06302026xexhibit991.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 60.801,
+        "매출 YoY (%)": 28,
+        "일간 활성 사용자 (bn)": 3.6,
+        "순이익 (USD bn)": 15.85
+      },
+      "thesis": "광고 플랫폼의 사용자 규모와 매출 성장 지속.",
+      "risk": "법률비용·AI 설비투자와 수익성 부담",
+      "quality": [
+        5,
+        5,
+        4.5,
+        4,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        3.5,
+        3,
+        3.5,
+        4,
+        3.5
+      ]
+    }
+  ],
+  "GOOGL": [
+    {
+      "published_at": "2026-07-22",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000066/googexhibit991q22026.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 119.8,
+        "매출 YoY (%)": 24,
+        "Cloud 매출 (USD bn)": 24.8,
+        "Cloud 매출 YoY (%)": 82,
+        "영업이익률 (%)": 34
+      },
+      "thesis": "검색 현금창출 기반 위에 Cloud 성장이 확대.",
+      "risk": "투자평가이익을 반복 가능한 영업성과와 혼동하지 않음",
+      "quality": [
+        5,
+        5,
+        4.5,
+        4.5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        4.5,
+        4
+      ]
+    }
+  ],
+  "AMZN": [
+    {
+      "published_at": "2026-07-30",
+      "url": "https://www.aboutamazon.com/news/company-news/amazon-earnings-q2-2026-report",
+      "metrics": {
+        "분기 매출 (USD bn)": 200.6,
+        "매출 YoY (%)": 20,
+        "영업이익 (USD bn)": 27.5,
+        "AWS 매출 YoY (%)": 37,
+        "TTM FCF (USD bn)": -7.6
+      },
+      "thesis": "AWS 성장과 영업이익은 개선되나 AI 투자로 FCF는 음수.",
+      "risk": "대규모 설비투자 및 비영업 투자평가이익",
+      "quality": [
+        5,
+        5,
+        4,
+        4,
+        1.5,
+        5,
+        3.5
+      ],
+      "delta": [
+        4,
+        4,
+        4.5,
+        4,
+        4
+      ]
+    }
+  ],
+  "TSM": [
+    {
+      "published_at": "2026-07-16",
+      "url": "https://investor.tsmc.com/english/quarterly-results/2026/q2",
+      "metrics": {
+        "분기 매출 (USD bn)": 40.2,
+        "매출 YoY (%)": 33.7,
+        "매출총이익률 (%)": 67.7,
+        "영업이익률 (%)": 60.3,
+        "7nm 이하 매출 비중 (%)": 77
+      },
+      "thesis": "첨단공정 비중과 높은 이익률이 제조 경쟁력을 뒷받침.",
+      "risk": "지정학과 대규모 제조시설 투자",
+      "quality": [
+        5,
+        5,
+        4.5,
+        5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        4,
+        4,
+        4.5,
+        5,
+        4.5
+      ]
+    }
+  ],
+  "SPCX": [
+    {
+      "published_at": "2026-08-04",
+      "url": "https://www.sec.gov/Archives/edgar/data/1181412/000162828026052515/earningsreleaseq22608042.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 7.814,
+        "매출 YoY (%)": 92,
+        "순손실 (USD bn)": -0.541,
+        "설비투자 (USD bn)": 18.369,
+        "현금·투자자산 (USD bn)": 100,
+        "Starlink 가입자 (mn)": 12
+      },
+      "thesis": "Starlink와 AI 매출 확대가 확인되지만 대규모 투자 단계.",
+      "risk": "신규 상장·AI 및 우주 개발 투자 회수 불확실",
+      "quality": [
+        5,
+        4.5,
+        5,
+        2,
+        null,
+        4.5,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4.5,
+        4.5,
+        4.5,
+        4.5
+      ]
+    }
+  ],
+  "NOW": [
+    {
+      "published_at": "2026-07-22",
+      "url": "https://newsroom.servicenow.com/press-releases/details/2026/ServiceNow-Reports-Second-Quarter-2026-Financial-Results/default.aspx",
+      "metrics": {
+        "분기 매출 (USD bn)": 3.987,
+        "매출 YoY (%)": 24,
+        "cRPO (USD bn)": 13.2,
+        "cRPO YoY (%)": 21,
+        "AI ACV (USD bn 이상)": 1
+      },
+      "thesis": "구독과 계약잔고 성장에 AI 제품 확산이 더해짐.",
+      "risk": "AI 매출의 지속성과 소프트웨어 경쟁",
+      "quality": [
+        5,
+        5,
+        4.5,
+        null,
+        null,
+        4.5,
+        3.5
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "LLY": [
+    {
+      "published_at": "2026-08-05",
+      "url": "https://investor.lilly.com/news-releases/news-release-details/lilly-reports-second-quarter-2026-financial-results-raises-full",
+      "metrics": {
+        "분기 매출 (USD bn)": 23,
+        "매출 YoY (%)": 48,
+        "GAAP EPS (USD)": 7.94,
+        "연간 매출 가이던스 하단 (USD bn)": 85,
+        "연간 매출 가이던스 상단 (USD bn)": 87
+      },
+      "thesis": "비만·당뇨 치료제 수요와 가이던스 상향.",
+      "risk": "임상·규제·공급증설 및 인수비용",
+      "quality": [
+        5,
+        5,
+        4.5,
+        4,
+        null,
+        4.5,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4.5,
+        4.5,
+        4
+      ]
+    }
+  ],
+  "AAPL": [
+    {
+      "published_at": "2026-07-30",
+      "url": "https://www.apple.com/newsroom/2026/07/apple-reports-third-quarter-results/",
+      "metrics": {
+        "분기 매출 (USD bn)": 109.4,
+        "매출 YoY (%)": 16,
+        "매출총이익률 (%)": 50.1,
+        "관세환급 총이익률 기여 (pp 약)": 2,
+        "GAAP EPS (USD)": 2.02
+      },
+      "thesis": "기기 기반과 서비스 성장, 다만 관세환급 효과 분리 필요.",
+      "risk": "일회성 환급과 기기 교체 수요",
+      "quality": [
+        4,
+        5,
+        4,
+        4.5,
+        null,
+        5,
+        4
+      ],
+      "delta": [
+        3.5,
+        3.5,
+        3,
+        4,
+        3.5
+      ]
+    }
+  ],
+  "AMD": [
+    {
+      "published_at": "2026-08-04",
+      "url": "https://ir.amd.com/news-events/press-releases/detail/1295/amd-reports-second-quarter-2026-financial-results",
+      "metrics": {
+        "분기 매출 (USD bn)": 11.5,
+        "GAAP 매출총이익률 (%)": 54,
+        "GAAP 영업이익 (USD bn)": 2,
+        "GAAP 순이익 (USD bn)": 2.3
+      },
+      "thesis": "데이터센터 매출 두 배 이상 확대와 EPYC·Instinct 수요.",
+      "risk": "경쟁사 생태계와 제품 양산 일정",
+      "quality": [
+        5,
+        4.5,
+        4.5,
+        4,
+        null,
+        4,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4.5,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "MU": [
+    {
+      "published_at": "2026-06-24",
+      "url": "https://investors.micron.com/financials/quarterly-results/",
+      "metrics": {
+        "분기 매출 (USD bn)": 41.46,
+        "전년 동기 매출 (USD bn)": 9.3,
+        "영업현금흐름 (USD bn)": 25.39,
+        "순 설비투자 (USD bn)": 7.1,
+        "조정 FCF (USD bn)": 18.3
+      },
+      "thesis": "메모리 수요와 가격 개선이 현금흐름으로 연결.",
+      "risk": "메모리 가격 사이클과 공급 증설",
+      "quality": [
+        5,
+        5,
+        5,
+        4.5,
+        4.5,
+        4,
+        4
+      ],
+      "delta": [
+        5,
+        4.5,
+        4,
+        4.5,
+        4
+      ]
+    }
+  ],
+  "AMAT": [
+    {
+      "published_at": "2026-08-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/6951/000162828026056699/exhibit991q32026earningsre.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 9.12,
+        "매출 YoY (%)": 25,
+        "GAAP 매출총이익률 (%)": 50.3,
+        "GAAP 영업이익률 (%)": 33.7
+      },
+      "thesis": "첨단 공정·패키징 장비 수요와 이익률 개선.",
+      "risk": "고객 투자 사이클 및 수출 제한",
+      "quality": [
+        5,
+        4.5,
+        4.5,
+        4.5,
+        null,
+        4.5,
+        4
+      ],
+      "delta": [
+        4,
+        3.5,
+        4,
+        4.5,
+        4
+      ]
+    }
+  ],
+  "ORCL": [
+    {
+      "published_at": "2026-06-10",
+      "url": "https://www.oracle.com/news/announcement/q4fy26-earnings-release-2026-06-10/",
+      "metrics": {
+        "분기 매출 (USD bn)": 19.2,
+        "매출 YoY (%)": 21,
+        "IaaS 매출 YoY (%)": 93,
+        "GAAP 영업이익 (USD bn)": 6.1,
+        "회계연도 FCF (USD bn)": -23.7,
+        "RPO (USD bn)": 638
+      },
+      "thesis": "AI 계약잔고와 Cloud 성장에 비해 현금 소요가 큼.",
+      "risk": "부채·증자와 데이터센터 투자 부담",
+      "quality": [
+        5,
+        5,
+        4,
+        4.5,
+        1,
+        4.5,
+        2
+      ],
+      "delta": [
+        4,
+        4.5,
+        4.5,
+        4,
+        4
+      ]
+    },
+    {
+      "published_at": "2026-09-10",
+      "url": "https://investor.oracle.com/files/content_files/1q27-pressrelease-September_FINAL.pdf",
+      "metrics": {
+        "분기 매출 (USD bn)": 19.3,
+        "매출 YoY (%)": 30,
+        "IaaS 매출 YoY (%)": 121,
+        "GAAP 영업이익 (USD bn)": 6.7,
+        "RPO (USD bn)": 664
+      },
+      "thesis": "Cloud 성장이 직전 분기보다 가속.",
+      "risk": "이전 발표의 음의 FCF와 자금조달 부담 지속",
+      "quality": [
+        5,
+        5,
+        4.5,
+        4.5,
+        1,
+        4.5,
+        2
+      ],
+      "delta": [
+        4.5,
+        4.5,
+        4.5,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "ARM": [
+    {
+      "published_at": "2026-07-29",
+      "url": "https://newsroom.arm.com/news/arm-q1-fye27-results",
+      "metrics": {
+        "분기 매출 (USD bn)": 1.29,
+        "매출 YoY (%)": 22,
+        "로열티 매출 (USD mn)": 715,
+        "GAAP 영업이익률 (%)": 7.1,
+        "non-GAAP 영업이익률 (%)": 41.2
+      },
+      "thesis": "데이터센터 로열티와 CSS 확산, 직접 CPU 기회 확대.",
+      "risk": "GAAP와 조정 이익률 차이 및 신규 칩 투자",
+      "quality": [
+        5,
+        4.5,
+        4.5,
+        3,
+        null,
+        4.5,
+        3.5
+      ],
+      "delta": [
+        4,
+        4,
+        4.5,
+        4.5,
+        4.5
+      ]
+    }
+  ],
+  "OSCR": [
+    {
+      "published_at": "2026-08-06",
+      "url": "https://ir.oscarhealth.com/news-events/press-releases/detail/224/oscar-health-announces-record-financial-results-for-first-half-2026-and-raises-full-year-2026-outlook",
+      "metrics": {
+        "분기 매출 (USD mn)": 4880.22,
+        "전년 동기 매출 (USD mn)": 2863.945,
+        "의료손해율 (%)": 79.2,
+        "전년 의료손해율 (%)": 91.1,
+        "영업이익 (USD mn)": 388.635,
+        "우호적 전기 준비금 조정 (USD mn)": 164
+      },
+      "thesis": "보험료·가입자 증가와 손해율 개선으로 흑자 전환.",
+      "risk": "준비금 환입 효과와 보험 규제·의료비 변동",
+      "quality": [
+        4,
+        4.5,
+        4.5,
+        3.5,
+        null,
+        3,
+        3
+      ],
+      "delta": [
+        4.5,
+        4,
+        3.5,
+        3,
+        3.5
+      ]
+    }
+  ],
+  "SNDK": [
+    {
+      "published_at": "2026-08-05",
+      "url": "https://investor.sandisk.com/news-releases/news-release-details/sandisk-reports-fiscal-fourth-quarter-2026-financial-results",
+      "metrics": {
+        "분기 매출 (USD bn)": 8.97,
+        "매출 QoQ (%)": 51,
+        "GAAP 순이익 (USD bn)": 6.9,
+        "회계연도 매출 YoY (%)": 175,
+        "회계연도 데이터센터 매출 YoY (%)": 437
+      },
+      "thesis": "가격과 제품 구성이 동시에 개선된 NAND 성장 국면.",
+      "risk": "가격 상승분 정상화와 메모리 공급 사이클",
+      "quality": [
+        5,
+        4.5,
+        5,
+        4.5,
+        null,
+        4,
+        3.5
+      ],
+      "delta": [
+        5,
+        4.5,
+        4,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "MRVL": [
+    {
+      "published_at": "2026-05-27",
+      "url": "https://investor.marvell.com/sec-filings/all-sec-filings/content/0001835632-26-000014/q127_8kx522026ex-991.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 2.418,
+        "매출 YoY (%)": 28
+      },
+      "thesis": "AI 데이터센터 연결·맞춤형 반도체 수요.",
+      "risk": "고객 집중과 맞춤형 칩 양산 불확실성",
+      "quality": [
+        5,
+        4,
+        4.5,
+        null,
+        null,
+        4,
+        3
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "published_at": "2026-08-27",
+      "url": "https://investor.marvell.com/sec-filings/all-sec-filings/content/0001835632-26-000022/q227_8kx812026ex-991.htm",
+      "metrics": {
+        "분기 매출 (USD bn)": 2.739,
+        "매출 YoY (%)": 37,
+        "GAAP 매출총이익률 (%)": 53.1,
+        "GAAP 순이익 (USD mn)": 308,
+        "영업현금흐름 (USD mn)": 605.5
+      },
+      "thesis": "데이터센터 성장과 매출 가속 확인.",
+      "risk": "고객 집중과 맞춤형 칩 수주 전환",
+      "quality": [
+        5,
+        4.5,
+        4.5,
+        4,
+        null,
+        4,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "BE": [
+    {
+      "published_at": "2026-07-28",
+      "url": "https://investor.bloomenergy.com/press-releases/press-release-details/2026/Bloom-Energy-Reports-Record-Second-Quarter-2026-Financial-Results-and-Raises-Full-Year-2026-Guidance/default.aspx",
+      "metrics": {
+        "분기 매출 (USD mn)": 1065.4,
+        "매출 YoY (%)": 165.5,
+        "GAAP 매출총이익률 (%)": 33.4,
+        "GAAP 영업이익 (USD mn)": 182.2,
+        "영업현금흐름 (USD mn)": 226.4
+      },
+      "thesis": "전력 수요가 매출·영업흑자로 전환.",
+      "risk": "생산능력 확대와 프로젝트 설치·인도 시점",
+      "quality": [
+        5,
+        4.5,
+        5,
+        3.5,
+        null,
+        3.5,
+        3
+      ],
+      "delta": [
+        5,
+        4.5,
+        4.5,
+        4,
+        4
+      ]
+    }
+  ],
+  "DELL": [
+    {
+      "published_at": "2026-05-28",
+      "url": "https://investors.delltechnologies.com/news-releases/news-release-details/dell-technologies-delivers-first-quarter-fiscal-2027-financial",
+      "metrics": {
+        "분기 매출 (USD bn)": 43.8,
+        "매출 YoY (%)": 88,
+        "영업현금흐름 (USD bn)": 4.1,
+        "AI 서버 매출 (USD bn)": 16.1
+      },
+      "thesis": "AI 서버 수요의 대규모 매출 전환.",
+      "risk": "공급사 의존과 서버 마진 경쟁",
+      "quality": [
+        4.5,
+        5,
+        5,
+        3,
+        null,
+        3.5,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4,
+        3.5,
+        4.5
+      ]
+    },
+    {
+      "published_at": "2026-09-01",
+      "url": "https://investors.delltechnologies.com/node/20956/pdf",
+      "metrics": {
+        "분기 매출 (USD bn)": 46.971,
+        "매출 YoY (%)": 58,
+        "GAAP 영업이익 (USD bn)": 5.385,
+        "영업현금흐름 (USD bn)": 2.225,
+        "AI 서버 주문 (USD bn)": 60.9,
+        "연간 매출 전망 (USD bn)": 192
+      },
+      "thesis": "AI 주문과 연간 매출 전망 상향, 매출 성장률은 전분기보다 낮음.",
+      "risk": "주문잔고 인도 시점과 공급사 의존",
+      "quality": [
+        4.5,
+        5,
+        5,
+        3.5,
+        null,
+        3.5,
+        3.5
+      ],
+      "delta": [
+        4,
+        4.5,
+        4,
+        3.5,
+        4.5
+      ]
+    }
+  ],
+  "TEM": [
+    {
+      "published_at": "2026-07-30",
+      "url": "https://investors.tempus.com/static-files/f37a3f82-f86c-4f00-a1ed-9243d83d2feb",
+      "metrics": {
+        "분기 매출 (USD mn)": 382.5,
+        "매출 YoY (%)": 22,
+        "GAAP 순이익 (USD mn)": 5.6,
+        "조정 EBITDA (USD mn)": 8,
+        "현금·유가증권 (USD mn)": 820.7
+      },
+      "thesis": "진단·데이터 라이선스 성장과 소폭 흑자.",
+      "risk": "인수 통합과 임상·급여 적용",
+      "quality": [
+        4.5,
+        4,
+        4,
+        2.5,
+        null,
+        4,
+        3
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        3.5,
+        4
+      ]
+    }
+  ],
+  "LITE": [
+    {
+      "published_at": "2026-08-11",
+      "url": "https://investor.lumentum.com/quarterly-results/",
+      "metrics": {
+        "분기 매출 (USD bn)": 1.01,
+        "GAAP 매출총이익률 (%)": 47.4,
+        "GAAP 영업이익률 (%)": 27.8,
+        "차분기 매출 전망 하단 (USD bn)": 1.225,
+        "차분기 매출 전망 상단 (USD bn)": 1.275
+      },
+      "thesis": "AI 광연결·OCS와 1.6T 채택이 다음 성장 동력.",
+      "risk": "제품 양산과 고객 설비투자 집중",
+      "quality": [
+        5,
+        4.5,
+        4.5,
+        4,
+        null,
+        4,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4.5,
+        4,
+        4,
+        4.5
+      ]
+    }
+  ],
+  "CBRS": [
+    {
+      "published_at": "2026-08-12",
+      "url": "https://investors.cerebras.ai/static-files/76aa7bb3-6d1a-484e-a6b2-dd2d8ca118f0",
+      "metrics": {
+        "GAAP 분기 매출 (USD mn)": 180.1,
+        "GAAP 매출 YoY (%)": 74,
+        "Core 매출 (USD mn)": 209.9,
+        "GAAP 매출총이익률 (%)": 14,
+        "Core 매출총이익률 (%)": 41,
+        "GAAP 영업이익률 (%)": -265,
+        "현금·단기투자 등 (USD bn)": 8.6
+      },
+      "thesis": "추론 클라우드 성장이 크지만 GAAP 손실과 조정 실적 차이가 큼.",
+      "risk": "고객 집중·비현금 비용·데이터센터 투자",
+      "quality": [
+        5,
+        4,
+        5,
+        1,
+        null,
+        4,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4.5,
+        4.5,
+        4.5,
+        4.5
+      ]
+    }
+  ],
+  "RKLB": [
+    {
+      "published_at": "2026-08-10",
+      "url": "https://investors.rocketlabcorp.com/news-releases/news-release-details/rocket-lab-announces-second-quarter-2026-financial-results-posts",
+      "metrics": {
+        "분기 매출 (USD mn)": 234,
+        "매출 YoY (%)": 62,
+        "수주잔고 (USD bn)": 2.36
+      },
+      "thesis": "발사·우주시스템 매출과 계약잔고 확대.",
+      "risk": "Neutron 개발·발사 일정 및 자금 소요",
+      "quality": [
+        5,
+        4,
+        5,
+        null,
+        null,
+        4,
+        2.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4,
+        4,
+        4
+      ]
+    }
+  ],
+  "TSLA": [
+    {
+      "published_at": "2026-07-22",
+      "url": "https://ir.tesla.com/_flysystem/s3/sec/000162828026049213/tsla-20260722-gen.pdf",
+      "metrics": {
+        "분기 매출 (USD mn)": 28236,
+        "매출 YoY (%)": 26,
+        "GAAP 영업이익률 (%)": 1.4,
+        "영업이익 YoY (%)": -57,
+        "FCF (USD bn)": -1.1,
+        "현금·투자자산 (USD bn)": 43.5
+      },
+      "thesis": "판매 회복과 자율주행 선택권, 이익률·FCF는 약화.",
+      "risk": "가격 경쟁과 자율주행 상용화 불확실성",
+      "quality": [
+        5,
+        4,
+        4.5,
+        2,
+        1.5,
+        4,
+        3.5
+      ],
+      "delta": [
+        2.5,
+        4,
+        4.5,
+        3.5,
+        4
+      ]
+    }
+  ],
+  "NBIS": [
+    {
+      "published_at": "2026-08-12",
+      "url": "https://assets.nebius.com/assets/72a8c258-bbb7-4df7-ab9d-8698f6cb88fc/PR.pdf",
+      "metrics": {
+        "분기 매출 (USD mn)": 582.3,
+        "매출 YoY (%)": 454,
+        "순손실 (USD mn)": -190.4,
+        "영업현금흐름 (USD mn)": 2246.1,
+        "유형·무형자산 취득 (USD mn)": 5657.4,
+        "현금 (USD mn)": 8042.1
+      },
+      "thesis": "AI 클라우드 급성장과 큰 규모의 선투자.",
+      "risk": "선수금·자본조달 의존 및 투자 회수",
+      "quality": [
+        5,
+        4,
+        5,
+        2,
+        1,
+        3.5,
+        2.5
+      ],
+      "delta": [
+        5,
+        4.5,
+        4.5,
+        3.5,
+        4
+      ]
+    }
+  ],
+  "HPE": [
+    {
+      "published_at": "2026-06-01",
+      "url": "https://www.hpe.com/us/en/newsroom/press-release/2026/06/hpe-reports-fiscal-2026-second-quarter-results.html",
+      "metrics": {
+        "분기 매출 (USD bn)": 10.7,
+        "매출 YoY (%)": 40,
+        "FCF (USD bn)": 0.9,
+        "Cloud & AI 매출 YoY (%)": 22.9
+      },
+      "thesis": "네트워킹과 AI 인프라 매출·현금흐름 개선.",
+      "risk": "인수 효과가 포함된 성장률과 통합 부담",
+      "quality": [
+        4.5,
+        4.5,
+        4.5,
+        3.5,
+        3.5,
+        3.5,
+        3.5
+      ],
+      "delta": [
+        4,
+        3.5,
+        4,
+        3.5,
+        4
+      ]
+    },
+    {
+      "published_at": "2026-09-02",
+      "url": "https://www.hpe.com/us/en/newsroom/press-release/2026/09/hpe-reports-fiscal-2026-third-quarter-results.html",
+      "metrics": {
+        "분기 매출 (USD bn)": 12.2,
+        "매출 YoY (%)": 34,
+        "GAAP 매출총이익률 (%)": 40.1,
+        "GAAP 영업이익 YoY (%)": 464
+      },
+      "thesis": "수익성 확대와 향후 전망 상향.",
+      "risk": "인수 비교효과와 AI 서버 수주 변동",
+      "quality": [
+        4.5,
+        4.5,
+        4.5,
+        4,
+        3.5,
+        3.5,
+        3.5
+      ],
+      "delta": [
+        4.5,
+        4,
+        4,
+        3.5,
+        4
+      ]
+    }
+  ],
+  "INTC": [
+    {
+      "published_at": "2026-07-23",
+      "url": "https://www.intc.com/news-events/press-releases/detail/1776/intel-reports-second-quarter-2026-financial-results",
+      "metrics": {
+        "분기 매출 (USD bn)": 16.1,
+        "매출 YoY (%)": 25,
+        "GAAP EPS (USD)": -2.16,
+        "non-GAAP EPS (USD)": 0.42
+      },
+      "thesis": "매출 회복에도 GAAP 손실과 제조 전환 불확실성.",
+      "risk": "파운드리 투자·공정 실행 위험",
+      "quality": [
+        5,
+        4,
+        4.5,
+        1.5,
+        null,
+        3.5,
+        2.5
+      ],
+      "delta": [
+        3.5,
+        4,
+        4,
+        4,
+        3.5
+      ]
+    }
+  ],
+  "NVTS": [
+    {
+      "published_at": "2026-07-27",
+      "url": "https://www.sec.gov/Archives/edgar/data/1821769/000162828026049795/exhibit991-navitassemicond.htm",
+      "metrics": {
+        "분기 매출 (USD mn)": 10.5,
+        "전년 동기 매출 (USD mn)": 14.5,
+        "GAAP 매출총이익률 (%)": 0.4,
+        "GAAP 영업손실 (USD mn)": -27.2,
+        "현금 (USD mn)": 557.4
+      },
+      "thesis": "고전력 GaN·SiC 전환 초기, 매출은 아직 전년 대비 감소.",
+      "risk": "디자인윈이 실제 주문·매출로 확정되지 않음",
+      "quality": [
+        4.5,
+        2.5,
+        1.5,
+        1,
+        null,
+        3.5,
+        3
+      ],
+      "delta": [
+        2.5,
+        4,
+        4,
+        3.5,
+        4
+      ]
+    }
+  ],
+  "HOOD": [
+    {
+      "published_at": "2026-07-29",
+      "url": "https://investors.robinhood.com/news-releases/news-release-details/robinhood-reports-second-quarter-2026-results",
+      "metrics": {
+        "분기 매출 (USD bn)": 1.31,
+        "매출 YoY (%)": 32,
+        "GAAP EPS (USD)": 0.62,
+        "순유입 (USD bn)": 22,
+        "Gold 가입자 (mn)": 4.8,
+        "암호화폐 매출 YoY (%)": -38
+      },
+      "thesis": "입금·구독 성장과 사업 다변화, 암호화폐 매출은 감소.",
+      "risk": "거래활동과 규제·금리 민감도",
+      "quality": [
+        4.5,
+        4.5,
+        4.5,
+        4,
+        null,
+        3.5,
+        3.5
+      ],
+      "delta": [
+        4,
+        4,
+        4,
+        3,
+        4
+      ]
+    }
+  ]
+}

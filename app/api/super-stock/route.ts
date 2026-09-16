@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { normalizeTicker, weekDate } from "@/lib/super-stock/model";
 import { unpack, userFromRequest } from "@/lib/super-stock/server";
+import historicalPrices from "@/data/super-stock/research-prices-20260916.json";
+import { BENCHMARKS } from "@/lib/super-stock/model";
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const userId = await userFromRequest(request);
@@ -55,10 +57,16 @@ export async function GET(request: Request) {
       .eq("week_date", weekDate())
       .maybeSingle();
     if (runError) throw runError;
+    const research = await db.from("super_stock_research")
+      .select("snapshot").eq("user_id", userId)
+      .order("week_date", { ascending: false }).order("ticker").limit(1000);
+    if (research.error) throw research.error;
     return NextResponse.json(
       {
         watchlist: watch,
         snapshots: (rows ?? []).map(unpack),
+        researchSnapshots: (research.data ?? []).map((r) => r.snapshot),
+        benchmarks: Object.fromEntries(BENCHMARKS.filter((t) => tickers.includes(t)).map((t) => [t, historicalPrices[t as keyof typeof historicalPrices]])),
         cohorts,
         configured: Boolean(process.env.OPENAI_API_KEY),
         run: run

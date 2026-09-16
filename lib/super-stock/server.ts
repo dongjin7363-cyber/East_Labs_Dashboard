@@ -1,7 +1,7 @@
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { acquireServerLease } from "@/lib/services/serverLease";
 import { assess, model } from "./engine";
-import { scores, weekDate, type Snapshot, type Assessment } from "./model";
+import { BENCHMARKS, scores, weekDate, type Snapshot, type Assessment } from "./model";
 export function unpack(row: Record<string, unknown>): Snapshot {
   return {
     ...(row.assessment as Assessment),
@@ -48,7 +48,7 @@ export async function runWeeklyTick() {
         .lte("created_at", cutoff.toISOString());
       if (watchError) throw watchError;
       const cohort = [
-        ...new Set((watch ?? []).map((w) => String(w.ticker))),
+        ...new Set((watch ?? []).filter((w) => !BENCHMARKS.includes(w.ticker)).map((w) => String(w.ticker))),
       ].sort();
       const users = [...new Set((watch ?? []).map((w) => String(w.user_id)))];
       // Cohorts are idempotent and created before the run, allowing safe retries.
@@ -58,7 +58,7 @@ export async function runWeeklyTick() {
             user_id,
             week_date: week,
             tickers: (watch ?? [])
-              .filter((w) => w.user_id === user_id)
+              .filter((w) => w.user_id === user_id && !BENCHMARKS.includes(w.ticker))
               .map((w) => w.ticker),
           })),
           { onConflict: "user_id,week_date", ignoreDuplicates: true },

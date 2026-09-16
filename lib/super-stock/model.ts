@@ -56,6 +56,21 @@ export type Evidence = {
   sentiment: "positive" | "negative" | "neutral";
 };
 export type Assessment = {
+  research?: {
+    origin: "historical_reassessment";
+    version: string;
+    researched_at: string;
+    cutoff: string;
+    limitations: string[];
+    missing: string[];
+    releases: { published_at: string; url: string; metrics: Record<string, number> }[];
+    prices: { date: string; open: number; high: number; low: number; close: number; volume: number }[];
+    price_url: string;
+    return_1w: number;
+    return_4w: number;
+    spy_return_4w: number;
+    excess_4w: number;
+  };
   components: Record<ComponentKey, Component>;
   narrative_momentum: number;
   market_confirmation: number;
@@ -82,6 +97,7 @@ export type Ranked = Snapshot & {
   rankChange: number | null;
 };
 export const WEEK = 7 * 86400000;
+export const BENCHMARKS = ["SPY", "QQQ", "MAGS"];
 export function weekDate(now = new Date()): string {
   // Saturday 00:00 UTC is Saturday 09:00 KST, including US DST changes.
   const date = new Date(
