@@ -57,13 +57,13 @@ function normalizeSchema(raw: unknown): StorageSchema {
   };
 }
 
-function readSchema(): StorageSchema {
+function readSchema(storageKey: string): StorageSchema {
   if (!isClient()) {
     return createEmptySchema();
   }
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
 
     if (!raw) {
       return createEmptySchema();
@@ -75,43 +75,45 @@ function readSchema(): StorageSchema {
   }
 }
 
-function writeSchema(schema: StorageSchema): void {
+function writeSchema(schema: StorageSchema, storageKey: string): void {
   if (!isClient()) {
     return;
   }
 
   localStorage.setItem(
-    STORAGE_KEY,
+    storageKey,
     JSON.stringify({ ...schema, updatedAt: new Date().toISOString() }),
   );
 }
 
 export class LocalStorageFinanceRepository implements FinanceRepository {
+  constructor(private readonly storageKey: string = STORAGE_KEY) {}
+
   getPortfolioHoldings(): PortfolioHolding[] {
-    return readSchema().portfolioHoldings;
+    return readSchema(this.storageKey).portfolioHoldings;
   }
 
   savePortfolioHoldings(holdings: PortfolioHolding[]): void {
-    const current = readSchema();
+    const current = readSchema(this.storageKey);
     const normalized = holdings
       .map((holding, index) =>
         normalizePortfolioHolding(serializePortfolioHoldingForStorage(holding), index),
       )
       .filter((holding): holding is PortfolioHolding => Boolean(holding));
-    writeSchema({ ...current, portfolioHoldings: normalized });
+    writeSchema({ ...current, portfolioHoldings: normalized }, this.storageKey);
   }
 
   getCashTransactions(): CashTransaction[] {
-    return readSchema().cashTransactions;
+    return readSchema(this.storageKey).cashTransactions;
   }
 
   saveCashTransactions(transactions: CashTransaction[]): void {
-    const current = readSchema();
-    writeSchema({ ...current, cashTransactions: transactions });
+    const current = readSchema(this.storageKey);
+    writeSchema({ ...current, cashTransactions: transactions }, this.storageKey);
   }
 
   resetAll(): void {
-    writeSchema(createEmptySchema());
+    writeSchema(createEmptySchema(), this.storageKey);
   }
 }
 

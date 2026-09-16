@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const DEFAULT_FX_RATE = 1350;
+export const dynamic = "force-dynamic";
 const CACHE_SECONDS = 86400;
 
 type FxPayload = {
@@ -61,15 +61,8 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json(
-      {
-        rate: DEFAULT_FX_RATE,
-        asOf: new Date().toISOString().slice(0, 10),
-      },
-      {
-        headers: {
-          "Cache-Control": `public, s-maxage=${CACHE_SECONDS}, stale-while-revalidate=3600`,
-        },
-      },
+      { error: "Exchange rate temporarily unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
 }

@@ -16,7 +16,7 @@ import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
 import { Currency, Market, PortfolioHolding, RealizedTrade, TotalAssetSnapshot } from "@/lib/models/types";
 import { calculatePortfolioTotalAsset } from "@/lib/services/portfolioService";
-import { readPortfolioCashSettings } from "@/lib/services/totalAssetService";
+import { fetchSnapshotFxRate, loadSnapshotCash } from "@/lib/services/snapshotInputs";
 import {
   buildDailyNetSeries,
   buildMonthlyNetSeriesByYear,
@@ -489,7 +489,7 @@ export default function PerformancePage() {
     remove,
   } = useRealizedTrades();
   const { snapshots, upsertSnapshot } = useTotalAssets();
-  const { holdings, loading: portfolioLoading } = usePortfolio();
+  const { holdings, loading: portfolioLoading, userId } = usePortfolio();
 
   const [mounted, setMounted] = useState(false);
   const [today, setToday] = useState(SSR_SAFE_DATE);
@@ -786,19 +786,11 @@ export default function PerformancePage() {
 
   const monthOptions = useMemo(() => getMonthOptions(today, 12), [today]);
 
-  const fetchNavFxRate = useCallback(async (): Promise<{ rate: number }> => {
-    try {
-      const res = await fetch("/api/fx", { cache: "no-store" });
-      if (!res.ok) return { rate: readStoredFx() };
-      const data = (await res.json()) as Partial<FxApiResponse>;
-      const rate = Number(data.rate);
-      if (!Number.isFinite(rate) || rate <= 0) return { rate: readStoredFx() };
-      window.localStorage.setItem(FX_STORAGE_KEY, `${rate}`);
-      setFxRate(rate);
-      return { rate };
-    } catch {
-      return { rate: readStoredFx() };
-    }
+  const fetchNavFxRate = useCallback(async () => {
+    const fx = await fetchSnapshotFxRate();
+    window.localStorage.setItem(FX_STORAGE_KEY, `${fx.rate}`);
+    setFxRate(fx.rate);
+    return fx;
   }, []);
 
   const refreshHoldingQuotes = useCallback(
@@ -832,12 +824,12 @@ export default function PerformancePage() {
 
   const recordSnapshot = useCallback(
     async (targetDate: string) => {
-      if (!mounted || !isAuthenticated || targetDate === SSR_SAFE_DATE) return;
+      if (!mounted || !isAuthenticated || !userId || portfolioLoading || targetDate === SSR_SAFE_DATE) return;
       setIsRecording(true);
       try {
         const updatedHoldings = await refreshHoldingQuotes(holdings);
         const { rate } = await fetchNavFxRate();
-        const cash = readPortfolioCashSettings();
+        const cash = await loadSnapshotCash(userId);
         const computed = calculatePortfolioTotalAsset({
           holdings: updatedHoldings,
           fxRate: rate,
@@ -846,11 +838,13 @@ export default function PerformancePage() {
           cashKrw: cash.cashKrw,
         });
         upsertSnapshot({ date: targetDate, totalAssetKrwInt: computed.totalAssetKrw, fxRate: rate });
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "자산 기록에 실패했습니다.");
       } finally {
         setIsRecording(false);
       }
     },
-    [mounted, isAuthenticated, holdings, fetchNavFxRate, refreshHoldingQuotes, upsertSnapshot],
+    [mounted, isAuthenticated, userId, portfolioLoading, holdings, fetchNavFxRate, refreshHoldingQuotes, upsertSnapshot],
   );
 
   return (

@@ -25,7 +25,6 @@ import {
 } from "@/lib/services/events";
 import { isKrTickerCodeLike } from "@/lib/portfolio/display";
 
-const PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY = "pf_synced_portfolio_holdings_v1";
 
 function errorMessage(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -114,12 +113,9 @@ function mergeHoldingsWithLocalMetadata(
         localMatched.tickerCode ??
         (holding.market === "KR" ? localMatched.krCode : undefined),
       logoUrl: holding.logoUrl ?? localMatched.logoUrl,
-      comment: holding.comment ?? localMatched.comment,
+      comment: holding.comment,
       isCredit: holding.isCredit,
-      position:
-        holding.position === "N" && localMatched.position && localMatched.position !== "N"
-          ? localMatched.position
-          : holding.position,
+      position: holding.position,
       currentPrice: shouldPreferLocalQuote ? localMatched.currentPrice : holding.currentPrice,
       prevClose:
         shouldPreferLocalQuote
@@ -280,37 +276,46 @@ function resolveDisplayNameForQuoteUpdate(
 export function usePortfolio() {
   const { userId, isAuthenticated, loading: authLoading } = useAuth();
   const repository = useMemo(() => createPortfolioRepository(userId), [userId]);
-  const localRepository = useMemo(() => new LocalPortfolioRepository(), []);
+  const localRepository = useMemo(() => new LocalPortfolioRepository(userId), [userId]);
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [loading, setLoading] = useState(true);
   const requestSeqRef = useRef(0);
-  const syncAttemptedUserRef = useRef<string | null>(null);
+  const activeUserRef = useRef(userId);
   const holdingsRef = useRef<PortfolioHolding[]>([]);
+  if (activeUserRef.current !== userId) {
+    holdingsRef.current = [];
+    requestSeqRef.current += 1;
+    activeUserRef.current = userId;
+  }
+  const [holdingsUserId, setHoldingsUserId] = useState(userId);
 
   const applyHoldings = useCallback((next: PortfolioHolding[]) => {
+    if (activeUserRef.current !== userId) return;
     const sorted = sortHoldings(next);
     setHoldings(sorted);
+    setHoldingsUserId(userId);
     holdingsRef.current = sorted;
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      syncAttemptedUserRef.current = null;
+    if (userId) {
+      try {
+        localRepository.replaceHoldings(sorted);
+      } catch (error) {
+        console.error("[portfolio] cache write failed", error);
+      }
     }
-  }, [isAuthenticated]);
+  }, [localRepository, userId]);
 
   const refresh = useCallback(async () => {
     if (authLoading) {
       return;
     }
 
+    const requestSeq = ++requestSeqRef.current;
     if (!isAuthenticated) {
       applyHoldings([]);
       setLoading(false);
       return;
     }
 
-    const requestSeq = ++requestSeqRef.current;
     setLoading(true);
 
     try {
@@ -328,42 +333,10 @@ export function usePortfolio() {
         }
       }
 
-      if (userId && next.length === 0) {
-        if (localHoldings.length > 0) {
-          console.info(
-            "[portfolio] local fallback used (cloud rows are empty)",
-            {
-              localCount: localHoldings.length,
-            },
-          );
-          next = localHoldings;
+      // An empty server result is authoritative, including deletion of the last row.
+      // Cache fallback is reserved for failed requests, and is scoped to this user.
 
-          const alreadySynced =
-            window.localStorage.getItem(PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY) === "true";
-
-          if (!alreadySynced && syncAttemptedUserRef.current !== userId) {
-            syncAttemptedUserRef.current = userId;
-            void (async () => {
-              try {
-                const cloudRepository = new SupabasePortfolioRepository(userId);
-
-                for (const holding of localHoldings) {
-                  await cloudRepository.upsertHolding(holding);
-                }
-
-                window.localStorage.setItem(
-                  PORTFOLIO_HOLDINGS_SYNCED_FLAG_KEY,
-                  "true",
-                );
-              } catch (error) {
-                console.error("[portfolio] local->cloud holdings sync failed", error);
-              }
-            })();
-          }
-        }
-      }
-
-      if (requestSeq !== requestSeqRef.current) {
+      if (requestSeq !== requestSeqRef.current || activeUserRef.current !== userId) {
         return;
       }
 
@@ -391,11 +364,11 @@ export function usePortfolio() {
         localCount: fallback.length,
       });
 
-      if (requestSeq === requestSeqRef.current) {
+      if (requestSeq === requestSeqRef.current && activeUserRef.current === userId) {
         applyHoldings(fallback);
       }
     } finally {
-      if (requestSeq === requestSeqRef.current) {
+      if (requestSeq === requestSeqRef.current && activeUserRef.current === userId) {
         setLoading(false);
       }
     }
@@ -614,7 +587,7 @@ export function usePortfolio() {
 
   const updateQuotes = useCallback(
     async (quoteUpdates: HoldingQuoteUpdate[]) => {
-      if (quoteUpdates.length === 0) {
+      if (!isAuthenticated || quoteUpdates.length === 0) {
         return;
       }
 
@@ -693,7 +666,7 @@ export function usePortfolio() {
         console.error("[portfolio] failed to update quotes", error);
       }
     },
-    [applyHoldings, localRepository, repository],
+    [applyHoldings, isAuthenticated, localRepository, repository],
   );
 
   const uploadLocalToCloud = useCallback(async () => {
@@ -701,7 +674,7 @@ export function usePortfolio() {
       return { uploaded: 0, total: 0 };
     }
 
-    const localRepository = new LocalPortfolioRepository();
+    const localRepository = new LocalPortfolioRepository(userId);
     const cloudRepository = new SupabasePortfolioRepository(userId);
     const localHoldings = await localRepository.getHoldings();
 
@@ -723,8 +696,8 @@ export function usePortfolio() {
   }, [applyHoldings, isAuthenticated, userId]);
 
   return {
-    holdings,
-    loading,
+    holdings: holdingsUserId === userId ? holdings : [],
+    loading: loading || holdingsUserId !== userId,
     refresh,
     create,
     update,

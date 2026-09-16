@@ -22,9 +22,9 @@ import {
 import {
   DEFAULT_USDKRW_FX_RATE,
   PORTFOLIO_FX_STORAGE_KEY,
-  readPortfolioCashSettings,
   readStoredFxRate,
 } from "@/lib/services/totalAssetService";
+import { fetchSnapshotFxRate, loadSnapshotCash } from "@/lib/services/snapshotInputs";
 import { currentKstHour, getMonthRangeFromYm, todayKstYmd, toYm, toYmd } from "@/lib/utils/date";
 
 interface QuoteApiResponse {
@@ -32,11 +32,6 @@ interface QuoteApiResponse {
   market: "US" | "KR";
   currency: "USD" | "KRW";
   priceInt: number;
-  asOf: string;
-}
-
-interface FxApiResponse {
-  rate: number;
   asOf: string;
 }
 
@@ -129,6 +124,7 @@ export function TotalAssetClient() {
     updateQuotes,
     authLoading,
     isCloudMode,
+    userId,
   } = usePortfolio();
   const {
     snapshots,
@@ -603,38 +599,15 @@ export function TotalAssetClient() {
     [fetchHoldingQuote, updateQuotes],
   );
 
-  const fetchFxRate = useCallback(async (): Promise<{ rate: number; asOf: string }> => {
-    try {
-      const response = await fetch("/api/fx", { cache: "no-store" });
-
-      if (!response.ok) {
-        throw new Error(`FX API error ${response.status}`);
-      }
-
-      const data = (await response.json()) as Partial<FxApiResponse>;
-      const rate = Number(data.rate);
-
-      if (!Number.isFinite(rate) || rate <= 0) {
-        throw new Error("FX rate is invalid");
-      }
-
-      window.localStorage.setItem(PORTFOLIO_FX_STORAGE_KEY, `${rate}`);
-
-      return {
-        rate,
-        asOf: typeof data.asOf === "string" ? data.asOf : "",
-      };
-    } catch {
-      return {
-        rate: readStoredFxRate() || DEFAULT_USDKRW_FX_RATE,
-        asOf: "",
-      };
-    }
+  const fetchFxRate = useCallback(async () => {
+    const fx = await fetchSnapshotFxRate();
+    window.localStorage.setItem(PORTFOLIO_FX_STORAGE_KEY, `${fx.rate}`);
+    return fx;
   }, []);
 
   const recordSnapshot = useCallback(
     async (targetDate: string, explicitMemo?: string) => {
-      if (!mounted || loading || !isCloudMode) {
+      if (!mounted || loading || !isCloudMode || !userId) {
         return;
       }
 
@@ -643,7 +616,7 @@ export function TotalAssetClient() {
       try {
         const holdingsWithLatestPrice = await refreshUsHoldingsQuotes(holdings);
         const fx = await fetchFxRate();
-        const cashSettings = readPortfolioCashSettings();
+        const cashSettings = await loadSnapshotCash(userId);
 
         setFxRate(fx.rate);
         setFxAsOf(fx.asOf);
@@ -664,13 +637,13 @@ export function TotalAssetClient() {
         };
 
         upsertSnapshot(payload);
-      } catch {
-        // ignore
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "자산 기록에 실패했습니다.");
       } finally {
         setIsRecording(false);
       }
     },
-    [fetchFxRate, holdings, isCloudMode, loading, mounted, refreshUsHoldingsQuotes, upsertSnapshot],
+    [fetchFxRate, holdings, isCloudMode, userId, loading, mounted, refreshUsHoldingsQuotes, upsertSnapshot],
   );
 
   const handleRecordSelected = () => {

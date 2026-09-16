@@ -37,6 +37,12 @@ function toNonNegativeInt(value: unknown): number {
 export class LocalPortfolioAccountStateRepository
   implements PortfolioAccountStateRepository
 {
+  constructor(private readonly userId?: string | null) {}
+
+  private key(base: string): string {
+    return this.userId ? `${base}:${this.userId}` : base;
+  }
+
   async getState(): Promise<PortfolioAccountState | null> {
     if (typeof window === "undefined") {
       return null;
@@ -44,13 +50,13 @@ export class LocalPortfolioAccountStateRepository
 
     return {
       depositKrwInt: toNonNegativeInt(
-        window.localStorage.getItem(PORTFOLIO_DEPOSIT_STORAGE_KEY),
+        window.localStorage.getItem(this.key(PORTFOLIO_DEPOSIT_STORAGE_KEY)),
       ),
       depositUsdCents: toNonNegativeInt(
-        window.localStorage.getItem(PORTFOLIO_DEPOSIT_USD_STORAGE_KEY),
+        window.localStorage.getItem(this.key(PORTFOLIO_DEPOSIT_USD_STORAGE_KEY)),
       ),
       cashKrwInt: toNonNegativeInt(
-        window.localStorage.getItem(PORTFOLIO_CASH_STORAGE_KEY),
+        window.localStorage.getItem(this.key(PORTFOLIO_CASH_STORAGE_KEY)),
       ),
       updatedAt: new Date().toISOString(),
     };
@@ -62,15 +68,15 @@ export class LocalPortfolioAccountStateRepository
     }
 
     window.localStorage.setItem(
-      PORTFOLIO_DEPOSIT_STORAGE_KEY,
+      this.key(PORTFOLIO_DEPOSIT_STORAGE_KEY),
       `${toNonNegativeInt(state.depositKrwInt)}`,
     );
     window.localStorage.setItem(
-      PORTFOLIO_DEPOSIT_USD_STORAGE_KEY,
+      this.key(PORTFOLIO_DEPOSIT_USD_STORAGE_KEY),
       `${toNonNegativeInt(state.depositUsdCents)}`,
     );
     window.localStorage.setItem(
-      PORTFOLIO_CASH_STORAGE_KEY,
+      this.key(PORTFOLIO_CASH_STORAGE_KEY),
       `${toNonNegativeInt(state.cashKrwInt)}`,
     );
   }

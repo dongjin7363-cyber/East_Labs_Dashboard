@@ -65,8 +65,10 @@ async function main() {
     ),
   );
 
-  // Per-symbol failures are reported in the failed list but do not fail the
-  // whole scheduled job. Fatal setup/API errors still reach the catch block.
+  // A green scheduled run must mean that every attempted quote was updated.
+  if (result.failedCount > 0 || result.supabase.failed > 0) {
+    throw new Error(`Quote refresh incomplete: ${result.updatedCount} updated, ${result.failedCount} failed`);
+  }
 }
 
 void main().catch((error) => {

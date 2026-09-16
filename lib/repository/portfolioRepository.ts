@@ -16,8 +16,6 @@ export interface PortfolioRepository {
   deleteHolding(id: string): Promise<void>;
 }
 
-const localRepository = new LocalStorageFinanceRepository();
-
 function sortByUpdatedAtDesc(holdings: PortfolioHolding[]): PortfolioHolding[] {
   return [...holdings].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -38,20 +36,33 @@ function isMissingColumnError(error: unknown): boolean {
 }
 
 export class LocalPortfolioRepository implements PortfolioRepository {
+  private readonly localRepository: LocalStorageFinanceRepository;
+
+  constructor(userId?: string | null) {
+    // Unowned legacy data remains untouched; never adopt it for a signed-in user.
+    this.localRepository = new LocalStorageFinanceRepository(
+      userId ? `pf_portfolio_holdings_v2:${userId}` : undefined,
+    );
+  }
+
+  replaceHoldings(holdings: PortfolioHolding[]): void {
+    this.localRepository.savePortfolioHoldings(holdings);
+  }
+
   async getHoldings(): Promise<PortfolioHolding[]> {
-    return sortByUpdatedAtDesc(localRepository.getPortfolioHoldings());
+    return sortByUpdatedAtDesc(this.localRepository.getPortfolioHoldings());
   }
 
   async upsertHolding(holding: PortfolioHolding): Promise<void> {
-    const current = localRepository.getPortfolioHoldings();
+    const current = this.localRepository.getPortfolioHoldings();
     const next = [...current.filter((item) => item.id !== holding.id), holding];
-    localRepository.savePortfolioHoldings(sortByUpdatedAtDesc(next));
+    this.localRepository.savePortfolioHoldings(sortByUpdatedAtDesc(next));
   }
 
   async deleteHolding(id: string): Promise<void> {
-    const current = localRepository.getPortfolioHoldings();
+    const current = this.localRepository.getPortfolioHoldings();
     const next = current.filter((item) => item.id !== id);
-    localRepository.savePortfolioHoldings(sortByUpdatedAtDesc(next));
+    this.localRepository.savePortfolioHoldings(sortByUpdatedAtDesc(next));
   }
 }
 

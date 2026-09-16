@@ -75,17 +75,17 @@ export function usePortfolioAccountState() {
       if (!nextState && userId) {
         const alreadySynced =
           typeof window !== "undefined" &&
-          window.localStorage.getItem(PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY) === "true";
+          window.localStorage.getItem(`${PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY}:${userId}`) === "true";
 
         if (!alreadySynced && syncAttemptedUserRef.current !== userId) {
           syncAttemptedUserRef.current = userId;
-          const localRepository = new LocalPortfolioAccountStateRepository();
+          const localRepository = new LocalPortfolioAccountStateRepository(userId);
           const cloudRepository = new SupabasePortfolioAccountStateRepository(userId);
           const localState = await localRepository.getState();
 
           if (localState && hasNonZeroValue(localState)) {
             await cloudRepository.upsertState(localState);
-            window.localStorage.setItem(PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY, "true");
+            window.localStorage.setItem(`${PORTFOLIO_ACCOUNT_STATE_SYNCED_FLAG_KEY}:${userId}`, "true");
             nextState = localState;
           }
         }
@@ -110,7 +110,7 @@ export function usePortfolioAccountState() {
   const persist = useCallback(
     async (nextState: PortfolioAccountState) => {
       const normalized = normalizeState(nextState);
-      const localRepository = new LocalPortfolioAccountStateRepository();
+      const localRepository = new LocalPortfolioAccountStateRepository(userId);
       await localRepository.upsertState(normalized);
 
       if (!isAuthenticated) {
@@ -119,7 +119,7 @@ export function usePortfolioAccountState() {
 
       await repository.upsertState(normalized);
     },
-    [isAuthenticated, repository],
+    [isAuthenticated, repository, userId],
   );
 
   const commit = useCallback(
