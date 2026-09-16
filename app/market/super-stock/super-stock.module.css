@@ -204,7 +204,9 @@
   color: #8994a5;
 }
 .tableWrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: 481px;
+  scrollbar-gutter: stable;
 }
 .page table {
   width: 100%;
@@ -573,12 +575,12 @@
 .toolbarActions { display: flex; align-items: center; gap: 16px; }
 .toolbarActions label { margin: 0; letter-spacing: 0; white-space: nowrap; }
 .formRow input, .formRow button, .formRow select { font-size: 10px; padding: 8px 10px; }
-.tableWrap th { font-size: 11px; }
-.tableWrap td { font-size: 7.333px; padding-top: 10px; padding-bottom: 10px; }
-.tableWrap .tickerButton { font-size: 8px; min-height: 24px; }
-.tableWrap .badge { font-size: 6px; }
+.tableWrap th { font-size: 12px; line-height: 18px; padding-top: 10px; padding-bottom: 10px; height: 40px; box-sizing: border-box; position: sticky; top: 0; z-index: 1; }
+.tableWrap td { font-size: 12px; height: 44px; box-sizing: border-box; padding-top: 8px; padding-bottom: 8px; }
+.tableWrap .tickerButton { font-size: 12px; min-height: 24px; }
+.tableWrap .badge { font-size: 12px; }
 .rankCell { display: inline-flex; align-items: center; gap: 6px; }
-.rankChange { font-size: 6px; padding: 2px 3px; border-radius: 3px; background: #f2f5fa; }
+.rankChange { font-size: 9px; padding: 2px 3px; border-radius: 3px; background: #f2f5fa; }
 .rankUp { color: #dc3545; background: #fff0f1; }
 .rankDown { color: #2457e8; background: #edf3ff; }
 .mapTools { display: flex; justify-content: space-between; align-items: center; padding: 0 22px 12px; font-size: 11px; color: #738199; gap: 12px; }

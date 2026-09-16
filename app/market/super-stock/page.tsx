@@ -262,12 +262,16 @@ export default function SuperStockPage() {
           ))}
         </div>
       )}
-      {researchMode && !!data?.snapshots.length && <div className={styles.notice}>
-        <strong>과거 자료 재평가 · 2026.08.15–09.12 / 5주</strong><br />
-        9월 16일에 당시 공개된 실적·선별 공시와 과거 주가로 재구성했습니다. 당시 저장된 평가가 아닙니다.
-        미확인 항목은 중립 2.5점이며, 공시 신규성을 뉴스·소셜 심리의 대용 지표로 사용합니다. 자동 평가와는 별도 기록입니다.
-      </div>}
       <div className={styles.mainGrid}>
+        <article className={styles.panel}>
+          <div className={styles.panelHead}>
+            <div>
+              <h2>Quality × Delta</h2>
+              <p>기업의 질과 변화의 속도를 함께 봅니다.</p>
+            </div>
+          </div>
+          <QualityMap rows={rows} selected={detail?.ticker} onSelect={setSelected} />
+        </article>
         <article className={styles.panel}>
           <div className={styles.panelHead}>
             <div>
@@ -308,7 +312,7 @@ export default function SuperStockPage() {
               {rows.length < cohort.length ? " · 미완료 순위" : ""}
             </span>
           </div>
-          <div className={styles.tableWrap}>
+          <div className={styles.tableWrap} role="region" aria-label="주간 순위 목록 · 스크롤하여 전체 종목 보기" tabIndex={0} key={`${chosen}-${query}`}>
             <table>
               <thead>
                 <tr>
@@ -396,15 +400,6 @@ export default function SuperStockPage() {
                 : ""}
             </p>
           )}
-        </article>
-        <article className={styles.panel}>
-          <div className={styles.panelHead}>
-            <div>
-              <h2>Quality × Delta</h2>
-              <p>기업의 질과 변화의 속도를 함께 봅니다.</p>
-            </div>
-          </div>
-          <QualityMap rows={rows} selected={detail?.ticker} onSelect={setSelected} />
         </article>
       </div>
       {detail ? (
