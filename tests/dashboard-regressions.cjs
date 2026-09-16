@@ -38,7 +38,7 @@ function environment() {
       if(id.startsWith('.'))return load(path.resolve(path.dirname(file),id)+'.ts'); return require(id);};
     vm.runInNewContext('(function(require,module,exports){'+js+'\n})',{
       window:{localStorage:storage,alert:()=>{},addEventListener:()=>{},removeEventListener:()=>{}},localStorage:storage,
-      console:{info:()=>{},error:()=>{},warn:()=>{},log:()=>{}},process:context.process,fetch:(...args)=>context.fetch(...args),URL,Date,Map,Set,Promise,
+      console:{info:()=>{},error:()=>{},warn:()=>{},log:()=>{}},process:context.process,fetch:(...args)=>context.fetch(...args),URL,Date,Map,Set,Promise,setTimeout,AbortSignal,Buffer,
     })(req,module,module.exports);
     return module.exports;
   }
@@ -143,4 +143,108 @@ test('cash caches are isolated by account and preserve unowned legacy values',as
   assert.equal((await b.getState()).depositKrwInt,0);
   assert.equal((await b.getState()).depositUsdCents,0);
   assert.equal(storage.getItem('pf_deposit_krw_v1'),'777');
+});
+
+test('07 KST records the preceding calendar date, including weekends and year/month boundaries',()=>{
+  const {load}=environment();const {resolvePortfolioSchedule}=load(path.join(root,'lib/services/portfolioSchedule.ts'));
+  for(const [at,date] of [['2026-09-15T22:00:00Z','2026-09-15'],['2026-12-31T22:00:00Z','2026-12-31'],['2028-02-29T22:00:00Z','2028-02-29'],['2026-09-19T22:00:00Z','2026-09-19']]) {
+    assert.equal(resolvePortfolioSchedule(at,Date.parse(at)+1000).snapshotDate,date);
+  }
+  for(const at of ['2026-09-16T03:00:00Z','2026-09-16T08:00:00Z']) {
+    assert.equal(resolvePortfolioSchedule(at,Date.parse(at)).snapshotDate,null);
+  }
+});
+
+test('late, off-schedule and future invocations cannot write a misleading 07 snapshot',()=>{
+  const {load}=environment();const {resolvePortfolioSchedule}=load(path.join(root,'lib/services/portfolioSchedule.ts'));
+  const at='2026-09-15T22:00:00Z';
+  assert.throws(()=>resolvePortfolioSchedule(at,Date.parse(at)+16*60*1000),/late/);
+  assert.throws(()=>resolvePortfolioSchedule(at,Date.parse(at)-60000),/Invalid/);
+  assert.throws(()=>resolvePortfolioSchedule('2026-09-15T22:10:00Z',Date.parse(at)+600000),/Invalid/);
+});
+
+test('scheduled valuation includes KRW, USD deposits, external cash and credit P&L by owner',()=>{
+  const {load}=environment();const {buildScheduledSnapshots}=load(path.join(root,'lib/services/portfolioSchedule.ts'));
+  const rows=buildScheduledSnapshots([
+    {...holding,userId:'A'},
+    {...holding,id:'credit',userId:'A',market:'KR',currency:'KRW',qty:10,avgPrice:1000,currentPrice:1200,isCredit:true},
+    {...holding,id:'B',userId:'B'},
+  ],[{user_id:'A',deposit_krw_int:1000,deposit_usd_cents:10000,cash_krw_int:2000}], '2026-09-15',1400);
+  assert.equal(rows.find(r=>r.user_id==='A').total_asset_krw_int,299000);
+  assert.equal(rows.find(r=>r.user_id==='B').total_asset_krw_int,154000);
+});
+
+test('KIS offset-free expiry is interpreted as Korea time, not UTC',()=>{
+  const {load}=environment();const {parseTokenExpiry}=load(path.join(root,'lib/kis/token.ts'));
+  const now=Date.parse('2026-09-16T00:00:00Z');
+  assert.equal(parseTokenExpiry({access_token_token_expired:'2026-09-17 09:00:00',expires_in:86400},now),now+86400000);
+  assert.equal(parseTokenExpiry({access_token_token_expired:'2026-09-16 18:00:00'},now),Date.parse('2026-09-16T09:00:00Z'));
+});
+
+function mockTokenStore(env, initial, lookupError=false) {
+  let row=initial, issued=0;
+  const client={from:()=>({
+    select:()=>({eq:()=>({maybeSingle:async()=>({data:row,error:lookupError?{message:'offline'}:null})})}),
+    upsert:async value=>{row=value;return {error:null};},
+  })};
+  env.mocks['@/lib/supabaseAdmin']={createSupabaseAdminClient:()=>client};
+  env.mocks['@/lib/services/serverLease']={acquireServerLease:async()=>async()=>{}};
+  env.mocks['@/lib/kis/client']={getKisClientConfig:()=>({baseUrl:'https://example.invalid',appKey:'test',appSecret:'test'}),KisApiError:class extends Error{}};
+  env.context.fetch=async()=>{issued++;await tick();return {ok:true,json:async()=>({access_token:'new-test-token',expires_in:86400})};};
+  return {issued:()=>issued};
+}
+
+test('parallel refreshes issue only one shared token',async()=>{
+  const env=environment();const store=mockTokenStore(env,null);
+  const {getKisAccessToken}=env.load(path.join(root,'lib/kis/token.ts'));
+  const values=await Promise.all(Array.from({length:12},()=>getKisAccessToken()));
+  assert.equal(store.issued(),1);assert.ok(values.every(v=>v==='new-test-token'));
+});
+
+test('valid tokens are reused and cache lookup errors never trigger token issuance',async()=>{
+  const env=environment();const now=Date.now();const store=mockTokenStore(env,{access_token:'cached-test-token',expires_at:new Date(now+3600000).toISOString(),updated_at:new Date(now-3600000).toISOString()});
+  assert.equal(await env.load(path.join(root,'lib/kis/token.ts')).getKisAccessToken(),'cached-test-token');assert.equal(store.issued(),0);
+  const broken=environment();const brokenStore=mockTokenStore(broken,null,true);
+  await assert.rejects(broken.load(path.join(root,'lib/kis/token.ts')).getKisAccessToken(),/refusing/);
+  assert.equal(brokenStore.issued(),0);
+});
+
+test('scheduled endpoint requires its dedicated server secret',async()=>{
+  const env=environment();let calls=0;
+  env.mocks['@/lib/services/runPortfolioSchedule']={runPortfolioSchedule:async()=>{calls++;return {status:'complete'};}};
+  env.context.process.env.PORTFOLIO_CRON_SECRET='test-cron-secret';
+  const route=env.load(path.join(root,'app/api/cron/portfolio/route.ts'));
+  const request=auth=>({headers:{get:()=>auth},json:async()=>({scheduledAt:'2026-09-15T22:00:00Z'})});
+  assert.equal((await route.POST(request(null))).status,401);assert.equal(calls,0);
+  assert.equal((await route.POST(request('Bearer test-cron-secret'))).status,200);assert.equal(calls,1);
+});
+
+function mockScheduleRun(env, {previous=null,failures=0,hour=12}={}) {
+  let refreshes=0,completed=null;const states=[];
+  env.mocks['@/lib/services/serverLease']={acquireServerLease:async()=>async()=>{}};
+  env.mocks['@/lib/services/portfolioSchedule']={resolvePortfolioSchedule:()=>({scheduledAt:'2026-09-16T03:00:00Z',hour,snapshotDate:hour===7?'2026-09-15':null})};
+  env.mocks['@/lib/quotes/update']={updatePortfolioQuotes:async()=>{refreshes++;return {updatedCount:failures?0:40,failedCount:failures,supabase:{failed:0}};}};
+  env.mocks['@/lib/supabaseAdmin']={createSupabaseAdminClient:()=>({from:()=>({
+    select:()=>({eq:()=>({maybeSingle:async()=>({data:previous,error:null})})}),
+    upsert:async row=>{states.push(row);return {error:null};},
+  }),rpc:async(name,args)=>{completed=args;return {error:null};}})};
+  return {refreshes:()=>refreshes,completed:()=>completed,states};
+}
+
+test('quote failures stop scheduled snapshots and are recorded as failed',async()=>{
+  const env=environment();const run=mockScheduleRun(env,{failures:40,hour:7});
+  await assert.rejects(env.load(path.join(root,'lib/services/runPortfolioSchedule.ts')).runPortfolioSchedule('slot'),/snapshot not saved/);
+  assert.equal(run.completed(),null);assert.equal(run.states.at(-1).status,'failed');
+});
+
+test('duplicate completed slots do not fetch quotes or overwrite snapshots',async()=>{
+  const env=environment();const run=mockScheduleRun(env,{previous:{status:'complete'},hour:7});
+  const result=await env.load(path.join(root,'lib/services/runPortfolioSchedule.ts')).runPortfolioSchedule('slot');
+  assert.equal(result.status,'already-complete');assert.equal(run.refreshes(),0);assert.equal(run.completed(),null);
+});
+
+test('noon update completes without any historical snapshot payload',async()=>{
+  const env=environment();const run=mockScheduleRun(env);
+  const result=await env.load(path.join(root,'lib/services/runPortfolioSchedule.ts')).runPortfolioSchedule('slot');
+  assert.equal(result.snapshots,0);assert.equal(run.completed().p_snapshots.length,0);assert.equal(run.refreshes(),1);
 });

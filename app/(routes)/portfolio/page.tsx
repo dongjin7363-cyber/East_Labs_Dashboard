@@ -45,7 +45,6 @@ const LAST_QUOTE_REFRESH_STORAGE_KEY = "pf_last_quote_refresh_at_v1";
 const LAST_QUOTE_FAIL_STORAGE_KEY = "pf_last_quote_fail_at_v1";
 const QUOTE_BLACKLIST_STORAGE_KEY = "pf_quote_blacklist_v1";
 const DEFAULT_FX_RATE = 1350;
-const QUOTE_REFRESH_INTERVAL_MS = 7_200_000;
 const QUOTE_FAIL_COOLDOWN_MS = 600_000;
 const QUOTE_FAILURE_TICKER_PREVIEW_LIMIT = 5;
 const QUOTE_UNSUPPORTED_SKIP_MESSAGE = "지원되지 않는 티커는 24시간 동안 자동 스킵됩니다";
@@ -518,6 +517,7 @@ export default function PortfolioPage() {
     updateQuotes,
     authLoading,
     isCloudMode,
+    userId,
   } = usePortfolio();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PortfolioHolding | undefined>();
@@ -768,13 +768,6 @@ export default function PortfolioPage() {
       if (!force) {
         const now = Date.now();
 
-        if (
-          lastQuoteRefreshAt !== null &&
-          now - lastQuoteRefreshAt < QUOTE_REFRESH_INTERVAL_MS
-        ) {
-          return;
-        }
-
         if (lastQuoteFailAt !== null && now - lastQuoteFailAt < QUOTE_FAIL_COOLDOWN_MS) {
           return;
         }
@@ -884,52 +877,29 @@ export default function PortfolioPage() {
         setIsRefreshingQuotes(false);
       }
     },
-    [lastQuoteFailAt, lastQuoteRefreshAt, refresh],
+    [lastQuoteFailAt, refresh],
   );
 
+  const accessRefreshUserRef = useRef<string | null>(null);
   useEffect(() => {
-    if (loading || !quoteMetaLoaded) {
+    if (!isAuthed) {
+      accessRefreshUserRef.current = null;
       return;
     }
-
-    void refreshQuotesForVisible();
-  }, [loading, quoteMetaLoaded, refreshQuotesForVisible]);
-
-  useEffect(() => {
-    if (loading || !quoteMetaLoaded) {
-      return;
-    }
-
-    if (document.visibilityState !== "visible") {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      void refreshQuotesForVisible();
-    }, QUOTE_REFRESH_INTERVAL_MS);
-
-    return () => {
-      window.clearInterval(intervalId);
-    };
-  }, [loading, quoteMetaLoaded, refreshQuotesForVisible]);
+    if (loading || !quoteMetaLoaded || !userId || accessRefreshUserRef.current === userId) return;
+    accessRefreshUserRef.current = userId;
+    void refreshQuotesForVisible({ force: true });
+  }, [isAuthed, userId, loading, quoteMetaLoaded, refreshQuotesForVisible]);
 
   useEffect(() => {
-    if (!quoteMetaLoaded) {
-      return;
-    }
-
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && isAuthed && quoteMetaLoaded) {
         void refreshQuotesForVisible();
       }
     };
-
     document.addEventListener("visibilitychange", onVisibilityChange);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
-  }, [quoteMetaLoaded, refreshQuotesForVisible]);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [isAuthed, quoteMetaLoaded, refreshQuotesForVisible]);
 
   const totalAsset = useMemo(
     () =>

@@ -192,7 +192,7 @@ async function requestKisQuote<T>(
       ...context,
       trId: options.trId,
     });
-    await invalidateKisAccessToken("KIS API returned expired token");
+    await invalidateKisAccessToken("KIS API returned expired token", accessToken);
     const refreshedAccessToken = await getKisAccessToken();
 
     return client.request<T>({

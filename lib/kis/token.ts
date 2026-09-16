@@ -1,3 +1,4 @@
+import { acquireServerLease } from "@/lib/services/serverLease";
 import { getKisClientConfig, KisApiError } from "@/lib/kis/client";
 import { createSupabaseAdminClient } from "@/lib/supabaseAdmin";
 
@@ -10,6 +11,7 @@ interface KisTokenResponse {
 interface KisTokenRow {
   access_token: string;
   expires_at: string;
+  updated_at: string;
 }
 
 const KIS_TOKEN_ID = "kis_access_token";
@@ -17,23 +19,21 @@ const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 let tokenCache: { accessToken: string; expiresAt: number } | null = null;
 
-function parseTokenExpiry(payload: KisTokenResponse): number {
-  if (
-    typeof payload.access_token_token_expired === "string" &&
-    payload.access_token_token_expired.trim()
-  ) {
-    const parsed = Date.parse(payload.access_token_token_expired);
-
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
+export function parseTokenExpiry(payload: KisTokenResponse, now = Date.now()): number {
+  const candidates: number[] = [];
+  if (typeof payload.access_token_token_expired === "string") {
+    const raw = payload.access_token_token_expired.trim();
+    // KIS returns a Korean wall-clock timestamp without an offset.
+    const iso = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$/.test(raw)
+      ? `${raw.replace(" ", "T")}+09:00` : raw;
+    const parsed = Date.parse(iso);
+    if (Number.isFinite(parsed)) candidates.push(parsed);
   }
-
-  if (typeof payload.expires_in === "number" && Number.isFinite(payload.expires_in)) {
-    return Date.now() + payload.expires_in * 1000;
+  if (typeof payload.expires_in === "number" && payload.expires_in > 0) {
+    candidates.push(now + payload.expires_in * 1000);
   }
-
-  return Date.now() + 23 * 60 * 60 * 1000;
+  // Never extend a cached token beyond the documented 24-hour lifetime.
+  return Math.min(now + 24 * 60 * 60 * 1000, ...candidates);
 }
 
 function isUsableToken(
@@ -54,7 +54,8 @@ function parseStoredToken(row: KisTokenRow | null): {
     return null;
   }
 
-  const expiresAt = Date.parse(row.expires_at);
+  const issuedAt = Date.parse(row.updated_at);
+  const expiresAt = Math.min(Date.parse(row.expires_at), issuedAt + 24 * 60 * 60 * 1000);
 
   if (!Number.isFinite(expiresAt)) {
     return null;
@@ -73,13 +74,12 @@ async function readStoredToken(): Promise<{
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("kis_tokens")
-    .select("access_token, expires_at")
+    .select("access_token, expires_at, updated_at")
     .eq("id", KIS_TOKEN_ID)
     .maybeSingle<KisTokenRow>();
 
   if (error) {
-    console.warn("KIS token Supabase lookup failed; issuing a new token");
-    return null;
+    throw new Error("KIS token store is unavailable; refusing unnecessary token issuance");
   }
 
   return parseStoredToken(data);
@@ -105,12 +105,13 @@ async function saveToken(accessToken: string, expiresAt: number): Promise<boolea
   return true;
 }
 
-async function deleteStoredToken(reason: string): Promise<void> {
+async function deleteStoredToken(reason: string, rejectedToken: string): Promise<void> {
   const supabase = createSupabaseAdminClient();
   const { error } = await supabase
     .from("kis_tokens")
     .delete()
-    .eq("id", KIS_TOKEN_ID);
+    .eq("id", KIS_TOKEN_ID)
+    .eq("access_token", rejectedToken);
 
   if (error) {
     console.warn("[kis:token] Supabase token delete failed", {
@@ -130,6 +131,7 @@ async function issueKisAccessToken(): Promise<{
   const config = getKisClientConfig();
   const response = await fetch(`${config.baseUrl}/oauth2/tokenP`, {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     cache: "no-store",
     headers: {
       "content-type": "application/json; charset=utf-8",
@@ -157,27 +159,55 @@ async function issueKisAccessToken(): Promise<{
   };
 }
 
-export async function getKisAccessToken(): Promise<string> {
-  if (isUsableToken(tokenCache)) {
-    return tokenCache.accessToken;
+let pendingToken: Promise<string> | null = null;
+
+async function restoreOrIssueToken(): Promise<string> {
+  const stored = await readStoredToken();
+  if (isUsableToken(stored)) {
+    tokenCache = stored;
+    return stored.accessToken;
   }
 
-  const storedToken = await readStoredToken();
-
-  if (isUsableToken(storedToken)) {
-    tokenCache = storedToken;
-    console.info("KIS token reused from Supabase");
-    return storedToken.accessToken;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const release = await acquireServerLease("kis-token-issuance", 60);
+    if (release) {
+      try {
+        // A different instance may have issued a token while we waited.
+        const latest = await readStoredToken();
+        if (isUsableToken(latest)) {
+          tokenCache = latest;
+          return latest.accessToken;
+        }
+        const issued = await issueKisAccessToken();
+        tokenCache = issued;
+        if (!await saveToken(issued.accessToken, issued.expiresAt)) {
+          throw new Error("KIS token could not be shared with other workers");
+        }
+        console.info("KIS token issued and saved");
+        return issued.accessToken;
+      } finally {
+        await release();
+      }
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const latest = await readStoredToken();
+    if (isUsableToken(latest)) {
+      tokenCache = latest;
+      return latest.accessToken;
+    }
   }
-
-  tokenCache = await issueKisAccessToken();
-  const saved = await saveToken(tokenCache.accessToken, tokenCache.expiresAt);
-  console.info(saved ? "KIS token issued and saved" : "KIS token issued");
-
-  return tokenCache.accessToken;
+  throw new Error("KIS token issuance is already in progress; retry shortly");
 }
 
-export async function invalidateKisAccessToken(reason: string): Promise<void> {
-  tokenCache = null;
-  await deleteStoredToken(reason);
+export async function getKisAccessToken(): Promise<string> {
+  if (isUsableToken(tokenCache)) return tokenCache.accessToken;
+  if (!pendingToken) {
+    pendingToken = restoreOrIssueToken().finally(() => { pendingToken = null; });
+  }
+  return pendingToken;
+}
+
+export async function invalidateKisAccessToken(reason: string, rejectedToken: string): Promise<void> {
+  if (tokenCache?.accessToken === rejectedToken) tokenCache = null;
+  await deleteStoredToken(reason, rejectedToken);
 }
