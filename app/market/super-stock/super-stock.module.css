@@ -593,3 +593,8 @@
 @media (max-width: 650px) {
   .toolbarActions { width: 100%; gap: 10px; flex-wrap: wrap; }
 }
+
+.combinedData { min-width: 1420px; }
+.valueUp, .detail .positive { color: #dc3545; }
+.valueDown, .detail .negative { color: #2457e8; }
+.rawScroll:focus-visible { outline: 2px solid #2457e8; outline-offset: 2px; }

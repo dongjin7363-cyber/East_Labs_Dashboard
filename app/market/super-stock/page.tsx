@@ -456,7 +456,7 @@ function Detail({
     <article className={`${styles.panel} ${styles.detail}`}>
       <div className={styles.detailHead}>
         <div>
-          <span className={styles.eyebrow}>STOCK DEEP DIVE</span>
+          <span className={styles.eyebrow}>STOCK DEEP SEARCH</span>
           <h2>
             {d.ticker}
             <span className={styles.badge}>{d.classification}</span>
@@ -466,7 +466,6 @@ function Detail({
         <div>
           <strong>{d.super_score.toFixed(1)}</strong>
           <span>SUPER SCORE / 100</span>
-          <small>분석 신뢰도 {Math.round(d.confidence * 100)}%</small>
         </div>
       </div>
       {d.research && <RawData snapshot={d} history={history} />}
@@ -598,28 +597,41 @@ function ComponentBar({
   );
 }
 
-function downloadJson(name: string, value: unknown) {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], {type: "application/json"}));
-  const link = document.createElement("a");
-  link.href = url; link.download = name; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[]}) {
   const raw = s.research!;
+  const prices = new Map(raw.prices.map(p => [p.date, p]));
+  for (const h of history) {
+    const price = h.research?.prices[0];
+    if (price) prices.set(price.date, price);
+  }
+  const dates = [...prices.keys()].sort();
+  const changeClass = (value: number | null | undefined) => value == null || value === 0 ? "" : value > 0 ? styles.valueUp : styles.valueDown;
+  const percent = (value: number | null | undefined, unit = "%") => <span className={changeClass(value)}>{value == null ? "—" : `${signed(value)}${unit}`}</span>;
   return <section className={styles.raw} aria-label="평가 원자료">
-    <div className={styles.evidenceHeader}><h3>Raw data · 평가 원자료</h3><button className={styles.secondary} onClick={() => downloadJson(`${s.ticker}-5-week-research.json`, history)}>5주 원자료 내려받기</button></div>
+    <div className={styles.evidenceHeader}><h3>Raw data · 평가 원자료</h3></div>
     <p>기준 시각 {raw.cutoff.slice(0,10)} 09:00 KST · 조사일 {raw.researched_at} · {raw.version}</p>
-    <div className={styles.rawScroll}><table><caption>5주 점수와 실제 가격 변화</caption><thead><tr><th>평가 주</th><th>Super</th><th>Quality</th><th>Delta</th><th>종가 USD</th><th>1주 수익률</th><th>4주 수익률</th><th>SPY 대비 4주</th></tr></thead><tbody>{history.map(h=><tr key={h.week_date}><td>{h.week_date}</td><td>{h.super_score}</td><td>{h.quality_score}</td><td>{h.delta_score}</td><td>{h.research?.prices[0]?.close.toLocaleString()}</td><td>{signed(h.research?.return_1w ?? null)}%</td><td>{signed(h.research?.return_4w ?? null)}%</td><td>{signed(h.research?.excess_4w ?? null)}pp</td></tr>)}</tbody></table></div>
-    <details open><summary>선택 주의 가격 원자료와 비교 기준</summary>
-      <p>금요일 일봉입니다. 거래량은 해당 거래일 수치이며 주간 합계가 아닙니다. 4주 수익률 계산에 사용한 이전 4개 금요일도 포함합니다. 배당 제외·제공업체 분할 조정 종가 기준.</p>
-      <div className={styles.rawScroll}><table><thead><tr><th>거래일</th><th>시가</th><th>고가</th><th>저가</th><th>종가</th><th>거래량</th></tr></thead><tbody>{raw.prices.map(p=><tr key={p.date}><td>{p.date}</td>{[p.open,p.high,p.low,p.close,p.volume].map((v,i)=><td key={i}>{v.toLocaleString()}</td>)}</tr>)}</tbody></table></div>
-      <p><a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a> · 동일 4주 SPY 수익률 {signed(raw.spy_return_4w)}%</p>
-    </details>
-    <details open><summary>기준 시각 이전 공개 재무지표</summary>
-      {raw.releases.map(release=><div key={release.url}><h4>{release.published_at} 발표 <a href={release.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></h4><div className={styles.rawScroll}><table><tbody>{Object.entries(release.metrics).map(([label,value])=><tr key={label}><th>{label}</th><td>{value.toLocaleString()}</td></tr>)}</tbody></table></div></div>)}
-      <p>새 실적이 없으면 이전 발표를 유지합니다. 분기·연간·TTM, GAAP·조정 수치는 항목명으로 구분합니다.</p>
-    </details>
-    <details><summary>계산 방식·미확인 항목</summary>
+    <div className={styles.rawScroll} role="region" aria-label="5주 점수와 가격 원자료 · 가로 스크롤" tabIndex={0}>
+      <table className={styles.combinedData}>
+        <caption>5주 점수와 실제 가격 변화 · 가격 원자료 및 비교 기준</caption>
+        <thead><tr>{["평가 주", "거래일", "Super", "Quality", "Delta", "시가 USD", "고가 USD", "저가 USD", "종가 USD", "거래량", "1주 수익률", "4주 수익률", "SPY 4주 수익률", "SPY 대비 4주"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+        <tbody>{dates.map(date => {
+          const price = prices.get(date)!;
+          const h = history.find(v => v.research?.prices[0]?.date === date);
+          const previousDate = new Date(Date.parse(date) - 7 * 86400000).toISOString().slice(0,10);
+          const previousPrice = prices.get(previousDate) ?? h?.research?.prices.find(p => p.date === previousDate);
+          const previous = history.find(v => v.research?.prices[0]?.date === previousDate);
+          return <tr key={date} className={h?.week_date === s.week_date ? styles.selected : undefined}>
+            <td>{h?.week_date ?? "비교 기준"}</td><td>{date}</td>
+            {(["super_score", "quality_score", "delta_score"] as const).map(key => <td key={key} className={changeClass(h && previous ? h[key] - previous[key] : null)}>{h?.[key].toFixed(1) ?? "—"}</td>)}
+            {(["open", "high", "low", "close", "volume"] as const).map(key => <td key={key} className={changeClass(previousPrice ? price[key] - previousPrice[key] : null)}>{price[key].toLocaleString()}</td>)}
+            <td>{percent(h?.research?.return_1w)}</td><td>{percent(h?.research?.return_4w)}</td><td>{percent(h?.research?.spy_return_4w)}</td><td>{percent(h?.research?.excess_4w, "pp")}</td>
+          </tr>;
+        })}</tbody>
+      </table>
+    </div>
+    <p>좌우로 스크롤해 전체 항목을 확인하세요. 점수·가격·거래량은 전주 대비 상승 시 빨강, 하락 시 파랑으로 표시합니다. 수익률은 양수·음수 기준입니다.</p>
+    <p>금요일 일봉이며 거래량은 해당 거래일 수치입니다. 선택 주의 4주 비교에 필요한 이전 날짜도 포함하며, 평가가 없는 날짜는 점수를 표시하지 않습니다. 배당 제외·제공업체 분할 조정 종가 기준. <a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a></p>
+    <details><summary>Super Stock Logic</summary>
       <p>Super = Quality ÷ 40 × 30 + Delta ÷ 40 × 45 + 공시 신규성 × 0.15 + 시장 확인 × 0.10.</p>
       <p>시장 확인 = 50 + 4주 SPY 초과수익률(pp) × 2 + 1주 수익률(%), 0–100 제한. 공시 신규성 = 30 + 실적 신선도 × 30 + 최근 28일 수집 이벤트 수 × 10, 0–100 제한. 신선도는 발표 후 7/14/28일 이내에 각각 1/0.75/0.5, 그 이후 0.25입니다.</p>
       <p>그 외 정성 항목은 출처를 해석한 연구 판단입니다. 각 항목을 펼치면 근거를 볼 수 있습니다. 미확인: {raw.missing.map(k=>LABELS[k]??k).join(", ")}.</p>
