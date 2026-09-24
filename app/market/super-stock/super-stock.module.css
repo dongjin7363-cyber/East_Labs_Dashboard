@@ -600,3 +600,15 @@
 .rawScroll:focus-visible { outline: 2px solid #2457e8; outline-offset: 2px; }
 
 .currency { font-size: 9px; margin-left: 4px; }
+
+/* Match the shared EAST theme without changing research layouts. */
+.page { color: var(--east-text-1); padding: 28px; }
+.hero h1 { font-size: 28px; letter-spacing: -.04em; font-weight: 650; }
+.page input, .page select, .page button { border-radius: 9px; font-family: var(--east-font); }
+.page button { background: var(--east-cobalt); }
+.page button:disabled { cursor: not-allowed; }
+@media (max-width: 760px) {
+  .page { padding: 20px 16px; }
+  .hero { flex-wrap: wrap; gap: 14px; }
+  .schedule { text-align: left; }
+}

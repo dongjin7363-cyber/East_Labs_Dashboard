@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import "./theme.css";
 import { Sidebar } from "@/components/Sidebar";
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-jetbrains-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "EAST",
@@ -21,11 +14,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={jetbrainsMono.variable}>
+    <html lang="ko">
       <body>
+        <a className="east-skip-link" href="#main-content">본문으로 이동</a>
         <div className="east-shell">
           <Sidebar />
-          <main className="east-main">{children}</main>
+          <main id="main-content" className="east-main">{children}</main>
         </div>
       </body>
     </html>

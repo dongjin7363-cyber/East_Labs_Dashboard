@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { MarketIndexes } from "@/lib/marketIndexes";
 import { FormattedNumberInput } from "@/components/FormattedNumberInput";
 import { Modal } from "@/components/Modal";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
@@ -50,8 +51,8 @@ const QUOTE_FAILURE_TICKER_PREVIEW_LIMIT = 5;
 const QUOTE_UNSUPPORTED_SKIP_MESSAGE = "지원되지 않는 티커는 24시간 동안 자동 스킵됩니다";
 
 const DONUT_COLORS = [
-  "#3B4FBF",
-  "#7C3AED",
+  "#4D68CB",
+  "#9296C8",
   "#059669",
   "#DC2626",
   "#D97706",
@@ -139,6 +140,7 @@ interface DonutSlice {
   key: string;
   label: string;
   amountKrw: number;
+  amountUsdCents?: number;
   color: string;
 }
 
@@ -334,6 +336,21 @@ function buildDonutSlices(
 ): DonutSlice[] {
   const grouped = new Map<string, number>();
   const labelMap = new Map<string, string>();
+  const usdAmounts = new Map<string, number>();
+  const domesticGroups = new Set<string>();
+  // Keep native USD amounts instead of reversing the rounded KRW values.
+  holdings.forEach((holding) => {
+    const amount = calcHoldingComputed(holding).marketValue;
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const key = mode === "COUNTRY" ? holding.market
+      : mode === "SECTOR" ? holding.sector ?? "Other"
+      : resolveHoldingGroupingKey(holding);
+    if (holding.market === "US") {
+      usdAmounts.set(key, (usdAmounts.get(key) ?? 0) + amount);
+    } else {
+      domesticGroups.add(key);
+    }
+  });
 
   if (mode === "COUNTRY") {
     let krTotal = 0;
@@ -399,6 +416,9 @@ function buildDonutSlices(
       key,
       label: labelMap.get(key) ?? key,
       amountKrw,
+      // Mixed-market sectors retain a single KRW total.
+      amountUsdCents: domesticGroups.has(key) || key === "Deposit" || key === "Cash"
+        ? undefined : usdAmounts.get(key),
     }))
     .sort((a, b) => b.amountKrw - a.amountKrw);
 
@@ -421,63 +441,44 @@ function buildDonutSlices(
 }
 
 function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) {
-  const size = 148;
-  const radius = size / 2;
-  const innerRadius = radius * 0.56;
-  const cx = radius;
-  const cy = radius;
-
-  if (slices.length === 0 || total <= 0) {
-    return (
-      <svg
-        className="pf-donut-svg"
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-      >
-        <circle cx={cx} cy={cy} r={radius - 1} fill="var(--east-surface-2)" />
-        <circle cx={cx} cy={cy} r={innerRadius} fill="var(--east-surface)" />
-      </svg>
-    );
-  }
-
+  const cx = 180, cy = 140, radius = 88;
   let cumulative = 0;
-  const arcs = slices.map((slice) => {
-    const startAngle = (cumulative / total) * 2 * Math.PI - Math.PI / 2;
+  const arcs = total > 0 ? slices.map((slice) => {
+    const fraction = slice.amountKrw / total;
+    const span = fraction * 2 * Math.PI;
+    const start = cumulative / total * 2 * Math.PI - Math.PI / 2;
     cumulative += slice.amountKrw;
-    const endAngle = (cumulative / total) * 2 * Math.PI - Math.PI / 2;
-
-    const x1 = cx + radius * Math.cos(startAngle);
-    const y1 = cy + radius * Math.sin(startAngle);
-    const x2 = cx + radius * Math.cos(endAngle);
-    const y2 = cy + radius * Math.sin(endAngle);
-
-    const x1i = cx + innerRadius * Math.cos(endAngle);
-    const y1i = cy + innerRadius * Math.sin(endAngle);
-    const x2i = cx + innerRadius * Math.cos(startAngle);
-    const y2i = cy + innerRadius * Math.sin(startAngle);
-
-    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
-    const d = [
-      `M ${x1} ${y1}`,
-      `A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`,
-      `L ${x1i} ${y1i}`,
-      `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${x2i} ${y2i}`,
-      "Z",
-    ].join(" ");
-
-    return { d, color: slice.color, key: slice.key };
-  });
-
+    const stroke = Math.min(20, span * radius * .65);
+    const inset = (stroke / radius + Math.min(.07, span * .15)) / 2;
+    const from = start + inset, to = start + span - inset;
+    const mid = start + span / 2;
+    const point = (angle: number, r: number) => [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r];
+    const [x1, y1] = point(from, radius), [x2, y2] = point(to, radius);
+    const [lx, ly] = point(mid, radius + 16);
+    const right = Math.cos(mid) >= 0;
+    return { ...slice, fraction, stroke, lx, ly, right,
+      d: `M ${x1} ${y1} A ${radius} ${radius} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2} ${y2}` };
+  }) : [];
   return (
-    <svg
-      className="pf-donut-svg"
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-    >
-      {arcs.map((arc) => (
-        <path key={arc.key} d={arc.d} fill={arc.color} />
+    <svg className="pf-donut-svg" viewBox="0 0 360 280" role="img" aria-label="자산 구성 비중">
+      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--east-surface-2)" strokeWidth="2" />
+      <circle cx={cx} cy={cy} r="65" fill="white" stroke="var(--east-border)" />
+      {arcs.map(arc => (
+        <g key={arc.key}>
+          <path d={arc.d} fill="none" stroke={arc.color} strokeWidth={arc.stroke} strokeLinecap="round">
+            <title>{arc.label}: {(arc.fraction * 100).toFixed(2)}%</title>
+          </path>
+          {arc.fraction >= .08 && slices.length <= 6 ? (
+            <g className="pf-donut-callout">
+              <path d={`M ${arc.lx} ${arc.ly} L ${arc.right ? 294 : 66} ${arc.ly + (arc.ly < cy ? -14 : 14)} H ${arc.right ? 346 : 14}`}
+                stroke={arc.color} strokeOpacity=".5" fill="none" />
+              <text x={arc.right ? 346 : 14} y={arc.ly + (arc.ly < cy ? -20 : 8)}
+                textAnchor={arc.right ? "end" : "start"} fill={arc.color}>
+                {(arc.fraction * 100).toFixed(1)}%
+              </text>
+            </g>
+          ) : null}
+        </g>
       ))}
     </svg>
   );
@@ -502,6 +503,24 @@ function Money({
       {prefix}
       <span className="pf-money-symbol">{symbol}</span>
       {cleanValue}
+    </span>
+  );
+}
+
+function DualCurrencyMoney({ currency, amountInt, fxRate, signed = false }: {
+  currency: Currency;
+  amountInt: number;
+  fxRate: number;
+  signed?: boolean;
+}) {
+  return (
+    <span className="pf-dual-money">
+      <Money currency={currency} amountInt={amountInt} signed={signed} />
+      {currency === "USD" ? (
+        <span className="pf-krw-equivalent" title="현재 적용 환율 기준 원화 환산액">
+          ≈ <Money currency="KRW" amountInt={usdToKrw(usdCentsToUsdFloat(amountInt), fxRate)} signed={signed} />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -551,12 +570,11 @@ export default function PortfolioPage() {
   const [unmatchedKrTickers, setUnmatchedKrTickers] = useState<string[]>([]);
   const [manualKrTicker, setManualKrTicker] = useState<string | null>(null);
   const [manualKrCodeInput, setManualKrCodeInput] = useState("");
-  const [nowMs, setNowMs] = useState<number>(() => Date.now());
-  const [marketIndexes, setMarketIndexes] = useState<{
-    kospi: { price: number; changePercent: number } | null;
-    kosdaq: { price: number; changePercent: number } | null;
-    sp500: { price: number; changePercent: number } | null;
-  }>({ kospi: null, kosdaq: null, sp500: null });
+  const [marketIndexes, setMarketIndexes] = useState<MarketIndexes>({
+    kospi: null, kosdaq: null, sp500: null, nasdaq: null, fetchedAt: "",
+  });
+  const [indexesLoading, setIndexesLoading] = useState(true);
+  const [indexesFailed, setIndexesFailed] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
   const depositUsdInputFocusedRef = useRef(false);
   const isAuthed = isCloudMode;
@@ -587,23 +605,27 @@ export default function PortfolioPage() {
   }, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  useEffect(() => {
+    const controller = new AbortController();
     const fetchIndexes = async () => {
       try {
-        const res = await fetch("/api/market-index");
-        if (!res.ok) return;
-        const data = (await res.json()) as typeof marketIndexes;
-        setMarketIndexes(data);
-      } catch {}
+        const res = await fetch(`/api/market-index?_=${Date.now()}`, {
+          cache: "no-store", signal: controller.signal,
+        });
+        if (!res.ok) throw new Error("Index lookup failed");
+        const data = (await res.json()) as MarketIndexes;
+        if (!controller.signal.aborted) {
+          setMarketIndexes(data);
+          setIndexesFailed(!data.kospi || !data.kosdaq || !data.sp500 || !data.nasdaq);
+        }
+      } catch {
+        if (!controller.signal.aborted) setIndexesFailed(true);
+      } finally {
+        if (!controller.signal.aborted) setIndexesLoading(false);
+      }
     };
     void fetchIndexes();
     const id = window.setInterval(fetchIndexes, 30_000);
-    return () => window.clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => { controller.abort(); window.clearInterval(id); };
   }, []);
 
   useEffect(() => {
@@ -1464,7 +1486,7 @@ export default function PortfolioPage() {
     }
     return (
       <span className={`pf-nsc-pnl-amt ${pnlToneClass(amount, "is-pos", "is-neg")}`}>
-        <Money currency={currency} amountInt={amount} signed />
+        <DualCurrencyMoney currency={currency} amountInt={amount} fxRate={fxRate} signed />
       </span>
     );
   };
@@ -1474,16 +1496,16 @@ export default function PortfolioPage() {
       {/* Page header */}
       <div className="pf-page-header">
         <h1 className="pf-page-title">Portfolio</h1>
-        <span className="pf-hd">|</span>
+
         <span className="pf-header-stat">
-          총 자산{" "}
+          <span className="pf-header-label">총 자산</span>
           <strong>
             <Money currency="KRW" amountInt={totalAssetKrw} />
           </strong>
         </span>
-        <span className="pf-hd">|</span>
+
         <span className="pf-header-stat">
-          총 계좌 손익{" "}
+          <span className="pf-header-label">총 계좌 손익</span>
           <strong className={pnlToneClass(accountPnlKrw, "is-pos", "is-neg")}>
             <Money currency="KRW" amountInt={accountPnlKrw} />
             {totalPnlPct !== null && <>{" "}({percentFormat(totalPnlPct)})</>}
@@ -1521,7 +1543,6 @@ export default function PortfolioPage() {
             value={depositKrwInput}
             onValueChange={handleDepositKrwInputChange}
             disabled={!isAuthed}
-            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
         <div className="pf-ig" style={{ flex: '0 0 auto' }}>
@@ -1540,7 +1561,6 @@ export default function PortfolioPage() {
             allowDecimal
             maxDecimals={2}
             disabled={!isAuthed}
-            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
         <div className="pf-ig" style={{ flex: '0 0 auto' }}>
@@ -1551,7 +1571,6 @@ export default function PortfolioPage() {
             value={cashInput}
             onValueChange={handleCashInputChange}
             disabled={!isAuthed}
-            style={{ width: '90px', minWidth: 0, maxWidth: '90px', flexShrink: 0 }}
           />
         </div>
         <div className="pf-rate-info">
@@ -1559,7 +1578,10 @@ export default function PortfolioPage() {
             <div key={idx}>{line}</div>
           ))}
           {quoteRefreshSummary && quoteRefreshSummary !== "-" ? (
-            <div>{quoteRefreshSummary}</div>
+            <details className="pf-update-details">
+              <summary>시세 갱신 상세</summary>
+              <div>{quoteRefreshSummary}</div>
+            </details>
           ) : null}
           {quoteWarningLine ? (
             <div className="pf-quote-warning">
@@ -1631,7 +1653,7 @@ export default function PortfolioPage() {
                 <span className="pf-nsc-flag">🇺🇸</span>
               </div>
               <div className="pf-nsc-val">
-                <Money currency="USD" amountInt={usHoldingsMarketValueCents} />
+                <DualCurrencyMoney currency="USD" amountInt={usHoldingsMarketValueCents} fxRate={fxRate} />
               </div>
               <div className="pf-nsc-pnl">
                 {renderPnlAmt("USD", usdHoldingsPnlCents)}
@@ -1685,13 +1707,20 @@ export default function PortfolioPage() {
                 {donutSlices.map((slice) => (
                   <div key={slice.key} className="pf-legend-item">
                     <div className="pf-ldot" style={{ background: slice.color }} />
-                    <span style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span className="pf-lname" title={slice.label}>
                       {slice.label}
                     </span>
-                    <span style={{ fontSize: '12px', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>
-                      <Money currency="KRW" amountInt={slice.amountKrw} />
+                    <span className="pf-lval">
+                      {slice.amountUsdCents !== undefined ? (
+                        <span className="pf-dual-money">
+                          <Money currency="USD" amountInt={slice.amountUsdCents} />
+                          <span className="pf-krw-equivalent" title="현재 적용 환율 기준 원화 환산액">
+                            ≈ <Money currency="KRW" amountInt={slice.amountKrw} />
+                          </span>
+                        </span>
+                      ) : <Money currency="KRW" amountInt={slice.amountKrw} />}
                     </span>
-                    <span style={{ fontSize: '11px', color: '#6b7280', whiteSpace: 'nowrap' }}>
+                    <span className="pf-lpct">
                       {donutTotal > 0
                         ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
                         : "0.00%"}
@@ -1753,6 +1782,7 @@ export default function PortfolioPage() {
           </div>
           <input
             className="pf-search-input"
+            aria-label="보유종목 검색"
             type="text"
             placeholder="Ticker 검색..."
             value={search}
@@ -1851,7 +1881,7 @@ export default function PortfolioPage() {
                         )}
                       </td>
                       <td>
-                        <Money currency={holding.currency} amountInt={computed.marketValue} />
+                        <DualCurrencyMoney currency={holding.currency} amountInt={computed.marketValue} fxRate={fxRate} />
                       </td>
                       <td
                         className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}
@@ -1860,7 +1890,7 @@ export default function PortfolioPage() {
                           fontWeight: computed.pnl !== 0 ? 600 : undefined,
                         }}
                       >
-                        <Money currency={holding.currency} amountInt={computed.pnl} signed />
+                        <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed />
                       </td>
                       <td
                         className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}
@@ -1883,45 +1913,25 @@ export default function PortfolioPage() {
 
       {/* Ticker strip (bottom) */}
       <div className="pf-ticker">
-        <div className="pf-tick-item">
-          <span className="pf-tick-label">KOSPI</span>
-          <span className="pf-tick-val">
-            {marketIndexes.kospi
-              ? marketIndexes.kospi.price.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
-              : "—"}
-          </span>
-          <span className={`pf-badge ${marketIndexes.kospi == null ? "is-flat" : marketIndexes.kospi.changePercent > 0 ? "is-up" : marketIndexes.kospi.changePercent < 0 ? "is-down" : "is-flat"}`}>
-            {marketIndexes.kospi
-              ? `${marketIndexes.kospi.changePercent > 0 ? "+" : ""}${marketIndexes.kospi.changePercent.toFixed(2)}%`
-              : "—"}
-          </span>
-        </div>
-        <div className="pf-tick-item">
-          <span className="pf-tick-label">KOSDAQ</span>
-          <span className="pf-tick-val">
-            {marketIndexes.kosdaq
-              ? marketIndexes.kosdaq.price.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
-              : "—"}
-          </span>
-          <span className={`pf-badge ${marketIndexes.kosdaq == null ? "is-flat" : marketIndexes.kosdaq.changePercent > 0 ? "is-up" : marketIndexes.kosdaq.changePercent < 0 ? "is-down" : "is-flat"}`}>
-            {marketIndexes.kosdaq
-              ? `${marketIndexes.kosdaq.changePercent > 0 ? "+" : ""}${marketIndexes.kosdaq.changePercent.toFixed(2)}%`
-              : "—"}
-          </span>
-        </div>
-        <div className="pf-tick-item">
-          <span className="pf-tick-label">S&amp;P 500</span>
-          <span className="pf-tick-val">
-            {marketIndexes.sp500
-              ? marketIndexes.sp500.price.toLocaleString("en-US", { maximumFractionDigits: 2 })
-              : "—"}
-          </span>
-          <span className={`pf-badge ${marketIndexes.sp500 == null ? "is-flat" : marketIndexes.sp500.changePercent > 0 ? "is-up" : marketIndexes.sp500.changePercent < 0 ? "is-down" : "is-flat"}`}>
-            {marketIndexes.sp500
-              ? `${marketIndexes.sp500.changePercent > 0 ? "+" : ""}${marketIndexes.sp500.changePercent.toFixed(2)}%`
-              : "—"}
-          </span>
-        </div>
+        {([
+          ["kospi", "KOSPI"], ["kosdaq", "KOSDAQ"],
+          ["sp500", "S&P 500"], ["nasdaq", "NASDAQ"],
+        ] as const).map(([key, label]) => {
+          const quote = marketIndexes[key];
+          const change = quote?.changePercent;
+          return (
+            <div className="pf-tick-item" key={key}
+              title={quote?.asOf ? `네이버 증권 · 시세 기준 ${quote.asOf}${quote.marketStatus === "CLOSE" ? " · 장 마감" : ""}` : "시세 조회 중 또는 제공처 응답 없음"}>
+              <span className="pf-tick-label">{label}</span>
+              <span className="pf-tick-val">{quote
+                ? quote.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : indexesLoading ? "조회 중" : "조회 실패"}</span>
+              <span className={`pf-badge ${change == null ? "is-flat" : change > 0 ? "is-up" : change < 0 ? "is-down" : "is-flat"}`}>
+                {change == null ? "—" : `${change > 0 ? "+" : ""}${change.toFixed(2)}%`}
+              </span>
+            </div>
+          );
+        })}
         <div className="pf-tick-item">
           <span className="pf-tick-label">USD/KRW</span>
           <span className="pf-tick-val">
@@ -1932,8 +1942,11 @@ export default function PortfolioPage() {
           </span>
         </div>
         <div className="pf-live-wrap">
-          <div className="pf-live-dot" />
-          <span className="pf-live-label">Live · {formatKstLiveLabel(nowMs)} KST</span>
+          <div className={`pf-live-dot${indexesFailed ? " is-stale" : ""}`} />
+          <span className="pf-live-label" role="status">
+            {indexesLoading ? "지수 조회 중" : indexesFailed ? "일부 지수 조회 실패" : "지수 조회 완료"}
+            {marketIndexes.fetchedAt ? ` · ${formatKstLiveLabel(Date.parse(marketIndexes.fetchedAt))} KST` : ""}
+          </span>
         </div>
       </div>
 

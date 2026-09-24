@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -135,6 +135,23 @@ export function Sidebar() {
   const pathname = usePathname();
   const { email, isAuthenticated, loading, signIn, signInWithKakao, signOut } =
     useAuth();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem("east.sidebar.v1") === "collapsed"); }
+    catch { /* Storage is optional; navigation remains available. */ }
+  }, []);
+
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  const toggleSidebar = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    try { localStorage.setItem("east.sidebar.v1", next ? "collapsed" : "expanded"); }
+    catch { /* Private browsing may disable storage. */ }
+  };
+
   const [authBusy, setAuthBusy] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailInput, setEmailInput] = useState("");
@@ -211,14 +228,26 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="east-sidebar">
+    <aside className="east-sidebar" data-collapsed={collapsed} data-mobile-open={mobileOpen}>
       <div className="east-logo-wrap">
-        <Link href="/portfolio" className="east-logo" style={{ fontSize: '22px', fontWeight: 800, letterSpacing: '0.05em' }}>
-          EAST
+        <Link href="/portfolio" className="east-logo" aria-label="EAST 홈">
+          <span className="east-logo-full">EAST<span className="east-logo-dot">.</span></span>
+          <span className="east-logo-compact" aria-hidden="true">E<span className="east-logo-dot">.</span></span>
         </Link>
-        <p className="east-logo-sub" style={{ fontSize: '11px', color: '#9ca3af', fontWeight: 400 }}>리서치 대시보드</p>
+        <button type="button" className="east-sidebar-toggle" onClick={toggleSidebar}
+          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-expanded={!collapsed} aria-controls="east-navigation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
+          </svg>
+        </button>
+        <button type="button" className="east-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"} aria-expanded={mobileOpen} aria-controls="east-navigation">
+          {mobileOpen ? "닫기" : "메뉴"}
+        </button>
+        <p className="east-logo-sub">리서치 대시보드</p>
       </div>
-      <nav className="east-nav">
+      <nav id="east-navigation" className="east-nav" aria-label="주 메뉴">
         {NAV_ITEMS.map((item, idx) => {
           if (item.type === "sep") {
             return <div className="east-nav-sep" key={`sep-${idx}`} />;
@@ -228,6 +257,9 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
+              title={item.label}
+              aria-current={isActive(item.href) ? "page" : undefined}
               className={`east-nav-link${isActive(item.href) ? " is-active" : ""}`}
             >
               <Icon name={item.icon} />
@@ -238,6 +270,7 @@ export function Sidebar() {
       </nav>
 
       <div className="east-sidebar-footer">
+        <button type="button" className="east-account-expand" onClick={toggleSidebar} aria-label="계정 메뉴 펼치기" title="계정 메뉴 펼치기">{initials}</button>
         {loading ? (
           <div className="east-auth-loading">…</div>
         ) : isAuthenticated ? (
