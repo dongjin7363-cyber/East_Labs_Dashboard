@@ -502,3 +502,13 @@ button:disabled { cursor: not-allowed; }
 .fin-page .fin-annual-table thead th { font-size: 11px; }
 .fin-page .fin-td-month { font-size: 13px; }
 .fin-page .fin-td-num { font-size: 12.5px; }
+
+.finviz-chart-expand { display: block; width: 100%; border: 0; padding: 0; background: transparent; cursor: zoom-in; }
+.finviz-chart-expand img { display: block; width: 100%; }
+.finviz-lightbox { width: min(1280px, 94vw); max-width: 94vw; max-height: 94dvh; border: 0; padding: 0; border-radius: 18px; background: white; color: #252a32; box-shadow: 0 24px 80px #0004; }
+.finviz-lightbox::backdrop { background: #17202b99; backdrop-filter: blur(5px); }
+.finviz-lightbox-content { padding: 18px; }
+.finviz-lightbox header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 14px; }
+.finviz-lightbox h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.finviz-lightbox header button { border: 0; border-radius: 9px; background: #f0f2f6; width: 36px; height: 36px; cursor: pointer; flex-shrink: 0; }
+.finviz-lightbox img { display: block; width: 100%; max-height: calc(94dvh - 100px); object-fit: contain; }

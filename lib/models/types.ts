@@ -244,6 +244,10 @@ export interface ExportDataPoint {
   yoy: number | null;
   mom: number | null;
   priceYoy: number | null;
+  price?: number | null;
+  dailyQuantity?: number | null;
+  dataThrough?: string | null;
+  sourceRange?: string;
   qoq: number | null;
   asOfDate: string | null;
   isPartial: boolean;

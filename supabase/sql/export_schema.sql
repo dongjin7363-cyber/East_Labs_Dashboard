@@ -25,6 +25,10 @@ create table if not exists public.export_data (
   daily_avg numeric,
   as_of_date date,
   is_partial boolean not null default false,
+  price numeric,
+  price_yoy numeric,
+  daily_quantity numeric,
+  data_through date,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -43,7 +47,11 @@ alter table public.export_data
   add column if not exists importance numeric,
   add column if not exists daily_avg numeric,
   add column if not exists as_of_date date,
-  add column if not exists is_partial boolean not null default false;
+  add column if not exists is_partial boolean not null default false,
+  add column if not exists price numeric,
+  add column if not exists price_yoy numeric,
+  add column if not exists daily_quantity numeric,
+  add column if not exists data_through date;
 
 create index if not exists export_items_sector_idx
   on public.export_items (sector);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FinvizWatchlistItem } from "@/lib/models/types";
 import { useFinvizWatchlist } from "@/lib/hooks/useFinvizWatchlist";
 
@@ -26,7 +26,7 @@ function matchesImportance(item: FinvizWatchlistItem, importance: string): boole
   return importance === ALL_IMPORTANCE || item.star === importance;
 }
 
-function FinvizChartCard({ item }: { item: FinvizWatchlistItem }) {
+function FinvizChartCard({ item, onExpand }: { item: FinvizWatchlistItem; onExpand: (item: FinvizWatchlistItem) => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   const src = item.chartUrl;
 
@@ -57,20 +57,50 @@ function FinvizChartCard({ item }: { item: FinvizWatchlistItem }) {
             </a>
           </div>
         ) : (
+          <button type="button" className="finviz-chart-expand" aria-label={`${item.ticker} 차트 확대`} onClick={() => onExpand(item)}>
           <img
             src={src}
             alt={`${item.ticker} Finviz chart`}
             loading="lazy"
             onError={() => setImageFailed(true)}
           />
+          </button>
         )}
       </div>
     </article>
   );
 }
 
+function ChartLightbox({ item, onClose }: { item: FinvizWatchlistItem; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, []);
+  return <dialog ref={dialogRef} className="finviz-lightbox" aria-labelledby="finviz-lightbox-title"
+    onCancel={(event) => { event.preventDefault(); onClose(); }}
+    onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div className="finviz-lightbox-content">
+      <header><h2 id="finviz-lightbox-title">{item.ticker}{item.displayName ? ` · ${item.displayName}` : ""}</h2>
+        <button type="button" aria-label="확대 차트 닫기" onClick={onClose}>✕</button></header>
+      {failed ? <p>차트를 불러오지 못했습니다. <a href={quoteUrl(item.ticker)} target="_blank" rel="noreferrer">Finviz에서 보기</a></p>
+        : <img src={item.chartUrl} alt={`${item.ticker} 확대 차트`} onError={() => setFailed(true)} />}
+    </div>
+  </dialog>;
+}
+
 export function MarketFinvizScreeningBoard() {
   const { items, sectors, loading, error } = useFinvizWatchlist();
+  const [expandedItem, setExpandedItem] = useState<FinvizWatchlistItem | null>(null);
   const [activeSector, setActiveSector] = useState(ALL_SECTOR);
   const [activeImportance, setActiveImportance] = useState(ALL_IMPORTANCE);
   const [query, setQuery] = useState("");
@@ -115,6 +145,7 @@ export function MarketFinvizScreeningBoard() {
 
   return (
     <div className="finviz-board">
+      {expandedItem && <ChartLightbox key={expandedItem.id} item={expandedItem} onClose={() => setExpandedItem(null)} />}
       <div className="panel finviz-controls">
         <div className="finviz-control-header">
           <div>
@@ -160,7 +191,7 @@ export function MarketFinvizScreeningBoard() {
         <>
           <div className="finviz-card-grid">
             {visibleItems.map((item) => (
-              <FinvizChartCard key={item.id} item={item} />
+              <FinvizChartCard key={item.id} item={item} onExpand={setExpandedItem} />
             ))}
           </div>
           {hasMore ? (

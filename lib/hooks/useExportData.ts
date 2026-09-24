@@ -46,27 +46,36 @@ export function useExportItems() {
 export function useExportItemData(itemId: string | null) {
   const [data, setData] = useState<ExportDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     if (!itemId) {
       setData([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
+    setData([]);
+    setError(null);
     fetchExportData(itemId)
       .then((result) => {
+        if (cancelled) return;
         if (process.env.NODE_ENV === "development") {
           console.log("[export] fetchExportData ->", result.length, "rows", result);
         }
         setData(result);
       })
       .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : String(err));
         console.error("[export] fetchExportData failed:", err);
         setData([]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [itemId]);
 
-  return { data, loading };
+  return { data, loading, error };
 }

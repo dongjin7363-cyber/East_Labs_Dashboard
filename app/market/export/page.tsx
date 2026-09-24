@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { ExportMainChart } from "@/components/export/ExportMainChart";
-import { ExportMomChart } from "@/components/export/ExportMomChart";
-import { ExportQoqChart } from "@/components/export/ExportQoqChart";
-import { ExportSecondaryChartCard } from "@/components/export/ExportSecondaryChartCard";
+import { ExportPriceChart } from "@/components/export/ExportPriceChart";
 import { useExportItems, useExportItemData } from "@/lib/hooks/useExportData";
 import { ExportDataPoint } from "@/lib/models/types";
+import { analyze, attentionItems, attentionSectors, compact, monthOffset, pct, trend } from "@/lib/exportAnalysis";
+import { isExportPreview } from "@/lib/exportPreview";
+import { fetchExportAttentionData } from "@/lib/repository/exportRepository";
 
 const SECTORS = [
   "반도체",
@@ -38,10 +39,6 @@ function formatPeriod(data: ExportDataPoint[]): string {
   return `${first.replace("-", ".")} ~ ${last.replace("-", ".")}`;
 }
 
-function formatPct(value: number): string {
-  return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
-}
-
 function formatImportanceStars(value: number): string {
   return "★".repeat(importanceLevel(value));
 }
@@ -57,38 +54,22 @@ function formatRelatedStocks(value?: string): string {
   return stocks.length > 0 ? stocks.join(" · ") : "-";
 }
 
-function buildMainInsight(data: ExportDataPoint[]): string {
-  const yoyPoints = data.filter(
-    (point): point is ExportDataPoint & { yoy: number } =>
-      typeof point.yoy === "number" && Number.isFinite(point.yoy),
-  );
-
-  if (yoyPoints.length === 0) {
-    return "YoY 데이터가 아직 충분하지 않습니다.";
-  }
-
-  const lowest = yoyPoints.reduce((min, point) => (point.yoy < min.yoy ? point : min));
-  const latest = yoyPoints[yoyPoints.length - 1];
-  const previous = yoyPoints[yoyPoints.length - 2];
-
-  if (latest && previous) {
-    const delta = latest.yoy - previous.yoy;
-    const direction = delta >= 0 ? "회복" : "둔화";
-    return `${lowest.ym.replace("-", ".")} YoY ${formatPct(
-      lowest.yoy,
-    )}로 최저 구간을 기록했고, 최근 ${latest.ym.replace("-", ".")}에는 전월 대비 ${formatPct(
-      delta,
-    )}p ${direction}했습니다.`;
-  }
-
-  return `${lowest.ym.replace("-", ".")} YoY ${formatPct(lowest.yoy)}가 현재 구간의 최저 YoY입니다.`;
-}
-
 export default function MarketExportPage() {
   const [activeSector, setActiveSector] = useState<string>(SECTORS[0]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [months, setMonths] = useState(12);
+  const [quantity, setQuantity] = useState(false);
+  const [priceLevel, setPriceLevel] = useState(true);
+  const [attentionData, setAttentionData] = useState<Record<string, ExportDataPoint[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    fetchExportAttentionData().then(data => { if (!cancelled) setAttentionData(data); }).catch(error => console.warn("[export] attention data unavailable", error));
+    return () => { cancelled = true; };
+  }, []);
 
-  const { bySector, loading: itemsLoading, error: itemsError } = useExportItems();
+  const { items, bySector, loading: itemsLoading, error: itemsError } = useExportItems();
+  const highlightedSectors = useMemo(() => attentionSectors(items, attentionData), [items, attentionData]);
+  const highlightedItems = useMemo(() => attentionItems(items, attentionData), [items, attentionData]);
   const availableSectors = useMemo(() => {
     const knownSectors = SECTORS.filter((sector) => (bySector.get(sector)?.length ?? 0) > 0);
     const extraSectors = [...bySector.keys()]
@@ -108,9 +89,15 @@ export default function MarketExportPage() {
   );
   const selectedItem = sectorItems.find((item) => item.id === selectedItemId);
 
-  const { data, loading: dataLoading } = useExportItemData(selectedItemId);
-  const chartPeriod = formatPeriod(data);
-  const mainInsight = buildMainInsight(data);
+  const { data, loading: dataLoading, error: dataError } = useExportItemData(selectedItemId);
+  const analyzed = useMemo(() => analyze(data), [data]);
+  const latest = analyzed[analyzed.length - 1];
+  const chartData = latest && months ? analyzed.filter(p => p.ym >= monthOffset(latest.ym, 1-months)) : analyzed;
+  const chartPeriod = formatPeriod(chartData);
+  const previousMonth = latest ? analyzed.find(p => p.ym === monthOffset(latest.ym, -1)) : undefined;
+  const trade = selectedItem?.name.includes("수입") ? "수입" : "수출";
+  const mainYoy = latest ? (quantity ? latest.quantityYoy : latest.yoy) : null;
+  const mainMom = latest ? (quantity ? latest.quantityMom : latest.mom) : null;
 
   function handleSectorClick(sector: string) {
     setActiveSector(sector);
@@ -147,7 +134,7 @@ export default function MarketExportPage() {
 
   return (
     <div className="market-page export-page">
-      <PageHeader title="수출입 데이터" />
+      <div className="export-page-title"><PageHeader title="수출입 데이터" />{isExportPreview && <span className="export-preview-label">로컬 미리보기</span>}</div>
 
       <div className="panel export-sector-tabs">
         {availableSectors.map((sector) => (
@@ -156,8 +143,11 @@ export default function MarketExportPage() {
             type="button"
             className={`market-category-tab${activeSector === sector ? " is-active" : ""}`}
             onClick={() => handleSectorClick(sector)}
+            aria-pressed={activeSector === sector}
+            title={highlightedSectors.get(sector)}
           >
             {sector}
+            {highlightedSectors.has(sector) && <span className="export-attention-dot" aria-label="이번 달 주요 변화" />}
           </button>
         ))}
       </div>
@@ -190,12 +180,15 @@ export default function MarketExportPage() {
                 type="button"
                 className={`export-item-pill${selectedItemId === item.id ? " is-active" : ""}`}
                 onClick={() => setSelectedItemId(item.id)}
+                aria-pressed={selectedItemId === item.id}
+                title={highlightedItems.get(item.id)}
               >
                 <span
                   className="export-item-dot"
                   data-importance={importanceLevel(item.importance)}
                 />
                 <span className="export-item-name">{item.name}</span>
+                {highlightedItems.has(item.id) && <span className="export-attention-dot" aria-label="이번 달 주요 변화" />}
               </button>
             ))}
           </div>
@@ -218,55 +211,42 @@ export default function MarketExportPage() {
 
       {selectedItem && (
         <>
-          {dataLoading ? (
+          {dataLoading || (data.length > 0 && data[0]?.itemId !== selectedItemId && !dataError) ? (
             <div className="panel export-chart-card export-chart-loading">
               차트 로딩 중…
             </div>
-          ) : (
+          ) : dataError ? <div className="panel export-chart-empty" role="alert">{dataError}</div> : (
             <div className="export-chart-stack">
               <article className="panel export-chart-card export-chart-card-main">
                 <div className="export-chart-card-header">
                   <div>
-                    <h3>{selectedItem.name} — 수출 YoY % + 일평균수출</h3>
-                    <p>막대: 일평균수출(달러) | 선: YoY % — 급변 구간에 투자 시그널 표시</p>
+                    <h3>{selectedItem.name} <span className="export-heading-separator">/</span> 일평균 {trade}{quantity ? "량" : "액"} · MoM · YoY</h3>
+                    <p>{latest?.ym.replace("-", ".")} {latest?.isPartial ? "잠정" : "월간"}{latest?.dataThrough ? ` · ${latest.dataThrough.slice(5).replace("-", "/")}까지 누적` : ""}{latest?.asOfDate ? ` · ${latest.asOfDate.slice(5).replace("-", "/")} 업데이트` : ""}</p>
                   </div>
-                  <span className="export-chart-period">{chartPeriod}</span>
+                  <div className="export-segmented" aria-label="차트 기간">{[[12,"1년"],[36,"3년"],[0,"전체"]].map(([value,label]) => <button type="button" key={value} aria-pressed={months === value} className={months === value ? "is-active" : ""} onClick={() => setMonths(Number(value))}>{label}</button>)}</div>
                 </div>
-                <ExportMainChart data={data} />
-                <div className="export-insight-box">
-                  <strong>⚡ 급변 시그널 감지 구간</strong>
-                  <span>{mainInsight}</span>
+                <div className="export-kpis">
+                  <div><span>일평균 {trade}{quantity ? "량" : "액"}</span><strong>{quantity ? "" : "$"}{compact(quantity ? latest?.dailyQuantity : latest?.avgExport)}<small>{quantity ? " kg/일" : " /일"}</small></strong></div>
+                  <div><span>전월 대비 MoM</span><strong className={(mainMom ?? 0) < 0 ? "export-down" : "export-up"}>{pct(mainMom)}</strong><small>{previousMonth?.ym.replace("-", ".")} 대비</small></div>
+                  <div><span>전년 대비 YoY</span><strong className={(mainYoy ?? 0) < 0 ? "export-down" : "export-up"}>{pct(mainYoy)}</strong><small>전년 동월 대비</small></div>
+                  <div><span>판가 ASP</span><strong>${compact(latest?.price)}<small> /kg</small></strong><small>MoM <span className={(latest?.priceMom ?? 0) < 0 ? "export-down" : "export-up"}>{pct(latest?.priceMom)}</span></small></div>
+                </div>
+                <div className="export-chart-toolbar"><span>{chartPeriod} · {quantity ? "kg/일" : "USD/일"} · 주황 막대: 잠정</span><div className="export-segmented" aria-label="일평균 지표"><button type="button" aria-pressed={!quantity} className={!quantity ? "is-active" : ""} onClick={() => setQuantity(false)}>금액</button><button type="button" aria-pressed={quantity} className={quantity ? "is-active" : ""} onClick={() => setQuantity(true)}>수량 Q</button></div></div>
+                <ExportMainChart data={chartData} quantity={quantity} trade={trade} />
+                <div className="export-current-insight">
+                  <span className="export-trend-tag">{trend(latest?.yoy ?? null, latest?.yoyDelta ?? null)}</span>
+                  <span>금액 YoY Δ <b>{pct(latest?.yoyDelta, "%p")}</b><span className="export-insight-divider">·</span>P MoM {pct(latest?.priceMom)}<span className="export-insight-divider">·</span>Q MoM {pct(latest?.quantityMom)}</span>
                 </div>
               </article>
 
-              <div className="export-secondary-grid">
-                <ExportSecondaryChartCard
-                  title="월간 MoM % 추이"
-                  subtitle="전월 대비 변화율 — 이달 가속/감속 즉각 포착용"
-                  legend={
-                    <>
-                      <span className="export-secondary-legend-item">
-                        <span className="export-secondary-legend-dot export-secondary-legend-dot-mom" />
-                        MoM%
-                      </span>
-                      <span className="export-secondary-legend-item">
-                        <span className="export-secondary-legend-line" />
-                        3개월 평균
-                      </span>
-                    </>
-                  }
-                >
-                  <ExportMomChart data={data} />
-                </ExportSecondaryChartCard>
-
-                <ExportSecondaryChartCard
-                  title="분기 평균 수출 (QoQ)"
-                  subtitle="분기별 방향성 확인"
-                  legend={<div style={{ visibility: "hidden" }}>placeholder</div>}
-                >
-                  <ExportQoqChart data={data} />
-                </ExportSecondaryChartCard>
-              </div>
+                <article className="panel export-detail-card export-price-full">
+                  <div className="export-detail-header"><h3>판가 모멘텀</h3><div className="export-segmented" aria-label="판가 지표"><button type="button" aria-pressed={priceLevel} className={priceLevel ? "is-active" : ""} onClick={() => setPriceLevel(true)}>ASP · MoM</button><button type="button" aria-pressed={!priceLevel} className={!priceLevel ? "is-active" : ""} onClick={() => setPriceLevel(false)}>YoY · Δ</button></div></div>
+                  <div className="export-price-metrics"><div><span>{priceLevel ? "ASP (USD/kg)" : "ASP YoY"}</span><strong>{priceLevel ? `$${compact(latest?.price)}` : pct(latest?.priceYoy)}</strong></div><div><span>{priceLevel ? "ASP MoM" : "YoY Δ (전월 대비)"}</span><strong className={(priceLevel ? latest?.priceMom ?? 0 : latest?.priceDelta ?? 0) < 0 ? "export-down" : "export-up"}>{pct(priceLevel ? latest?.priceMom : latest?.priceDelta, priceLevel ? "%" : "%p")}</strong></div></div>
+                  <div className="export-price-legend"><span style={{ color: "#64748b" }}>▥ {priceLevel ? "ASP · 좌축 USD/kg" : "ASP YoY · 좌축 %"}</span><span style={{ color: "#7c3aed" }}>━ {priceLevel ? "MoM · 우축 %" : "YoY Δ · 우축 %p"}</span></div>
+                  <ExportPriceChart data={chartData} level={priceLevel} />
+                  <p className="export-footnote">ASP = 금액 ÷ 중량 · 제품 믹스 포함{!priceLevel && " · Δ = 이번 달 YoY − 전월 YoY"}</p>
+                </article>
+              <p className="export-source-note">원본 엑셀의 일평균 산식 기준 · Q는 일평균 금액 ÷ ASP로 산출 · YoY Δ에는 전년 기저효과가 포함됩니다.</p>
             </div>
           )}
         </>

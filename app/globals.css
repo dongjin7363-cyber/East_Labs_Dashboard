@@ -4934,6 +4934,7 @@ table tfoot td {
 }
 
 .export-item-pill {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -5226,6 +5227,65 @@ table tfoot td {
   .export-secondary-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.export-page-title { display: flex; align-items: center; gap: 12px; }
+.export-preview-label { font-size: 10px; color: #64748b; border: 1px solid #dce3ed; border-radius: 5px; padding: 3px 7px; }
+.export-sector-tabs .market-category-tab { position: relative; }
+.export-attention-dot { position: absolute; top: -3px; right: -2px; width: 7px; height: 7px; background: #ef4444; border: 2px solid #fff; border-radius: 50%; box-sizing: content-box; }
+.export-segmented { display: inline-flex; align-items: center; flex-shrink: 0; gap: 2px; padding: 3px; border-radius: 7px; background: #f1f4f8; }
+.export-segmented button { border: 0; background: transparent; padding: 4px 9px; border-radius: 5px; font-size: 11px; line-height: 1.5; color: #64748b; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.export-segmented button.is-active { background: #fff; color: #244caf; box-shadow: 0 1px 3px #17255412; font-weight: 600; }
+.export-page button:focus-visible { outline: 2px solid #315ed6; outline-offset: 3px; }
+.export-heading-separator { color: #cbd5e1; margin: 0 5px; }
+.export-kpis { display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr; margin: 7px 0 14px; padding: 16px 0; border-top: 1px solid #edf0f5; border-bottom: 1px solid #edf0f5; }
+.export-kpis > div { display: flex; flex-direction: column; gap: 5px; padding: 0 18px; border-left: 1px solid #edf0f5; }
+.export-kpis > div:first-child { border-left: 0; padding-left: 0; }
+.export-kpis > div > span, .export-price-metrics span { font-size: 11px; color: #64748b; }
+.export-kpis strong { font-family: var(--east-mono); font-size: 25px; font-weight: 500; letter-spacing: -1px; line-height: 1.3; color: #17243c; }
+.export-kpis small { font-size: 10px; font-weight: 400; letter-spacing: 0; color: #64748b; }
+.export-up { color: #16816d !important; }
+.export-down { color: #c75b5b !important; }
+.export-chart-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 8px; }
+.export-chart-toolbar > span { font-size: 10px; color: #64748b; }
+.export-current-insight { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: #f7f9fc; border: 1px solid #edf0f5; border-radius: 7px; padding: 9px 12px; margin-top: 10px; font-size: 11px; color: #536179; line-height: 1.6; }
+.export-trend-tag { color: #334155; font-weight: 600; }
+.export-insight-divider { margin: 0 10px; color: #bdc8d7; }
+.export-detail-card { min-width: 0; padding: 20px !important; }
+.export-price-full { width: 100%; }
+.export-detail-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.export-detail-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.export-detail-subtitle { color: #64748b; font-size: 11px; margin: 10px 0 19px; }
+.export-price-metrics { display: flex; gap: 32px; margin: 15px 0 13px; }
+.export-price-metrics > div { display: flex; flex-direction: column; gap: 4px; }
+.export-price-metrics strong { font: 500 21px var(--east-mono); color: #7c3aed; letter-spacing: -.6px; }
+.export-price-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 10px; color: #64748b; margin-bottom: 6px; }
+.export-price-legend > span:first-child { color: #7c3aed; }
+.export-footnote, .export-source-note { color: #748096; font-size: 10px; line-height: 1.6; margin: 10px 0 0; }
+.export-source-note { margin: 0; padding: 0 3px; }
+.export-comparison-dates { display: flex; justify-content: center; align-items: center; gap: 18px; font: 11px var(--east-mono); color: #64748b; margin-bottom: 9px; }
+.export-comparison-dates span { color: #a3afc1; }
+.export-comparison-table { border-collapse: collapse; width: 100%; min-width: 0; table-layout: fixed; margin-top: 13px; font: 11px var(--east-mono); }
+.export-comparison-table th, .export-comparison-table td { min-width: 0; font-size: 11px; }
+.export-comparison-table th, .export-comparison-table td { text-align: right; border-bottom: 1px solid #edf0f5; padding: 9px 3px; white-space: nowrap; }
+.export-comparison-table th:first-child { text-align: left; font-family: var(--east-font); font-weight: 400; color: #64748b; }
+.export-comparison-table thead th { color: #94a3b8; font-weight: 400; font-size: 10px; padding-top: 0; }
+.export-comparison-table td:nth-child(3) { font-weight: 600; color: #243b65; }
+.export-comparison-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 266px; padding: 24px; background: #f8fafc; border: 1px dashed #dce3ed; border-radius: 9px; text-align: center; }
+.export-comparison-empty strong { font-size: 13px; color: #475569; }
+.export-comparison-empty p { font-size: 12px; color: #748096; line-height: 1.8; max-width: 290px; }
+@media (max-width: 1050px) {
+  .export-kpis strong { font-size: 21px; }
+  .export-kpis > div { padding: 0 10px; }
+  .export-detail-header { flex-wrap: wrap; }
+  .export-detail-card { padding: 16px !important; }
+}
+@media (max-width: 600px) {
+  .export-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 0; }
+  .export-kpis > div:nth-child(3) { border-left: 0; padding-left: 0; }
+  .export-chart-toolbar { flex-wrap: wrap; }
+  .export-current-insight { align-items: flex-start; }
+  .export-insight-divider { margin: 0 5px; }
 }
 
 /* ── Market Screening / Finviz ── */

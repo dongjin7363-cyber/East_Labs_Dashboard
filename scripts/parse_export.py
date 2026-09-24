@@ -244,6 +244,13 @@ def parse_sheet(xl: pd.ExcelFile, sheet_name: str) -> list[dict[str, float | str
                     "avg_export": safe(df, row_index, 5),
                     "mom": to_decimal_pct(safe(df, row_index, 6)),
                     "yoy": to_decimal_pct(safe(df, row_index, 7)),
+                    "price": safe(df, row_index, 8),
+                    "price_yoy": safe(df, row_index, 9),
+                    "daily_quantity": (
+                        safe(df, row_index, 5) / safe(df, row_index, 8)
+                        if safe(df, row_index, 5) is not None and (safe(df, row_index, 8) or 0) > 0
+                        else None
+                    ),
                 }
             )
         else:
@@ -269,6 +276,7 @@ def upsert(
     sheet_name: str,
     rows: list[dict[str, float | str | None]],
     as_of_date: str,
+    data_through: str | None = None,
 ) -> tuple[int, int]:
     if not rows:
         return 0, 0
@@ -308,6 +316,10 @@ def upsert(
             "yoy": row.get("yoy"),
             "mom": row.get("mom"),
             "daily_avg": row.get("avg_export"),
+            "price": row.get("price"),
+            "price_yoy": row.get("price_yoy"),
+            "daily_quantity": row.get("daily_quantity"),
+            "data_through": data_through if row.get("ym") == latest_period else None,
             "as_of_date": as_of_date if row.get("ym") == latest_period else None,
             "is_partial": row.get("ym") == latest_period and latest_period == as_of_month,
             "updated_at": updated_at,
@@ -366,6 +378,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Data received date in YYYY-MM-DD format. Defaults to today.",
     )
+    parser.add_argument("--data-through", default=None, help="Actual last included date, YYYY-MM-DD. Omit if not confirmed.")
     return parser.parse_args()
 
 
@@ -385,6 +398,9 @@ def main() -> None:
     if not file_path.exists() or not file_path.is_file():
         raise FileNotFoundError(f"Excel file does not exist: {file_path}")
     as_of_date, _is_partial = resolve_as_of_date(args.as_of_date)
+    data_through = datetime.strptime(args.data_through, "%Y-%m-%d").date().isoformat() if args.data_through else None
+    if data_through and data_through > as_of_date:
+        raise ValueError("data-through cannot be after as-of-date")
 
     load_env()
     supabase_url = resolve_supabase_url()
@@ -426,6 +442,7 @@ def main() -> None:
             sheet_name,
             rows,
             as_of_date,
+            data_through,
         )
         inserted_or_updated_rows += ok_count
         failed_rows += fail_count
