@@ -590,14 +590,17 @@ export default function PerformancePage() {
     [trades, market],
   );
 
-  const monthlyNet = useMemo(
-    () =>
-      buildMonthlyNetSeriesByYear(yearTrades, selectedYear, {
-        fxRate,
-        includeUsd: true,
-      }),
-    [yearTrades, selectedYear, fxRate],
-  );
+  const monthlyNet = useMemo(() => {
+    const options = { fxRate, includeUsd: true };
+    const kr = buildMonthlyNetSeriesByYear(yearTrades.filter((trade) => trade.market === "KR"), selectedYear, options);
+    const us = buildMonthlyNetSeriesByYear(yearTrades.filter((trade) => trade.market === "US"), selectedYear, options);
+    return kr.map((point, index) => ({
+      month: point.month,
+      krPnlInt: point.netPnlInt,
+      usPnlInt: us[index].netPnlInt,
+      netPnlInt: point.netPnlInt + us[index].netPnlInt,
+    }));
+  }, [yearTrades, selectedYear, fxRate]);
 
   const yearlyCumulative = useMemo(
     () => monthlyNet.reduce((sum, p) => sum + p.netPnlInt, 0),
@@ -606,7 +609,7 @@ export default function PerformancePage() {
 
   const monthlyMaxAbs = useMemo(
     () =>
-      monthlyNet.reduce((max, p) => Math.max(max, Math.abs(p.netPnlInt)), 1),
+      monthlyNet.reduce((max, p) => Math.max(max, Math.abs(p.krPnlInt), Math.abs(p.usPnlInt)), 1),
     [monthlyNet],
   );
 
@@ -980,33 +983,51 @@ export default function PerformancePage() {
 
         <section className="perf-monthly-panel" aria-label="월별 실현손익">
           <div className="perf-section-heading">
-            <div><h2>월별 실현손익</h2><p>{selectedYear}년 · {market} · 원화 환산</p></div>
+            <div><div className="perf-monthly-heading-line"><h2>월별 실현손익</h2>          <div className="perf-monthly-legend">
+            {market !== "US" && <span><i style={{ background: "#4c78bb" }} />KR</span>}
+            {market !== "KR" && <span><i style={{ background: "#37896f" }} />US</span>}
+          </div>
+</div></div>
             <div className="perf-monthly-total"><span>연 누적</span><strong className={yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={yearlyCumulative} signed /></strong></div>
           </div>
+          <div className="perf-month-chart-layout">
+            <div className="perf-month-axis" aria-label="실현손익 금액 축">
+              {[1, 0.5, 0, -0.5, -1].map((ratio) => <span key={ratio} style={{ top: `${50 - ratio * 36}%` }}><CompactKrw amount={Math.round(monthlyMaxAbs * ratio)} /></span>)}
+            </div>
           <div className="perf-monthly-scroll">
             <div className="perf-monthly-bars">
               {monthlyNet.map((p) => {
                 const monthNum = Number.parseInt(p.month.slice(5, 7), 10);
                 const isCurrent = p.month === selectedMonth;
-                const positive = p.netPnlInt >= 0;
-                const height = Math.max(p.netPnlInt === 0 ? 2 : 4, Math.abs(p.netPnlInt) / monthlyMaxAbs * 76);
+                const amounts = [
+                  { key: "KR", value: p.krPnlInt, color: "#4c78bb", negativeColor: "#829fc9" },
+                  { key: "US", value: p.usPnlInt, color: "#37896f", negativeColor: "#78ac99" },
+                ].filter((entry) => market === "ALL" || entry.key === market);
+                const detail = `${monthNum}월 · KR ${moneyFormat("KRW", p.krPnlInt)} · US ${moneyFormat("KRW", p.usPnlInt)} · 합계 ${moneyFormat("KRW", p.netPnlInt)}`;
                 return (
-                  <button type="button" key={p.month} className={`perf-month-slot${isCurrent ? " is-selected" : ""}`} onClick={() => setSelectedMonth(p.month)} aria-pressed={isCurrent} aria-label={`${monthNum}월 실현손익 ${moneyFormat("KRW", p.netPnlInt)}`} title={`${monthNum}월: ${moneyFormat("KRW", p.netPnlInt)}`}>
+                  <button type="button" key={p.month} className={`perf-month-slot${isCurrent ? " is-selected" : ""}`} onClick={() => setSelectedMonth(p.month)} aria-pressed={isCurrent} aria-label={detail} aria-describedby={`monthly-detail-${p.month}`}>
                     <span className="perf-month-value"><CompactKrw amount={p.netPnlInt} /></span>
-                    <span className="perf-month-bar" style={{ height, top: positive ? 110 - height : 110, background: p.netPnlInt === 0 ? "#dce1eb" : positive ? "#65a995" : "#d28b92" }} />
+                    {amounts.map((entry, index) => {
+                      const height = entry.value === 0 ? 0.6 : Math.max(0.6, Math.abs(entry.value) / monthlyMaxAbs * 36);
+                      return <span key={entry.key} data-market={entry.key} data-pnl={entry.value} className="perf-month-bar perf-month-market-bar" style={{ height: `${height}%`, top: `${entry.value >= 0 ? 50 - height : 50}%`, left: amounts.length === 1 ? "50%" : index === 0 ? "35%" : "65%", background: entry.value === 0 ? "#e3e7ed" : entry.value > 0 ? entry.color : entry.negativeColor }} />;
+                    })}
+                    <span role="tooltip" id={`monthly-detail-${p.month}`} className={`perf-month-tooltip${monthNum <= 2 ? " is-first" : monthNum >= 11 ? " is-last" : ""}`}>
+                      <strong>{monthNum}월 실현손익</strong>
+                      {amounts.map((entry) => <span className="perf-month-tooltip-row" key={entry.key}><span><i style={{ background: entry.color }} />{entry.key}</span><b className={entry.value < 0 ? "is-loss" : undefined}>{moneyFormat("KRW", entry.value)}</b></span>)}
+                      <span className="perf-month-tooltip-row perf-month-tooltip-total"><span>합계</span><b className={p.netPnlInt < 0 ? "is-loss" : undefined}>{moneyFormat("KRW", p.netPnlInt)}</b></span>
+                    </span>
                     <span className="perf-month-label">{monthNum}월</span>
                   </button>
                 );
               })}
             </div>
           </div>
-          <p className="perf-panel-note">월을 선택하면 상단 손익과 거래 내역이 함께 바뀝니다.</p>
+          </div>
         </section>
 
         {/* RIGHT: table */}
         <div className="perf-col-table">
-          <div className="perf-section-heading"><div><h2>거래 내역</h2><p>{formatMonthLabel(selectedMonth)} · {market} · {tableTrades.length}건</p></div></div>
-          <div className="perf-tbl-head">
+          <div className="perf-section-heading perf-trades-heading"><div><h2>거래 내역</h2><p>{formatMonthLabel(selectedMonth)} · {market} · {tableTrades.length}건</p></div>
             <input
               className="perf-search-sm"
               type="text"
@@ -1016,8 +1037,8 @@ export default function PerformancePage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
-          <div className="perf-tbl-scroll" style={{ overflowX: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
+          <div className="perf-tbl-scroll" style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '32px minmax(60px, 1fr) 48px 190px', minWidth: '350px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
               <span>마켓</span>
               <span>종목</span>
               <button type="button" className="perf-sort-button" onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
@@ -1048,7 +1069,7 @@ export default function PerformancePage() {
                     tabIndex={0}
                     onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(trade); } }}
                     onClick={() => setSelected(trade)}
-                    style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
+                    style={{ display: 'grid', gridTemplateColumns: '32px minmax(60px, 1fr) 48px 190px', minWidth: '350px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
                   >
                     <span>
                       <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
@@ -1065,7 +1086,7 @@ export default function PerformancePage() {
                       {currency === 'KRW' ? (
                         <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
                       ) : (
-                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}</>
+                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}<span className="perf-trade-krw"> ({moneyFormat("KRW", convertTradeAmountToKrw(trade.pnlInt, trade.market, fxRate))})</span></>
                       )}
                     </span>
                   </div>

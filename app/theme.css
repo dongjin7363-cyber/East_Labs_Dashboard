@@ -512,3 +512,50 @@ button:disabled { cursor: not-allowed; }
 .finviz-lightbox h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .finviz-lightbox header button { border: 0; border-radius: 9px; background: #f0f2f6; width: 36px; height: 36px; cursor: pointer; flex-shrink: 0; }
 .finviz-lightbox img { display: block; width: 100%; max-height: calc(94dvh - 100px); object-fit: contain; }
+
+.perf-monthly-legend { display: flex; align-items: center; gap: 16px; padding: 0 24px 12px; color: var(--east-text-2); font-size: 11px; }
+.perf-monthly-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.perf-monthly-legend i { width: 8px; height: 8px; border-radius: 3px; }
+.perf-month-bar.perf-month-market-bar { width: 22%; max-width: 14px; border-radius: 3px; }
+.perf-month-market-values { position: absolute; top: 25px; left: 0; right: 0; display: flex; flex-direction: column; gap: 2px; font-size: 9px; white-space: nowrap; }
+.perf-monthly-bars { min-width: 650px; }
+
+.perf-monthly-bars::before { top: 135px; border-top-style: dashed; }
+.perf-month-slot { height: 250px; }
+
+.perf-monthly-heading-line { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.perf-monthly-heading-line .perf-monthly-legend { padding: 0; gap: 10px; flex-wrap: wrap; }
+.perf-monthly-bars::before { top: 110px; }
+.perf-month-slot { height: 222px; }
+.perf-month-slot:hover, .perf-month-slot:focus-visible { z-index: 2; }
+.perf-month-tooltip { display: none; position: absolute; z-index: 3; top: 35px; left: 50%; transform: translateX(-50%); width: 184px; padding: 12px; border: 1px solid #e2e5ea; border-radius: 12px; background: #fff; box-shadow: 0 8px 24px #1e293b1c; pointer-events: none; text-align: left; color: var(--east-text-1); }
+.perf-month-slot:hover .perf-month-tooltip, .perf-month-slot:focus-visible .perf-month-tooltip { display: block; }
+.perf-month-tooltip.is-first { left: 0; transform: none; }
+.perf-month-tooltip.is-last { left: auto; right: 0; transform: none; }
+.perf-month-tooltip > strong { display: block; margin-bottom: 10px; font-size: 12px; }
+.perf-month-tooltip-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 7px 0; font-size: 12px; }
+.perf-month-tooltip-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.perf-month-tooltip-row i { width: 7px; height: 7px; border-radius: 50%; }
+.perf-month-tooltip-row b { font-weight: 500; white-space: nowrap; }
+.perf-month-tooltip-total { border-top: 1px solid #eceef2; padding-top: 9px; margin-bottom: 0; }
+
+.perf-monthly-panel, .perf-col-table { align-self: stretch; }
+.perf-monthly-panel { display: flex; flex-direction: column; }
+.perf-monthly-scroll { flex: 1; display: flex; min-height: 290px; }
+.perf-monthly-bars { flex: 1; }
+.perf-month-slot { height: 100%; min-height: 290px; }
+.perf-monthly-bars::before { top: 50%; }
+.perf-trades-heading { align-items: center; }
+.perf-trades-heading .perf-search-sm { width: 140px; max-width: 42%; flex-shrink: 0; padding: 7px 10px; font-size: 12px; }
+.perf-trade-krw { font-size: 12px; opacity: .8; white-space: nowrap; }
+
+.perf-monthly-total { display: flex; align-items: baseline; justify-content: flex-end; gap: 10px; white-space: nowrap; }
+.perf-monthly-total > span { margin: 0; }
+
+.perf-month-tooltip-row b.is-loss { color: #ce7a82; }
+
+.perf-month-chart-layout { display: flex; flex: 1; min-height: 290px; padding: 0 16px 0 10px; }
+.perf-month-axis { position: relative; flex-shrink: 0; width: 60px; color: var(--east-text-3); font-size: 10px; }
+.perf-month-axis > span { position: absolute; right: 8px; transform: translateY(-50%); white-space: nowrap; }
+.perf-month-chart-layout .perf-monthly-scroll { min-width: 0; padding: 0; }
+.perf-month-chart-layout .perf-monthly-bars { min-width: 570px; }
