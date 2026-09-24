@@ -416,3 +416,89 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 761px) and (max-width: 1200px) {
   .perf-rate-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 20px; }
 }
+
+/* Calendar date and holiday share one row; the asset change stays below. */
+.ta-calendar-day-heading { display: flex; align-items: baseline; gap: 6px; width: 100%; min-width: 0; }
+.ta-calendar-day-heading .fin-cal-num { flex-shrink: 0; }
+.ta-calendar-day-heading .ta-holiday-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Finance numeric typography: each existing size increased by exactly 1px. */
+.fin-page .fin-cal-month-label { font-size: 15px; }
+.fin-page .fin-cal-num { font-size: 13px; }
+.fin-page .fin-cal-amt { font-size: 11px; }
+.fin-page .fin-cat-group-amt { font-size: 13px; }
+.fin-page :is(.fin-cat-pct, .fin-cat-amt-val) { font-size: 12px; }
+.fin-page .fin-cat-total-val { font-size: 16px; }
+.fin-page .fin-panel-title > span { font-size: 12px; }
+.fin-page .fin-modal-date { font-size: 13px; }
+.fin-page .fin-modal-input[inputmode="numeric"] { font-size: 14px; }
+.fin-page .fin-year-select { font-size: 13px; }
+.fin-page .fin-sum-card-val { font-size: 16px; }
+.fin-page .fin-sum-card-sub { font-size: 12px; }
+.fin-page .fin-chart-tooltip-month, .fin-page .fin-chart-tooltip-row > span:last-child { font-size: 12px; }
+.fin-page .fin-td-month { font-size: 12px; }
+.fin-page .fin-td-num { font-size: 11.5px; }
+
+
+/* Finance annual table and charts share a single panel. */
+.fin-annual-controls { display: flex; align-items: center; gap: 24px; }
+.fin-annual-net { display: flex; align-items: baseline; gap: 12px; }
+.fin-annual-net > span { font-size: 12px; color: var(--east-text-3); }
+.fin-annual-net strong { font-size: 19px; font-weight: 500; }
+.fin-page .fin-salary-section { padding: 22px; border: 1px solid var(--east-border); border-radius: 20px; background: white; }
+.fin-salary-header .perf-main-tabs-left { display: flex; }
+.fin-salary-section .fin-panel, .fin-salary-section .fin-chart-panel { border: 0; border-radius: 0; box-shadow: none; padding: 12px 0 0; }
+.fin-trend-switch { display: flex; gap: 4px; margin: 8px 0 12px; }
+.fin-trend-switch button { border: 0; border-radius: 9px; padding: 9px 14px; background: var(--east-surface); color: var(--east-text-3); font: inherit; font-size: 12px; cursor: pointer; }
+.fin-trend-switch button[aria-pressed="true"] { background: #eef0f8; color: #34499b; font-weight: 500; }
+.fin-chart-months { position: relative; height: 24px; margin-top: 10px; }
+.fin-chart-months span { position: absolute; transform: translateX(-50%); font-size: 12px; color: var(--east-text-3); white-space: nowrap; }
+@media (max-width: 700px) {
+  .fin-page .fin-salary-section { padding: 14px; }
+  .fin-salary-header { align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+  .fin-annual-controls { width: 100%; justify-content: space-between; gap: 12px; }
+  .fin-annual-net strong { font-size: 17px; }
+  .fin-chart-months span { font-size: 10px; }
+}
+
+.fin-view-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fin-view-controls .fin-trend-switch { margin: 0; }
+.fin-salary-header { flex-wrap: wrap; gap: 16px; }
+.fin-chart-plot { display: flex; gap: 12px; }
+.fin-chart-axis { display: flex; flex-direction: column; justify-content: space-between; width: 74px; flex-shrink: 0; padding-bottom: 34px; font-size: 11px; color: var(--east-text-3); text-align: right; }
+.fin-chart-drawing { min-width: 0; flex: 1; }
+.fin-chart-drawing > svg { display: block; }
+.fin-page .fin-monthly-detail-title { font-size: 15px; }
+@media (max-width: 700px) {
+  .fin-chart-axis { width: 56px; font-size: 10px; }
+  .fin-chart-plot { gap: 6px; }
+}
+
+.fin-chart-axis { position: relative; padding-bottom: 0; }
+.fin-chart-axis-ticks { position: absolute; inset: 0 0 34px; }
+.fin-chart-axis-ticks span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+
+.fin-chart-legend-note { font-size: 11px; color: var(--east-text-3); margin-left: 8px; }
+
+.fin-page .fin-inline-detail { margin: 0; white-space: nowrap; }
+@media (max-width: 700px) { .fin-page .fin-inline-detail { white-space: normal; } }
+
+.fin-inline-chart-heading .fin-chart-title { margin: 0 0 5px; }
+.fin-inline-chart-heading .fin-chart-legend { margin: 0; flex-wrap: wrap; }
+.fin-inline-chart-heading { padding: 2px 0; }
+.fin-chart-tooltip { min-width: 190px; }
+
+/* Finance calendar, category analysis and ledger: +1px. */
+.fin-page .fin-cal-month-label { font-size: 16px; }
+.fin-page .fin-cal-dow { font-size: 12px; }
+.fin-page .fin-cal-num { font-size: 14px; }
+.fin-page .fin-cal-amt { font-size: 12px; }
+.fin-page .fin-top-grid .fin-panel-title { font-size: 15px; }
+.fin-page .fin-top-grid .fin-panel-title > span { font-size: 13px; }
+.fin-page .fin-cat-group-name { font-size: 12px; }
+.fin-page .fin-cat-group-amt { font-size: 14px; }
+.fin-page .fin-cat-name { font-size: 13.5px; }
+.fin-page :is(.fin-cat-pct, .fin-cat-amt-val, .fin-cat-total-label) { font-size: 13px; }
+.fin-page .fin-cat-total-val { font-size: 17px; }
+.fin-page .fin-annual-table thead th { font-size: 11px; }
+.fin-page .fin-td-month { font-size: 13px; }
+.fin-page .fin-td-num { font-size: 12.5px; }

@@ -104,8 +104,10 @@ export function TotalAssetCalendar({
               style={isSelected ? { outline: "2px solid #1D4ED8", outlineOffset: "-2px" } : undefined}
               onClick={() => onSelectDate(date)}
             >
-              <span className="fin-cal-num">{day}</span>
-              {isHoliday && <span className="ta-holiday-name">{dayInfo?.holidayName || "공휴일"}</span>}
+              <span className="ta-calendar-day-heading">
+                <span className="fin-cal-num">{day}</span>
+                {isHoliday && <span className="ta-holiday-name">{dayInfo?.holidayName || "공휴일"}</span>}
+              </span>
               {changeText && change !== undefined && (
                 <span className={`fin-cal-amt ${change > 0 ? "is-inc" : "is-exp"}`}>
                   {changeText}

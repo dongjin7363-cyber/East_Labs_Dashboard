@@ -76,15 +76,6 @@ function parseAmtInput(s: string): number {
   return Math.max(0, parseInt(s.replace(/[,\s]/g, ""), 10) || 0);
 }
 
-function pctChangeFmt(curr: number, prev: number): { text: string; pos: boolean } | null {
-  if (!prev) return null;
-  const pct = ((curr - prev) / prev) * 100;
-  return {
-    text: `전월대비 ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
-    pos: pct >= 0,
-  };
-}
-
 function matchesCat(e: ExpenseEntry, cat: CategoryDef): boolean {
   if (e.bucket !== cat.bucket) return false;
   if (cat.subcategory !== undefined) return e.subcategory === cat.subcategory;
@@ -334,9 +325,9 @@ function CategoryAnalysisPanel({
                     key={entry.id}
                     style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, padding: "10px 20px", borderBottom: "1px solid #F9FAFB", alignItems: "center" }}
                   >
-                    <span style={{ fontSize: "0.8rem", color: "#374151" }}>{dateLabel}</span>
+                    <span style={{ fontSize: "calc(0.8rem + 1px)", color: "#374151" }}>{dateLabel}</span>
                     <span style={{ fontSize: "0.8rem", color: "#6B7280" }}>{entry.note}</span>
-                    <span style={{ fontSize: "0.8rem", color: isIncome ? "#16a34a" : "#dc2626", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: "calc(0.8rem + 1px)", color: isIncome ? "#16a34a" : "#dc2626", fontFamily: "'JetBrains Mono', monospace", whiteSpace: "nowrap" }}>
                       {isIncome ? "+" : "-"}{entry.amountInt.toLocaleString("ko-KR")}
                     </span>
                   </div>
@@ -345,7 +336,7 @@ function CategoryAnalysisPanel({
             </div>
             <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "0.85rem", color: "#374151" }}>이번 달 합계</span>
-              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: "#111827", fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: "calc(0.9rem + 1px)", fontWeight: 600, color: "#111827", fontFamily: "'JetBrains Mono', monospace" }}>
                 {popupTotal.toLocaleString("ko-KR")}원
               </span>
             </div>
@@ -509,150 +500,100 @@ function FinanceDayModal({
   );
 }
 
-// ── EarningsBarChart (Wage + Stock stacked) ───────────────────────────────────
-function EarningsBarChart({ months }: { months: SalaryMonthRow[] }) {
-  const [hovered, setHovered] = useState<number | null>(null);
-  const W = 280;
-  const chartH = 80;
-  const barW = 16;
-  const slotW = 20;
-
-  const maxVal = Math.max(...months.map((m) => m.earnings), 1);
-
-  const hoveredRow = hovered !== null ? months[hovered] : null;
-  const tooltipLeft = hovered !== null
-    ? `${((22 + hovered * slotW + barW / 2) / W) * 100}%`
-    : "0%";
-
-  return (
-    <div className="fin-chart-panel">
-      <p className="fin-chart-title">수입 (급여 + 주식수익)</p>
-      <div className="fin-chart-legend">
-        <span className="fin-chart-legend-item">
-          <span className="fin-chart-legend-dot" style={{ background: "#1E3A8A" }} />급여
-        </span>
-        <span className="fin-chart-legend-item">
-          <span className="fin-chart-legend-dot" style={{ background: "#F59E0B" }} />주식수익
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${chartH + 12}`} width="100%" style={{ overflow: "visible" }}>
-        <line x1="0" y1="0"             x2={W} y2="0"             stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
-        <line x1="0" y1={chartH * 0.5}  x2={W} y2={chartH * 0.5} stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
-        <line x1="0" y1={chartH}        x2={W} y2={chartH}        stroke="rgba(0,0,0,0.1)"  strokeWidth="0.6" />
-        {months.map((row, i) => {
-          const x = 22 + i * slotW;
-          const wageH   = (row.income / maxVal) * chartH;
-          const stockH  = (row.stock  / maxVal) * chartH;
-          const wageY   = chartH - wageH;
-          const stockY  = wageY - stockH;
-          return (
-            <g key={row.month}
-               onMouseEnter={() => setHovered(i)}
-               onMouseLeave={() => setHovered(null)}>
-              {row.presence.income && <rect x={x} y={wageY}  width={barW} height={wageH}  fill="#1E3A8A" rx={2} />}
-              {row.presence.stock  && <rect x={x} y={stockY} width={barW} height={stockH} fill="#F59E0B" rx={2} />}
-              <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
-              <text x={x + barW / 2} y={chartH + 10} fontSize={8} fill="#9CA3AF" fontFamily="monospace" textAnchor="middle">
-                {row.month}월
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      {hoveredRow !== null && (
-        <div className="fin-chart-tooltip" style={{ left: tooltipLeft }}>
-          <div className="fin-chart-tooltip-month">{hoveredRow.month}월</div>
-          <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#1E3A8A" }} />
-            <span>급여</span>
-            <span>{fmtCompact(hoveredRow.income)}</span>
-          </div>
-          <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#F59E0B" }} />
-            <span>주식</span>
-            <span>{fmtCompact(hoveredRow.stock)}</span>
-          </div>
-          <div className="fin-chart-tooltip-divider" />
-          <div className="fin-chart-tooltip-row fin-chart-tooltip-total">
-            <span>합계</span>
-            <span>{fmtCompact(hoveredRow.earnings)}</span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+function formatChartAmount(value: number): string {
+  return `${value.toLocaleString("ko-KR")}원`;
 }
 
-// ── IncomeVsSpendChart ────────────────────────────────────────────────────────
-function IncomeVsSpendChart({ months }: { months: SalaryMonthRow[] }) {
+function financeChartScale(values: number[]) {
+  const step = 1000000;
+  const max = Math.ceil(Math.max(...values, step) / step) * step;
+  const min = Math.floor(Math.min(...values, 0) / step) * step;
+  const y = (value: number) => ((max - value) / (max - min)) * 80;
+  return { y, ticks: [...new Set([max, max / 2, 0, ...(min < 0 ? [min] : [])])] };
+}
+
+// ── AnnualCashflowChart (income and outflows stacked) ───────────────────────────────────
+function AnnualCashflowChart({ months }: { months: SalaryMonthRow[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
   const W = 280;
   const chartH = 80;
-  const barW = 7;
-  const innerGap = 1;
-  const slotW = barW * 2 + innerGap + 5; // 20
+  const barW = 6;
+  const slotW = 20;
 
-  const maxVal = Math.max(...months.flatMap((m) => [m.earnings, m.spending]), 1);
+  const scale = financeChartScale(months.flatMap((m) => [
+    Math.max(m.income, 0) + Math.max(m.stock, 0) + Math.max(-m.spending, 0),
+    Math.min(m.income, 0) + Math.min(m.stock, 0) + Math.min(-m.spending, 0),
+  ]));
 
   const hoveredRow = hovered !== null ? months[hovered] : null;
   const tooltipLeft = hovered !== null
-    ? `${((22.5 + hovered * slotW + barW + innerGap / 2) / W) * 100}%`
+    ? `${((30 + hovered * slotW) / W) * 100}%`
     : "0%";
 
   return (
     <div className="fin-chart-panel">
-      <p className="fin-chart-title">총수입 vs 총지출</p>
-      <div className="fin-chart-legend">
-        <span className="fin-chart-legend-item">
-          <span className="fin-chart-legend-dot" style={{ background: "#1D9E75" }} />수입
-        </span>
-        <span className="fin-chart-legend-item">
-          <span className="fin-chart-legend-dot" style={{ background: "#D94848" }} />지출
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${chartH + 12}`} width="100%" style={{ overflow: "visible" }}>
-        <line x1="0" y1="0"            x2={W} y2="0"            stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
-        <line x1="0" y1={chartH * 0.5} x2={W} y2={chartH * 0.5} stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
-        <line x1="0" y1={chartH}       x2={W} y2={chartH}       stroke="rgba(0,0,0,0.06)" strokeWidth="0.5" />
+      <div className="fin-chart-plot">
+        <div className="fin-chart-axis" aria-label="금액 축, 단위 만원">
+          <div className="fin-chart-axis-ticks">
+            {scale.ticks.map((value) => <span key={value} style={{ top: `${scale.y(value) / chartH * 100}%` }}>{value === 0 ? "0원" : `${(value / 10000).toLocaleString("ko-KR")}만 원`}</span>)}
+          </div>
+        </div>
+        <div className="fin-chart-drawing">
+      <svg viewBox={`0 0 ${W} ${chartH}`} width="100%" style={{ overflow: "visible" }}>
+        {scale.ticks.map((value) => <line key={value} data-zero-line={value === 0 ? "true" : undefined} x1="0" y1={scale.y(value)} x2={W} y2={scale.y(value)} stroke={value === 0 ? "#a8afbc" : "rgba(0,0,0,0.06)"} strokeWidth={value === 0 ? 0.5 : 0.3} strokeDasharray={value === 0 ? "2 1.5" : undefined} />)}
         {months.map((row, i) => {
-          const x     = 22.5 + i * slotW;
-          const incH  = (row.earnings / maxVal) * chartH;
-          const expH  = (row.spending  / maxVal) * chartH;
-          const incX  = x;
-          const expX  = x + barW + innerGap;
+          const x = 30 + i * slotW - barW / 2;
+          let positive = 0;
+          let negative = 0;
+          const segments = [
+            { key: "income", value: row.income, present: row.presence.income, positiveColor: "#646970", negativeColor: "#969ba2" },
+            { key: "stock", value: row.stock, present: row.presence.stock, positiveColor: "#91c9ad", negativeColor: "#b4cfc1" },
+            { key: "spending", value: -row.spending, present: row.presence.spending, positiveColor: "#db999d", negativeColor: "#deb0b3" },
+          ].filter((segment) => segment.present && segment.value !== 0).map((segment) => {
+            const start = segment.value >= 0 ? positive : negative;
+            const end = start + segment.value;
+            if (segment.value >= 0) positive = end;
+            else negative = end;
+            return { ...segment, y: Math.min(scale.y(start), scale.y(end)), height: Math.abs(scale.y(end) - scale.y(start)) };
+          });
           return (
-            <g key={row.month}
+            <g key={row.month} tabIndex={0} aria-label={`${row.month}월 수입과 지출`} onFocus={() => setHovered(i)} onBlur={() => setHovered(null)}
                onMouseEnter={() => setHovered(i)}
                onMouseLeave={() => setHovered(null)}>
-              {row.presence.earnings  && <rect x={incX} y={chartH - incH} width={barW} height={incH} fill="#1D9E75" rx={2} />}
-              {row.presence.spending  && <rect x={expX} y={chartH - expH} width={barW} height={expH} fill="#D94848" rx={2} />}
-              <rect x={x} y={0} width={barW * 2 + innerGap} height={chartH} fill="transparent" />
-              <text x={x + barW} y={chartH + 10} fontSize={8} fill="#9CA3AF" fontFamily="monospace" textAnchor="middle">
-                {row.month}월
-              </text>
+              {segments.map((segment) => <rect key={segment.key} data-category={segment.key} data-value={segment.value} x={x} y={segment.y} width={barW} height={segment.height} rx={Math.min(1.1, segment.height / 2)} fill={segment.value < 0 ? segment.negativeColor : segment.positiveColor} />)}
+              <rect x={x} y={0} width={barW} height={chartH} fill="transparent" />
             </g>
           );
         })}
       </svg>
+      <div className="fin-chart-months">
+        {months.map((row, i) => <span key={row.month} style={{ left: `${((30 + i * slotW) / W) * 100}%` }}>{row.month}월</span>)}
+      </div>
+      </div>
+      </div>
       {hoveredRow !== null && (
         <div className="fin-chart-tooltip" style={{ left: tooltipLeft }}>
           <div className="fin-chart-tooltip-month">{hoveredRow.month}월</div>
           <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#1D9E75" }} />
-            <span>수입</span>
-            <span>{fmtCompact(hoveredRow.earnings)}</span>
+            <span className="fin-chart-tooltip-dot" style={{ background: "#646970" }} />
+            <span>급여</span>
+            <span>{formatChartAmount(hoveredRow.income)}</span>
           </div>
           <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#D94848" }} />
-            <span>지출</span>
-            <span>{fmtCompact(hoveredRow.spending)}</span>
+            <span className="fin-chart-tooltip-dot" style={{ background: "#91c9ad" }} />
+            <span>주식</span>
+            <span>{formatChartAmount(hoveredRow.stock)}</span>
           </div>
+          <div className="fin-chart-tooltip-row">
+            <span className="fin-chart-tooltip-dot" style={{ background: "#deb0b3" }} />
+            <span>지출</span>
+            <span>{formatChartAmount(-hoveredRow.spending)}</span>
+          </div>
+          <div className="fin-chart-tooltip-row"><span>총수입</span><span>{formatChartAmount(hoveredRow.earnings)}</span></div>
           <div className="fin-chart-tooltip-divider" />
           <div className="fin-chart-tooltip-row fin-chart-tooltip-total">
             <span>순수익</span>
-            <span style={{ color: hoveredRow.earnings - hoveredRow.spending >= 0 ? "#059669" : "#dc2626" }}>
-              {fmtCompact(hoveredRow.earnings - hoveredRow.spending)}
-            </span>
+            <span>{formatChartAmount(hoveredRow.earnings - hoveredRow.spending)}</span>
           </div>
         </div>
       )}
@@ -665,21 +606,17 @@ function AnnualTable({
   months,
   totals,
   loading,
-  year,
 }: {
   months: SalaryMonthRow[];
   totals: SalaryYearTotals;
   loading: boolean;
-  year: number;
 }) {
   const fmt = (n: number, has: boolean) =>
     has ? <MoneyDisplay amountInt={n} /> : <span style={{ color: "#9CA3AF" }}>-</span>;
 
   return (
     <div className="fin-panel fin-annual-panel">
-      <p className="fin-panel-title">
-        월별 상세 <span>· {year}년 · 수입 / 고정비 / 변동비</span>
-      </p>
+
       <div style={{ overflowX: "auto" }}>
         <table className="fin-annual-table">
           <thead>
@@ -760,74 +697,6 @@ function AnnualTable({
   );
 }
 
-// ── SumCards ──────────────────────────────────────────────────────────────────
-function SumCards({
-  currentRow,
-  prevRow,
-  ytdNet,
-  ytdMonths,
-  loading,
-}: {
-  currentRow: SalaryMonthRow | undefined;
-  prevRow: SalaryMonthRow | undefined;
-  ytdNet: number;
-  ytdMonths: number;
-  loading: boolean;
-}) {
-  const dash = "—";
-  const earning = currentRow?.earnings ?? 0;
-  const spending = currentRow?.spending ?? 0;
-  const net = earning - spending;
-  const prevEarning = prevRow?.earnings ?? 0;
-  const prevSpending = prevRow?.spending ?? 0;
-  const prevNet = prevEarning - prevSpending;
-
-  const cards = [
-    {
-      label: "이번달 수입",
-      val: currentRow ? <MoneyDisplay amountInt={earning} /> : dash,
-      sub: currentRow && prevRow ? pctChangeFmt(earning, prevEarning) : null,
-      color: "#1D9E75",
-    },
-    {
-      label: "이번달 지출",
-      val: currentRow ? <MoneyDisplay amountInt={spending} /> : dash,
-      sub: currentRow && prevRow ? pctChangeFmt(spending, prevSpending) : null,
-      color: "#D94848",
-    },
-    {
-      label: "이번달 순수익",
-      val: currentRow ? <MoneyDisplay amountInt={net} /> : dash,
-      sub: currentRow && prevRow ? pctChangeFmt(net, prevNet) : null,
-      color: net >= 0 ? "#1D9E75" : "#D94848",
-    },
-    {
-      label: "연 누적 순수익",
-      val: <MoneyDisplay amountInt={ytdNet} />,
-      sub: ytdMonths > 0 ? { text: `YTD · ${ytdMonths}개월`, pos: true } : null,
-      color: "#111827",
-    },
-  ];
-
-  return (
-    <div className="fin-sum-cards">
-      {cards.map(({ label, val, sub, color }) => (
-        <div key={label} className="fin-sum-card">
-          <p className="fin-sum-card-label">{label}</p>
-          <p className="fin-sum-card-val" style={{ color: loading ? "#9CA3AF" : color }}>
-            {loading ? dash : val}
-          </p>
-          {sub && (
-            <p className="fin-sum-card-sub" style={{ color: sub.pos ? "#1D9E75" : "#D94848" }}>
-              {sub.text}
-            </p>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ── FinancePage ───────────────────────────────────────────────────────────────
 export default function FinancePage() {
   const { entries, loading, authLoading, isAuthenticated, create, update, remove } = useExpenses();
@@ -836,6 +705,7 @@ export default function FinancePage() {
   const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
   const [modalDay, setModalDay] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [annualView, setAnnualView] = useState<"table" | "trend">("table");
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const cacheRef = useRef<Record<string, Record<string, CalendarDayInfo>>>({});
@@ -878,35 +748,7 @@ export default function FinancePage() {
     [year, entries, trades, fxRate, isAuthenticated],
   );
 
-  const selectedMonthNum = parseInt(selectedMonth.slice(5, 7), 10);
-  const selectedYearNum  = parseInt(selectedMonth.slice(0, 4), 10);
-
-  const currentRow = useMemo(
-    () => selectedYearNum === year
-      ? yearSummary.months.find((m) => m.month === selectedMonthNum)
-      : undefined,
-    [yearSummary, selectedMonthNum, selectedYearNum, year],
-  );
-
-  const prevRow = useMemo(() => {
-    if (selectedYearNum !== year) return undefined;
-    const prevMonthNum = selectedMonthNum === 1 ? 12 : selectedMonthNum - 1;
-    return yearSummary.months.find((m) => m.month === prevMonthNum);
-  }, [yearSummary, selectedMonthNum, selectedYearNum, year]);
-
-  const { ytdNet, ytdMonths } = useMemo(() => {
-    if (selectedYearNum !== year) return { ytdNet: 0, ytdMonths: 0 };
-    let net = 0;
-    let count = 0;
-    for (const m of yearSummary.months) {
-      if (m.month > selectedMonthNum) break;
-      if (m.presence.earnings || m.presence.spending) {
-        net += m.earnings - m.spending;
-        count++;
-      }
-    }
-    return { ytdNet: net, ytdMonths: count };
-  }, [yearSummary, selectedMonthNum, selectedYearNum, year]);
+  const annualNet = yearSummary.totals.earnings - yearSummary.totals.spending;
 
   const firstDow = useMemo(
     () => calendarMap[monthRange.from]?.dow ?? dayOfWeekFromDate(monthRange.from),
@@ -1006,11 +848,38 @@ export default function FinancePage() {
       {/* ── Annual section ── */}
       <div className="fin-salary-section">
         <div className="fin-salary-header">
-          <div>
-            <p className="fin-salary-title">연간 수입 / 지출</p>
-            <p className="fin-salary-sub">월별 수입·지출 요약</p>
+          <div className="fin-view-controls">
+          <div className="perf-main-tabs-left" role="group" aria-label="연간 보기 선택">
+            <button type="button" className={`perf-main-tab${annualView === "table" ? " is-active" : ""}`} aria-pressed={annualView === "table"} onClick={() => setAnnualView("table")}>연간 수입 / 지출</button>
+            <button type="button" className={`perf-main-tab${annualView === "trend" ? " is-active" : ""}`} aria-pressed={annualView === "trend"} onClick={() => setAnnualView("trend")}>연간 흐름</button>
           </div>
+          {annualView === "table" && <p className="fin-panel-title fin-monthly-detail-title fin-inline-detail">
+            월별 상세 <span>· {year}년 · 수입 / 고정비 / 변동비</span>
+          </p>}
+          {annualView === "trend" && <div className="fin-inline-chart-heading">      <p className="fin-chart-title">월별 수입 · 지출</p>
+      <div className="fin-chart-legend">
+        <span className="fin-chart-legend-item">
+          <span className="fin-chart-legend-dot" style={{ background: "#646970" }} />급여
+        </span>
+        <span className="fin-chart-legend-item">
+          <span className="fin-chart-legend-dot" style={{ background: "#91c9ad" }} />주식수익
+        </span>
+        <span className="fin-chart-legend-item">
+          <span className="fin-chart-legend-dot" style={{ background: "#deb0b3" }} />지출
+        </span>
+        <span className="fin-chart-legend-note">0선 아래: 지출 · 손실</span>
+      </div>
+</div>}
+          </div>
+          <div className="fin-annual-controls">
+            <div className="fin-annual-net">
+              <span>연 누적 순수익</span>
+              <strong style={{ color: annualNet >= 0 ? "#1D9E75" : "#D94848" }}>
+                {combinedLoading ? "—" : <MoneyDisplay amountInt={annualNet} />}
+              </strong>
+            </div>
           <select
+            aria-label="연간 상세 연도"
             className="fin-year-select"
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
@@ -1019,27 +888,16 @@ export default function FinancePage() {
               <option key={y} value={y}>{y}년</option>
             ))}
           </select>
+          </div>
         </div>
 
-        <SumCards
-          currentRow={currentRow}
-          prevRow={prevRow}
-          ytdNet={ytdNet}
-          ytdMonths={ytdMonths}
-          loading={combinedLoading}
-        />
-
-        <div className="fin-charts-row">
-          <EarningsBarChart months={yearSummary.months} />
-          <IncomeVsSpendChart months={yearSummary.months} />
-        </div>
-
-        <AnnualTable
+        {annualView === "table" ? <AnnualTable
           months={yearSummary.months}
           totals={yearSummary.totals}
           loading={combinedLoading}
-          year={year}
-        />
+        /> : <div className="fin-trend-content">
+          <AnnualCashflowChart months={yearSummary.months} />
+        </div>}
       </div>
 
       <FinanceDayModal
