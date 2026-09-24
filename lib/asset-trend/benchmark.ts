@@ -1,7 +1,7 @@
 import { getDatesInRange } from "@/lib/date/calendar";
 import { TotalAssetSnapshot } from "@/lib/models/types";
 
-export type AssetTrendBenchmarkKey = "portfolio" | "kospi" | "kosdaq" | "sp500";
+export type AssetTrendBenchmarkKey = "portfolio" | "kospi" | "kosdaq" | "sp500" | "nasdaq";
 
 export interface IndexHistoryPoint {
   date: string;
@@ -12,6 +12,7 @@ export interface IndexHistorySeriesMap {
   kospi: IndexHistoryPoint[];
   kosdaq: IndexHistoryPoint[];
   sp500: IndexHistoryPoint[];
+  nasdaq: IndexHistoryPoint[];
 }
 
 export interface AssetTrendBenchmarkPoint {
@@ -20,6 +21,7 @@ export interface AssetTrendBenchmarkPoint {
   kospi: number | null;
   kosdaq: number | null;
   sp500: number | null;
+  nasdaq: number | null;
 }
 
 export interface AssetTrendBenchmarkSummaryValue {
@@ -45,6 +47,7 @@ export const ASSET_TREND_BENCHMARK_META: Record<
   portfolio: { label: "Portfolio", color: "#111827" },
   kospi: { label: "KOSPI", color: "#d35b5b" },
   kosdaq: { label: "KOSDAQ", color: "#4b7fd9" },
+  nasdaq: { label: "NASDAQ", color: "#f97316" },
   sp500: { label: "S&P", color: "#36a66b" },
 };
 
@@ -254,6 +257,7 @@ export function createEmptyIndexHistorySeries(): IndexHistorySeriesMap {
     kospi: [],
     kosdaq: [],
     sp500: [],
+    nasdaq: [],
   };
 }
 
@@ -305,6 +309,12 @@ export function buildAssetTrendBenchmarkData(options: {
     },
   );
 
+  const nasdaqResult = buildNormalizedSeriesResult(
+    dates, new Map(options.indexSeries.nasdaq.map((point) => [point.date, point.close])),
+    options.compareStartDate, options.compareEndDate,
+    { allowLatestEntryBeforeStartForDailyReturn: true },
+  );
+
   return {
     data: dates.map((date) => ({
       date,
@@ -312,18 +322,21 @@ export function buildAssetTrendBenchmarkData(options: {
       kospi: kospiResult.returnMap.get(date) ?? null,
       kosdaq: kosdaqResult.returnMap.get(date) ?? null,
       sp500: sp500Result.returnMap.get(date) ?? null,
+      nasdaq: nasdaqResult.returnMap.get(date) ?? null,
     })),
     summary: {
       portfolio: portfolioResult.summary,
       kospi: kospiResult.summary,
       kosdaq: kosdaqResult.summary,
       sp500: sp500Result.summary,
+      nasdaq: nasdaqResult.summary,
     },
     diagnostics: {
       portfolio: portfolioResult.diagnostics,
       kospi: kospiResult.diagnostics,
       kosdaq: kosdaqResult.diagnostics,
       sp500: sp500Result.diagnostics,
+      nasdaq: nasdaqResult.diagnostics,
     },
   };
 }

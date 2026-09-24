@@ -102,6 +102,7 @@ function mergeBenchmarkSeries(
     kospi: next.kospi.length > 0 ? next.kospi : previous.kospi,
     kosdaq: next.kosdaq.length > 0 ? next.kosdaq : previous.kosdaq,
     sp500: next.sp500.length > 0 ? next.sp500 : previous.sp500,
+    nasdaq: next.nasdaq.length > 0 ? next.nasdaq : previous.nasdaq,
   };
 }
 
@@ -114,6 +115,7 @@ const DEFAULT_BENCHMARK_VISIBILITY: Record<AssetTrendBenchmarkKey, boolean> = {
   kospi: true,
   kosdaq: true,
   sp500: true,
+  nasdaq: true,
 };
 
 export function TotalAssetClient() {
@@ -321,6 +323,7 @@ export function TotalAssetClient() {
         kospi: Array.isArray(data.series?.kospi) ? data.series.kospi : [],
         kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
         sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
+        nasdaq: Array.isArray(data.series?.nasdaq) ? data.series.nasdaq : [],
       };
 
       return {
@@ -355,6 +358,7 @@ export function TotalAssetClient() {
           kospi: nextSeries.kospi.length > 0 ? nextSeries.kospi : previous.kospi,
           kosdaq: nextSeries.kosdaq.length > 0 ? nextSeries.kosdaq : previous.kosdaq,
           sp500: nextSeries.sp500.length > 0 ? nextSeries.sp500 : previous.sp500,
+          nasdaq: nextSeries.nasdaq.length > 0 ? nextSeries.nasdaq : previous.nasdaq,
         }));
         indexSeriesRef.current = mergedSeries;
         setBenchmarkError(

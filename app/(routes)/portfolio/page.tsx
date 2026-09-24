@@ -441,6 +441,9 @@ function buildDonutSlices(
 }
 
 function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) {
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const hoveredSlice = slices.find(slice => slice.key === hoveredKey);
+  const tooltipWidth = Math.min(330, Math.max(90, (hoveredSlice?.label.length ?? 0) * 10 + 28));
   const cx = 180, cy = 140, radius = 88;
   let cumulative = 0;
   const arcs = total > 0 ? slices.map((slice) => {
@@ -465,9 +468,12 @@ function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) 
       <circle cx={cx} cy={cy} r="65" fill="white" stroke="var(--east-border)" />
       {arcs.map(arc => (
         <g key={arc.key}>
-          <path d={arc.d} fill="none" stroke={arc.color} strokeWidth={arc.stroke} strokeLinecap="round">
-            <title>{arc.label}: {(arc.fraction * 100).toFixed(2)}%</title>
-          </path>
+          <path d={arc.d} fill="none" stroke={arc.color} strokeWidth={arc.stroke} strokeLinecap="round"
+            className="pf-donut-segment" tabIndex={0} aria-label={`${arc.label}: ${(arc.fraction * 100).toFixed(2)}%`}
+            onMouseEnter={() => setHoveredKey(arc.key)} onMouseLeave={() => setHoveredKey(null)}
+            onFocus={() => setHoveredKey(arc.key)} onBlur={() => setHoveredKey(null)}
+            onKeyDown={event => { if (event.key === "Escape") setHoveredKey(null); }}
+          />
           {arc.fraction >= .08 && slices.length <= 6 ? (
             <g className="pf-donut-callout">
               <path d={`M ${arc.lx} ${arc.ly} L ${arc.right ? 294 : 66} ${arc.ly + (arc.ly < cy ? -14 : 14)} H ${arc.right ? 346 : 14}`}
@@ -480,6 +486,10 @@ function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) 
           ) : null}
         </g>
       ))}
+      {hoveredSlice && <g className="pf-donut-tooltip" role="tooltip" pointerEvents="none">
+        <rect x={cx - tooltipWidth / 2} y="8" width={tooltipWidth} height="30" rx="8" fill="#20242c" />
+        <text x={cx} y="28" textAnchor="middle" fill="white" fontSize="13" fontWeight="550">{hoveredSlice.label}</text>
+      </g>}
     </svg>
   );
 }

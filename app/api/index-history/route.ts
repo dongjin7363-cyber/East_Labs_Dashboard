@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "edge";
 
-const MAX_RANGE_DAYS = 370;
+const MAX_RANGE_DAYS = 400;
 const FETCH_TIMEOUT_MS = 8000;
 const NO_STORE_CACHE_CONTROL =
   "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0";
@@ -61,7 +61,7 @@ async function getYahooSession(): Promise<{ crumb: string; cookie: string } | nu
     if (!crumb || crumb.includes("<") || crumb.length > 30) return null;
 
     yahooSessionCache = { crumb, cookie, fetchedAt: now };
-    console.log("[api/index-history] Yahoo session refreshed", { crumb });
+
 
     return yahooSessionCache;
   } catch (err) {
@@ -75,18 +75,7 @@ interface IndexHistoryResponse {
   to: string;
   series: IndexHistorySeriesMap;
   errors: string[];
-  debug?: {
-    sp500: {
-      providers: Array<{
-        type: AssetTrendIndexHistoryProvider["type"];
-        symbol: string;
-        status: "fulfilled" | "rejected";
-        pointCount: number;
-        error: string | null;
-      }>;
-      mergedPointCount: number;
-    };
-  };
+
 }
 
 function isValidDateString(value: string | null): value is string {
@@ -95,27 +84,6 @@ function isValidDateString(value: string | null): value is string {
 
 function sortHistory(points: IndexHistoryPoint[]): IndexHistoryPoint[] {
   return [...points].sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function mergeHistoryPoints(
-  primaryPoints: IndexHistoryPoint[],
-  secondaryPoints: IndexHistoryPoint[],
-): IndexHistoryPoint[] {
-  const pointsByDate = new Map<string, number>();
-
-  secondaryPoints.forEach((point) => {
-    pointsByDate.set(point.date, point.close);
-  });
-  primaryPoints.forEach((point) => {
-    pointsByDate.set(point.date, point.close);
-  });
-
-  return sortHistory(
-    Array.from(pointsByDate.entries()).map(([date, close]) => ({
-      date,
-      close,
-    })),
-  );
 }
 
 function formatDateInTimeZone(date: Date, timeZone: string): string {
@@ -135,10 +103,6 @@ function formatDateInTimeZone(date: Date, timeZone: string): string {
   }
 
   return `${year}-${month}-${day}`;
-}
-
-function readLastPoint(points: IndexHistoryPoint[]): IndexHistoryPoint | null {
-  return points.length > 0 ? points[points.length - 1] ?? null : null;
 }
 
 function parseStooqHistoryCsv(text: string, from: string, to: string): IndexHistoryPoint[] {
@@ -199,7 +163,7 @@ async function fetchNaverApiIndexHistory(
   const startDateTime = from.replace(/-/g, "") + "000000";
   const endDateTime = to.replace(/-/g, "") + "235959";
   const response = await fetch(
-    `https://api.stock.naver.com/chart/domestic/index/${encodeURIComponent(code)}/day?startDateTime=${startDateTime}&endDateTime=${endDateTime}`,
+    `https://api.stock.naver.com/chart/${code.startsWith(".") ? "foreign" : "domestic"}/index/${encodeURIComponent(code)}/day?startDateTime=${startDateTime}&endDateTime=${endDateTime}`,
     {
       headers: {
         ...DEFAULT_HEADERS,
@@ -370,77 +334,6 @@ async function fetchFredIndexHistory(
   return parseFredHistoryCsv(await response.text(), from, to);
 }
 
-async function fetchSp500History(
-  from: string,
-  to: string,
-): Promise<{
-  points: IndexHistoryPoint[];
-  debug: NonNullable<IndexHistoryResponse["debug"]>["sp500"];
-}> {
-  const providers = ASSET_TREND_INDEX_HISTORY_CONFIG.sp500.providers;
-  const providerResults = await Promise.allSettled(
-    providers.map((provider) => fetchHistoryForProvider(provider, from, to)),
-  );
-
-  const successfulSeries = providerResults.flatMap((result) =>
-    result.status === "fulfilled" ? [result.value] : [],
-  );
-  const mergedPoints = successfulSeries.reduce<IndexHistoryPoint[]>(
-    (allPoints, points) => mergeHistoryPoints(points, allPoints),
-    [],
-  );
-  const debug = {
-    providers: providers.map((provider, index) => {
-      const result = providerResults[index];
-
-      if (result?.status === "fulfilled") {
-        return {
-          type: provider.type,
-          symbol: provider.symbol,
-          status: "fulfilled" as const,
-          pointCount: result.value.length,
-          error: null,
-        };
-      }
-
-      return {
-        type: provider.type,
-        symbol: provider.symbol,
-        status: "rejected" as const,
-        pointCount: 0,
-        error:
-          result?.status === "rejected"
-            ? result.reason instanceof Error
-              ? result.reason.message
-              : String(result.reason)
-            : "provider result missing",
-      };
-    }),
-    mergedPointCount: mergedPoints.length,
-  };
-
-  debug.providers.forEach((providerResult) => {
-    console.log("[api/index-history] sp500 provider", {
-      from,
-      to,
-      type: providerResult.type,
-      symbol: providerResult.symbol,
-      status: providerResult.status,
-      pointCount: providerResult.pointCount,
-      error: providerResult.error,
-    });
-  });
-  console.log("[api/index-history] sp500 merged", {
-    from,
-    to,
-    mergedPointCount: mergedPoints.length,
-    firstValidPoint: mergedPoints[0] ?? null,
-    lastValidPoint: readLastPoint(mergedPoints),
-  });
-
-  return { points: mergedPoints, debug };
-}
-
 async function fetchHistoryForProvider(
   provider: AssetTrendIndexHistoryProvider,
   from: string,
@@ -466,46 +359,19 @@ async function fetchConfiguredIndexHistory(
   from: string,
   to: string,
 ): Promise<IndexHistoryPoint[]> {
-  const config = ASSET_TREND_INDEX_HISTORY_CONFIG[key];
-  const providers = config.providers;
-  const results = await Promise.allSettled(
-    providers.map((provider) => fetchHistoryForProvider(provider, from, to)),
-  );
-
-  results.forEach((result, index) => {
-    const provider = providers[index];
-    console.log(`[api/index-history] ${key} provider`, {
-      from,
-      to,
-      type: provider?.type,
-      symbol: provider?.symbol,
-      status: result.status,
-      pointCount: result.status === "fulfilled" ? result.value.length : 0,
-      error: result.status === "rejected"
-        ? result.reason instanceof Error ? result.reason.message : String(result.reason)
-        : null,
-    });
-  });
-
-  const successfulSeries = results.flatMap((result) =>
-    result.status === "fulfilled" && result.value.length > 0 ? [result.value] : [],
-  );
-
-  if (successfulSeries.length === 0) {
-    throw new Error(`All providers failed for ${key}`);
+  for (const provider of ASSET_TREND_INDEX_HISTORY_CONFIG[key].providers) {
+    try {
+      const points = await fetchHistoryForProvider(provider, from, to);
+      if (points.length > 0) return points;
+    } catch { /* Try the fallback only when the primary source fails. */ }
   }
-
-  return successfulSeries.reduce<IndexHistoryPoint[]>(
-    (merged, points) => mergeHistoryPoints(points, merged),
-    [],
-  );
+  throw new Error(`All providers failed for ${key}`);
 }
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const from = requestUrl.searchParams.get("from");
   const to = requestUrl.searchParams.get("to");
-  const shouldIncludeDebug = requestUrl.searchParams.get("debug") === "1";
 
   if (!isValidDateString(from) || !isValidDateString(to) || from > to) {
     return NextResponse.json(
@@ -531,10 +397,11 @@ export async function GET(request: Request) {
 
   const errors: string[] = [];
   const series = createEmptyIndexHistorySeries();
-  const [kospiResult, kosdaqResult, sp500Result] = await Promise.allSettled([
+  const [kospiResult, kosdaqResult, sp500Result, nasdaqResult] = await Promise.allSettled([
     fetchConfiguredIndexHistory("kospi", from, to),
     fetchConfiguredIndexHistory("kosdaq", from, to),
-    fetchSp500History(from, to),
+    fetchConfiguredIndexHistory("sp500", from, to),
+    fetchConfiguredIndexHistory("nasdaq", from, to),
   ]);
 
   if (kospiResult.status === "fulfilled") {
@@ -554,7 +421,7 @@ export async function GET(request: Request) {
   }
 
   if (sp500Result.status === "fulfilled") {
-    series.sp500 = sp500Result.value.points;
+    series.sp500 = sp500Result.value;
   }
 
   if (series.sp500.length === 0) {
@@ -563,11 +430,8 @@ export async function GET(request: Request) {
 
   const payload: IndexHistoryResponse = { from, to, series, errors };
 
-  if (shouldIncludeDebug && sp500Result.status === "fulfilled") {
-    payload.debug = {
-      sp500: sp500Result.value.debug,
-    };
-  }
+  if (nasdaqResult.status === "fulfilled") series.nasdaq = nasdaqResult.value;
+  if (series.nasdaq.length === 0) errors.push("NASDAQ");
 
   console.log("[api/index-history] response", {
     from,

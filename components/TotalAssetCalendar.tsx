@@ -69,7 +69,7 @@ export function TotalAssetCalendar({
       <div className="ta-calendar-caption">{monthLabel}</div>
       <div className="fin-cal-grid">
         {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className="fin-cal-dow">{label}</div>
+          <div key={label} className={`fin-cal-dow${label === "일" ? " is-sun" : label === "토" ? " is-sat" : ""}`}>{label}</div>
         ))}
         {Array.from({ length: leadingBlankCount }).map((_, index) => (
           <div key={`blank-${index}`} className="fin-cal-cell is-empty" />
@@ -80,13 +80,16 @@ export function TotalAssetCalendar({
           const day = Number.parseInt(date.slice(8, 10), 10);
           const isSelected = date === selectedDate;
           const isToday = date === today;
-          const isRed = Boolean(dayInfo?.isHoliday || dayInfo?.dow === 0);
-          const isBlue = !isRed && dayInfo?.dow === 6;
+          const dow = dayInfo?.dow ?? new Date(`${date}T00:00:00Z`).getUTCDay();
+          const isHoliday = Boolean(dayInfo?.isHoliday);
+          const isRed = !isHoliday && dow === 0;
+          const isBlue = !isHoliday && dow === 6;
 
           let cls = "fin-cal-cell";
           if (isToday) cls += " is-today";
           if (isRed) cls += " is-sun";
           if (isBlue) cls += " is-sat";
+          if (isHoliday) cls += " is-holiday";
 
           const changeText = change !== undefined && change !== 0
             ? fmtChangeMan(change)
@@ -97,10 +100,12 @@ export function TotalAssetCalendar({
               key={date}
               type="button"
               className={cls}
+              title={dayInfo?.holidayName || undefined}
               style={isSelected ? { outline: "2px solid #1D4ED8", outlineOffset: "-2px" } : undefined}
               onClick={() => onSelectDate(date)}
             >
               <span className="fin-cal-num">{day}</span>
+              {isHoliday && <span className="ta-holiday-name">{dayInfo?.holidayName || "공휴일"}</span>}
               {changeText && change !== undefined && (
                 <span className={`fin-cal-amt ${change > 0 ? "is-inc" : "is-exp"}`}>
                   {changeText}

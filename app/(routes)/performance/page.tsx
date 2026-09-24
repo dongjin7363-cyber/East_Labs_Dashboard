@@ -14,11 +14,10 @@ import {
 import { usePortfolio } from "@/lib/hooks/usePortfolio";
 import { useRealizedTrades } from "@/lib/hooks/useRealizedTrades";
 import { useTotalAssets } from "@/lib/hooks/useTotalAssets";
-import { Currency, Market, PortfolioHolding, RealizedTrade, TotalAssetSnapshot } from "@/lib/models/types";
+import { Currency, Market, PortfolioHolding, RealizedTrade } from "@/lib/models/types";
 import { calculatePortfolioTotalAsset } from "@/lib/services/portfolioService";
 import { fetchSnapshotFxRate, loadSnapshotCash } from "@/lib/services/snapshotInputs";
 import {
-  buildDailyNetSeries,
   buildMonthlyNetSeriesByYear,
   convertTradeAmountToKrw,
   filterRealizedTrades,
@@ -26,7 +25,6 @@ import {
   summarizeRealizedTrades,
 } from "@/lib/services/realizedTradeService";
 import {
-  getDatesInMonthFromYm,
   getMonthRangeFromYm,
   todayKstYmd,
   toYm,
@@ -50,10 +48,11 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 };
 
 const SERIES_COLOR: Record<AssetTrendBenchmarkKey, string> = {
-  portfolio: "#111827",
-  kospi: "#EF4444",
-  sp500: "#10B981",
-  kosdaq: "#3B82F6",
+  portfolio: "#111111",
+  kospi: "#ef4444",
+  sp500: "#16a34a",
+  kosdaq: "#2563eb",
+  nasdaq: "#f97316",
 };
 
 const SERIES_LABEL: Record<AssetTrendBenchmarkKey, string> = {
@@ -61,13 +60,15 @@ const SERIES_LABEL: Record<AssetTrendBenchmarkKey, string> = {
   kospi: "KOSPI",
   sp500: "S&P 500",
   kosdaq: "KOSDAQ",
+  nasdaq: "NASDAQ",
 };
 
 const SERIES_ORDER: AssetTrendBenchmarkKey[] = [
   "portfolio",
   "kospi",
-  "sp500",
   "kosdaq",
+  "sp500",
+  "nasdaq",
 ];
 
 interface IndexHistoryApiResponse {
@@ -190,37 +191,6 @@ function formatMonthLabel(ym: string): string {
   return `${y}년 ${Number.parseInt(m, 10)}월`;
 }
 
-function lerpColor(c1: [number, number, number], c2: [number, number, number], t: number) {
-  return [
-    Math.round(c1[0] + (c2[0] - c1[0]) * t),
-    Math.round(c1[1] + (c2[1] - c1[1]) * t),
-    Math.round(c1[2] + (c2[2] - c1[2]) * t),
-  ];
-}
-
-function navColor(
-  value: number,
-  min: number,
-  max: number,
-  mid: number,
-): string {
-  if (max === min) return "#FDE68A";
-  const isUp = value >= mid;
-  const range = isUp ? max - mid : mid - min;
-  const t = range === 0 ? 0 : (isUp ? value - mid : mid - value) / range;
-  const clamped = Math.max(0, Math.min(1, t));
-
-  const red: [number, number, number] = [252, 165, 165];
-  const yellow: [number, number, number] = [253, 230, 138];
-  const green: [number, number, number] = [5, 150, 105];
-
-  const rgb = isUp
-    ? lerpColor(yellow, green, clamped)
-    : lerpColor(yellow, red, clamped);
-
-  return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
-}
-
 interface BenchmarkLineChartProps {
   data: AssetTrendBenchmarkPoint[];
   visible: Record<AssetTrendBenchmarkKey, boolean>;
@@ -259,7 +229,7 @@ function buildSmoothPath(
 
 function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
   const W = 640;
-  const H = 220;
+  const H = 190;
   const padL = 44;
   const padR = 12;
   const padT = 16;
@@ -319,6 +289,8 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
       width="100%"
       height="100%"
       className="perf-line-svg"
+      role="img"
+      aria-label="선택 기간의 포트폴리오와 지수 수익률 비교"
     >
       {tickValues.map((tv, idx) => {
         const y = toY(tv);
@@ -355,7 +327,7 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
             d={d}
             fill="none"
             stroke={SERIES_COLOR[key]}
-            strokeWidth={key === "portfolio" ? 2.5 : 1.8}
+            strokeWidth={key === "portfolio" ? 1.5 : 0.8}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -381,103 +353,6 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
   );
 }
 
-interface DailyBarsProps {
-  points: Array<{ date: string; value: number | null }>;
-}
-
-function DailyBarsChart({ points }: DailyBarsProps) {
-  const W = 340;
-  const H = 82;
-  const padL = 2;
-  const padR = 2;
-  const axisY = 50;
-
-  const validValues = points
-    .map((p) => p.value)
-    .filter((v): v is number => typeof v === "number");
-
-  if (validValues.length === 0) {
-    return (
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        preserveAspectRatio="xMidYMid meet"
-        className="perf-daily-svg"
-      >
-        <line x1={padL} y1={axisY} x2={W - padR} y2={axisY} stroke="rgba(0,0,0,0.15)" strokeWidth={0.8} />
-        <text className="perf-svg-text" x={W / 2} y={H / 2} textAnchor="middle">
-          데이터 없음
-        </text>
-      </svg>
-    );
-  }
-
-  const posMax = Math.max(0, ...validValues);
-  const negMin = Math.min(0, ...validValues);
-  const maxAbs = Math.max(Math.abs(posMax), Math.abs(negMin), 1);
-
-  const posPx = axisY - 6;
-  const negPx = H - axisY - 6;
-
-  const n = points.length;
-  const chartW = W - padL - padR;
-  const slot = n > 0 ? chartW / n : chartW;
-  const barW = Math.max(2, Math.min(10, slot * 0.7));
-
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      width="100%"
-      preserveAspectRatio="xMidYMid meet"
-      className="perf-daily-svg"
-    >
-      <line
-        x1={padL}
-        y1={axisY}
-        x2={W - padR}
-        y2={axisY}
-        stroke="rgba(0,0,0,0.18)"
-        strokeWidth={0.8}
-      />
-      {points.map((p, i) => {
-        const v = p.value;
-        if (typeof v !== "number" || v === 0) return null;
-        const x = padL + i * slot + slot / 2 - barW / 2;
-        if (v > 0) {
-          const h = (v / maxAbs) * posPx;
-          return (
-            <rect
-              key={p.date}
-              x={x}
-              y={axisY - h}
-              width={barW}
-              height={h}
-              fill="#059669"
-              rx={1}
-            >
-              <title>{`${p.date.slice(5)} ${moneyFormat("KRW", v)}`}</title>
-            </rect>
-          );
-        }
-        const h = (Math.abs(v) / maxAbs) * negPx;
-        return (
-          <rect
-            key={p.date}
-            x={x}
-            y={axisY}
-            width={barW}
-            height={h}
-            fill="#DC2626"
-            rx={1}
-          >
-            <title>{`${p.date.slice(5)} ${moneyFormat("KRW", v)}`}</title>
-          </rect>
-        );
-      })}
-    </svg>
-  );
-}
-
 export default function PerformancePage() {
   const {
     trades,
@@ -495,7 +370,6 @@ export default function PerformancePage() {
   const [today, setToday] = useState(SSR_SAFE_DATE);
   const [selectedMonth, setSelectedMonth] = useState(SSR_SAFE_MONTH);
   const [market, setMarket] = useState<"ALL" | Market>("ALL");
-  const [tableMarket, setTableMarket] = useState<"ALL" | Market>("ALL");
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("1m");
   const [customRange, setCustomRange] = useState({
@@ -515,11 +389,13 @@ export default function PerformancePage() {
   const [selected, setSelected] = useState<RealizedTrade | undefined>();
   const [chartTab, setChartTab] = useState<"benchmark" | "nav">("benchmark");
   const [navSelectedDate, setNavSelectedDate] = useState(SSR_SAFE_DATE);
-  const [navCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
+  const [navCalendarMap, setNavCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [isRecording, setIsRecording] = useState(false);
   const [sortCol, setSortCol] = useState<'returnPct' | 'pnlInt' | null>(null);
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const benchmarkRequestSeqRef = useRef(0);
+  const historyCache = useRef(new Map<string, IndexHistorySeriesMap>());
+  const [historyStatus, setHistoryStatus] = useState("");
 
   useEffect(() => {
     const t = todayKstYmd();
@@ -569,55 +445,49 @@ export default function PerformancePage() {
     [period, today, customRange],
   );
 
+  // Presets share a single one-year download; switching ranges only recalculates the chart.
+  const annualStart = computePeriodRange("1y", today, customRange).from;
+  const withinAnnualRange = periodRange.from >= annualStart && periodRange.to <= today;
+  const fetchStart = withinAnnualRange ? annualStart : periodRange.from;
+  const fetchTo = withinAnnualRange ? today : periodRange.to;
   const benchmarkFetchFrom = useMemo(() => {
-    if (!isValidDate(periodRange.from)) return periodRange.from;
-    const base = new Date(`${periodRange.from}T00:00:00`);
+    if (!isValidDate(fetchStart)) return fetchStart;
+    const base = new Date(`${fetchStart}T00:00:00`);
     base.setDate(base.getDate() - 14);
     return toYmd(base);
-  }, [periodRange.from]);
+  }, [fetchStart]);
 
   useEffect(() => {
-    if (!mounted) return;
-    if (
-      !isValidDate(periodRange.from) ||
-      !isValidDate(periodRange.to) ||
-      periodRange.from > periodRange.to
-    ) {
-      return;
-    }
-
+    if (!mounted || !isValidDate(benchmarkFetchFrom) || !isValidDate(fetchTo)) return;
     const seq = ++benchmarkRequestSeqRef.current;
-
+    const key = `${benchmarkFetchFrom}:${fetchTo}`;
+    const cached = historyCache.current.get(key);
+    if (cached) { setIndexSeries(cached); setHistoryStatus(""); return; }
+    const controller = new AbortController();
+    setIndexSeries(createEmptyIndexHistorySeries());
+    setHistoryStatus("지수 데이터 불러오는 중…");
     const load = async () => {
       try {
-        const params = new URLSearchParams({
-          from: benchmarkFetchFrom,
-          to: periodRange.to,
-          _ts: `${Date.now()}`,
-        });
-        const response = await fetch(`/api/index-history?${params.toString()}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error(`index-history ${response.status}`);
+        const params = new URLSearchParams({ from: benchmarkFetchFrom, to: fetchTo });
+        const response = await fetch(`/api/index-history?${params}`, { cache: "no-store", signal: controller.signal });
+        if (!response.ok) throw new Error(response.status === 400 ? "조회 기간은 최대 1년으로 설정해 주세요." : "지수 데이터를 불러오지 못했습니다. 새로고침해 주세요.");
         const data = (await response.json()) as IndexHistoryApiResponse;
-        if (seq !== benchmarkRequestSeqRef.current) return;
-        const next: IndexHistorySeriesMap = {
-          kospi: Array.isArray(data.series?.kospi) ? data.series.kospi : [],
-          kosdaq: Array.isArray(data.series?.kosdaq) ? data.series.kosdaq : [],
-          sp500: Array.isArray(data.series?.sp500) ? data.series.sp500 : [],
-        };
-        setIndexSeries((prev) => ({
-          kospi: next.kospi.length > 0 ? next.kospi : prev.kospi,
-          kosdaq: next.kosdaq.length > 0 ? next.kosdaq : prev.kosdaq,
-          sp500: next.sp500.length > 0 ? next.sp500 : prev.sp500,
-        }));
-      } catch {
-        /* leave previous series in place */
+        if (seq !== benchmarkRequestSeqRef.current || controller.signal.aborted) return;
+        const next = createEmptyIndexHistorySeries();
+        for (const key of Object.keys(next) as (keyof IndexHistorySeriesMap)[]) {
+          next[key] = Array.isArray(data.series?.[key]) ? data.series[key]! : [];
+        }
+        const missing = Object.keys(next).filter((key) => next[key as keyof IndexHistorySeriesMap].length === 0);
+        if (missing.length === 0) historyCache.current.set(key, next);
+        setIndexSeries(next);
+        setHistoryStatus(missing.length ? `${missing.map((key) => SERIES_LABEL[key as AssetTrendBenchmarkKey]).join(", ")} 데이터를 불러오지 못했습니다.` : "");
+      } catch (error) {
+        if (!controller.signal.aborted && seq === benchmarkRequestSeqRef.current) setHistoryStatus(error instanceof Error ? error.message : "지수 조회 실패");
       }
     };
-
     void load();
-  }, [mounted, benchmarkFetchFrom, periodRange.from, periodRange.to]);
+    return () => controller.abort();
+  }, [mounted, benchmarkFetchFrom, fetchTo]);
 
   const benchmarkResult = useMemo(
     () =>
@@ -637,6 +507,21 @@ export default function PerformancePage() {
     () => (isValidDate(selectedMonth + "-01") ? getMonthRangeFromYm(selectedMonth) : { from: today, to: today }),
     [selectedMonth, today],
   );
+  useEffect(() => {
+    if (!mounted) return;
+    const controller = new AbortController();
+    setNavCalendarMap({});
+    void (async () => {
+      try {
+        const response = await fetch(`/api/calendar-days?from=${monthRange.from}&to=${monthRange.to}&country=KR`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Calendar unavailable");
+        const data = await response.json() as { days?: Array<CalendarDayInfo & { date: string }> };
+        if (!controller.signal.aborted) setNavCalendarMap(Object.fromEntries((data.days ?? []).map(day => [day.date, day])));
+      } catch { /* Weekday colors remain available without the holiday service. */ }
+    })();
+    return () => controller.abort();
+  }, [mounted, monthRange.from, monthRange.to]);
+
   const selectedYear = useMemo(() => {
     const m = selectedMonth.match(/^(\d{4})-\d{2}$/);
     return m ? Number.parseInt(m[1], 10) : new Date().getFullYear();
@@ -654,10 +539,9 @@ export default function PerformancePage() {
   const tableTrades = useMemo(
     () =>
       filterRealizedTrades(monthFilteredTrades, {
-        market: tableMarket,
         search,
       }),
-    [monthFilteredTrades, tableMarket, search],
+    [monthFilteredTrades, search],
   );
 
   const sortedTableTrades = useMemo(
@@ -704,15 +588,6 @@ export default function PerformancePage() {
   const yearTrades = useMemo(
     () => filterRealizedTrades(trades, { market }),
     [trades, market],
-  );
-
-  const dailyNet = useMemo(
-    () =>
-      buildDailyNetSeries(monthFilteredTrades, {
-        fxRate,
-        includeUsd: true,
-      }),
-    [monthFilteredTrades, fxRate],
   );
 
   const monthlyNet = useMemo(
@@ -784,7 +659,7 @@ export default function PerformancePage() {
     setCustomRange(customDraft);
   };
 
-  const monthOptions = useMemo(() => getMonthOptions(today, 12), [today]);
+  const monthOptions = useMemo(() => Array.from(new Set([...getMonthOptions(today, 12), ...monthlyNet.map((p) => p.month)])).sort().reverse(), [today, monthlyNet]);
 
   const fetchNavFxRate = useCallback(async () => {
     const fx = await fetchSnapshotFxRate();
@@ -851,8 +726,10 @@ export default function PerformancePage() {
     <div className="perf-page">
       {/* Page header */}
       <div className="perf-page-header">
-        <h1 className="perf-page-title">Performance</h1>
+        <div className="perf-heading"><h1 className="perf-page-title">Performance</h1><p>투자 성과와 실현손익을 한눈에</p></div>
+        <div className="perf-header-filters"><span className="perf-filter-label">손익 · 거래 기준</span>
         <select
+          aria-label="손익 조회 월"
           className="perf-select-sm"
           value={selectedMonth}
           onChange={(event) => setSelectedMonth(event.target.value)}
@@ -885,6 +762,7 @@ export default function PerformancePage() {
         >
           US
         </button>
+        </div>
         <button
           type="button"
           className="perf-btn-add"
@@ -898,12 +776,12 @@ export default function PerformancePage() {
       {/* Summary cards */}
       <div className="perf-stats-row">
         <div className="perf-scard">
-          <p className="perf-scard-label">월 순수익</p>
+          <p className="perf-scard-label">월 실현손익</p>
           <p
             className={`perf-scard-val ${monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""}`}
           >
             <MoneyText currency="KRW" amountInt={monthlyTotal} signed />
-          </p>
+          </p><p className="perf-scard-sub">{formatMonthLabel(selectedMonth)} · {market}</p>
         </div>
         <div className="perf-scard">
           <p className="perf-scard-label">총 거래</p>
@@ -938,16 +816,16 @@ export default function PerformancePage() {
             {kospiReturnPct === null
               ? "—"
               : `${kospiReturnPct > 0 ? "+" : ""}${kospiReturnPct.toFixed(2)}%`}{" "}
-            대비
+            · {PERIOD_LABELS[period]} 비교
           </p>
         </div>
         <div className="perf-scard">
-          <p className="perf-scard-label">연 누적 순수익</p>
+          <p className="perf-scard-label">연 누적 실현손익</p>
           <p
             className={`perf-scard-val ${yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""}`}
           >
             <MoneyText currency="KRW" amountInt={yearlyCumulative} signed />
-          </p>
+          </p><p className="perf-scard-sub">{selectedYear}년 · {market} · 원화 환산</p>
         </div>
       </div>
 
@@ -1000,7 +878,7 @@ export default function PerformancePage() {
           {chartTab === "benchmark" ? (
             <>
               <div className="perf-chart-header">
-                <span className="perf-chart-title">포트폴리오 vs 지수</span>
+                <span className="perf-chart-caption">전체 자산 기준 · {periodRange.from} — {periodRange.to}</span>
                 <div className="perf-period-tabs">
                   {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
                     <button
@@ -1019,6 +897,7 @@ export default function PerformancePage() {
                 <div className="perf-custom-range">
                   <input
                     type="date"
+                    aria-label="비교 시작일"
                     className="perf-date-input"
                     value={customDraft.from === SSR_SAFE_DATE ? "" : customDraft.from}
                     onChange={(event) =>
@@ -1028,6 +907,7 @@ export default function PerformancePage() {
                   <span className="perf-custom-dash">–</span>
                   <input
                     type="date"
+                    aria-label="비교 종료일"
                     className="perf-date-input"
                     value={customDraft.to === SSR_SAFE_DATE ? "" : customDraft.to}
                     onChange={(event) =>
@@ -1040,21 +920,7 @@ export default function PerformancePage() {
                 </div>
               ) : null}
 
-              <div className="perf-chart-legend">
-                {SERIES_ORDER.map((key) => (
-                  <div className="perf-cl-item" key={key}>
-                    <span
-                      className="perf-cl-line"
-                      style={{
-                        background: SERIES_COLOR[key],
-                        height: key === "portfolio" ? 2.5 : 2,
-                      }}
-                    />
-                    {SERIES_LABEL[key]}
-                  </div>
-                ))}
-              </div>
-
+              {historyStatus && <p className="perf-history-status" role="status">{historyStatus}</p>}
               <div className="perf-chart-svg-wrap">
                 <BenchmarkLineChart
                   data={benchmarkData}
@@ -1063,6 +929,7 @@ export default function PerformancePage() {
                     kospi: true,
                     sp500: true,
                     kosdaq: true,
+                    nasdaq: true,
                   }}
                 />
               </div>
@@ -1073,6 +940,7 @@ export default function PerformancePage() {
                   const daily = benchmarkSummary[key].dailyReturnPct;
                   return (
                     <div className="perf-rate-item" key={key}>
+                      <div className="perf-rate-topline">
                       <div className="perf-rate-name">
                         <span
                           className="perf-rate-dot"
@@ -1080,17 +948,13 @@ export default function PerformancePage() {
                         />
                         {SERIES_LABEL[key]}
                       </div>
-                      <div
-                        className={`perf-rate-today ${
-                          daily === null ? "" : daily > 0 ? "is-pos" : daily < 0 ? "is-neg" : ""
-                        }`}
-                      >
-                        {daily === null
-                          ? "—"
-                          : `${daily > 0 ? "+" : ""}${daily.toFixed(2)}%`}
+                      <div className="perf-rate-today" aria-label={`${SERIES_LABEL[key]} 일간 등락률`}>
+                        <span className={daily === null || daily === 0 ? "pf-chip-flat" : daily > 0 ? "pf-chip-pos" : "pf-chip-neg"}>
+                          {daily === null ? "—" : `${daily > 0 ? "↑ " : daily < 0 ? "↓ " : ""}${Math.abs(daily).toFixed(2)}%`}
+                        </span>
+                      </div>
                       </div>
                       <div className="perf-rate-period">
-                        기간{" "}
                         {period === null
                           ? "—"
                           : `${period > 0 ? "+" : ""}${period.toFixed(2)}%`}
@@ -1114,59 +978,65 @@ export default function PerformancePage() {
           )}
         </div>
 
+        <section className="perf-monthly-panel" aria-label="월별 실현손익">
+          <div className="perf-section-heading">
+            <div><h2>월별 실현손익</h2><p>{selectedYear}년 · {market} · 원화 환산</p></div>
+            <div className="perf-monthly-total"><span>연 누적</span><strong className={yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={yearlyCumulative} signed /></strong></div>
+          </div>
+          <div className="perf-monthly-scroll">
+            <div className="perf-monthly-bars">
+              {monthlyNet.map((p) => {
+                const monthNum = Number.parseInt(p.month.slice(5, 7), 10);
+                const isCurrent = p.month === selectedMonth;
+                const positive = p.netPnlInt >= 0;
+                const height = Math.max(p.netPnlInt === 0 ? 2 : 4, Math.abs(p.netPnlInt) / monthlyMaxAbs * 76);
+                return (
+                  <button type="button" key={p.month} className={`perf-month-slot${isCurrent ? " is-selected" : ""}`} onClick={() => setSelectedMonth(p.month)} aria-pressed={isCurrent} aria-label={`${monthNum}월 실현손익 ${moneyFormat("KRW", p.netPnlInt)}`} title={`${monthNum}월: ${moneyFormat("KRW", p.netPnlInt)}`}>
+                    <span className="perf-month-value"><CompactKrw amount={p.netPnlInt} /></span>
+                    <span className="perf-month-bar" style={{ height, top: positive ? 110 - height : 110, background: p.netPnlInt === 0 ? "#dce1eb" : positive ? "#65a995" : "#d28b92" }} />
+                    <span className="perf-month-label">{monthNum}월</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <p className="perf-panel-note">월을 선택하면 상단 손익과 거래 내역이 함께 바뀝니다.</p>
+        </section>
+
         {/* RIGHT: table */}
         <div className="perf-col-table">
+          <div className="perf-section-heading"><div><h2>거래 내역</h2><p>{formatMonthLabel(selectedMonth)} · {market} · {tableTrades.length}건</p></div></div>
           <div className="perf-tbl-head">
-            <button
-              type="button"
-              className={`perf-tbl-chip${tableMarket === "ALL" ? " is-active" : ""}`}
-              onClick={() => setTableMarket("ALL")}
-            >
-              ALL
-            </button>
-            <button
-              type="button"
-              className={`perf-tbl-chip${tableMarket === "KR" ? " is-active" : ""}`}
-              onClick={() => setTableMarket("KR")}
-            >
-              KR
-            </button>
-            <button
-              type="button"
-              className={`perf-tbl-chip${tableMarket === "US" ? " is-active" : ""}`}
-              onClick={() => setTableMarket("US")}
-            >
-              US
-            </button>
             <input
               className="perf-search-sm"
               type="text"
-              placeholder="Ticker 검색..."
+              placeholder="종목 검색"
+              aria-label="거래 종목 검색"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
           <div className="perf-tbl-scroll" style={{ overflowX: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
               <span>마켓</span>
               <span>종목</span>
-              <span onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+              <button type="button" className="perf-sort-button" onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
                 PnL%
                 <span style={{ fontSize: '10px', color: sortCol === 'returnPct' ? '#1D4ED8' : '#9ca3af' }}>
                   {sortCol === 'returnPct' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
                 </span>
-              </span>
-              <span onClick={() => handleSort('pnlInt')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+              </button>
+              <button type="button" className="perf-sort-button" onClick={() => handleSort('pnlInt')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
                 PnL
                 <span style={{ fontSize: '10px', color: sortCol === 'pnlInt' ? '#1D4ED8' : '#9ca3af' }}>
                   {sortCol === 'pnlInt' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
                 </span>
-              </span>
+              </button>
             </div>
             {tradesLoading ? (
               <div className="perf-empty-row">로딩 중...</div>
             ) : sortedTrades.length === 0 ? (
-              <div className="perf-empty-row">거래 내역이 없습니다.</div>
+              <div className="perf-empty-row"><strong>표시할 거래가 없습니다</strong><span>조회 월이나 마켓을 변경해 보세요.</span></div>
             ) : (
               sortedTrades.map((trade) => {
                 const currency = resolveTradeCurrency(trade.market);
@@ -1174,6 +1044,9 @@ export default function PerformancePage() {
                   <div
                     key={trade.id}
                     className="perf-row-click"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(trade); } }}
                     onClick={() => setSelected(trade)}
                     style={{ display: 'grid', gridTemplateColumns: '44px 1fr 62px 90px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
                   >
@@ -1182,13 +1055,13 @@ export default function PerformancePage() {
                         {trade.market}
                       </span>
                     </span>
-                    <span style={{ fontSize: '12px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '13px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {trade.ticker}
                     </span>
-                    <span style={{ fontSize: '12px', textAlign: 'right', color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280' }}>
+                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280' }}>
                       {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
                     </span>
-                    <span style={{ fontSize: '12px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
+                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
                       {currency === 'KRW' ? (
                         <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
                       ) : (
@@ -1201,81 +1074,8 @@ export default function PerformancePage() {
             )}
           </div>
         </div>
-      </div>
 
-      {/* Bottom strip */}
-      <div className="perf-bottom-strip">
-        {/* Monthly bars */}
-        <div className="perf-bs-col">
-          <p className="perf-bs-title">월별 순수익</p>
-          <p className="perf-bs-sub">
-            연 누적{" "}
-            <span
-              className={`perf-bs-amount ${
-                yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""
-              }`}
-            >
-              <CompactKrw amount={yearlyCumulative} />
-            </span>
-          </p>
-          <div className="perf-bars">
-            {monthlyNet.map((p) => {
-              const height = `${(Math.abs(p.netPnlInt) / monthlyMaxAbs) * 100}%`;
-              const isCurrent = p.month === selectedMonth;
-              const color =
-                p.netPnlInt === 0
-                  ? "var(--east-surface-2)"
-                  : isCurrent
-                    ? "var(--east-cobalt)"
-                    : p.netPnlInt > 0
-                      ? "var(--east-pos)"
-                      : "var(--east-neg)";
-              const monthNum = Number.parseInt(p.month.slice(5, 7), 10);
-              return (
-                <div className="perf-bar-wrap" key={p.month}>
-                  <div
-                    className="perf-bar"
-                    style={{ height, background: color }}
-                    title={`${monthNum}월: ${moneyFormat("KRW", p.netPnlInt)}`}
-                  />
-                  <div
-                    className="perf-bar-lbl"
-                    style={isCurrent ? { color: "var(--east-cobalt)", fontWeight: 500 } : undefined}
-                  >
-                    {monthNum}월
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Daily bars */}
-        <div className="perf-bs-col">
-          <p className="perf-bs-title">일별 순수익</p>
-          <p className="perf-bs-sub">
-            {Number.parseInt(selectedMonth.slice(5, 7), 10)}월 · 누적{" "}
-            <span
-              className={`perf-bs-amount ${
-                monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""
-              }`}
-            >
-              <CompactKrw amount={monthlyTotal} />
-            </span>
-          </p>
-          <DailyBarsChart
-            points={dailyNet.map((d) => ({ date: d.date, value: d.netPnlInt }))}
-          />
-        </div>
-
-        {/* NAV heatmap */}
-        <div className="perf-bs-col perf-bs-col-last">
-          <p className="perf-bs-title">일별 NAV 히트맵</p>
-          <p className="perf-bs-sub">
-            {Number.parseInt(selectedMonth.slice(5, 7), 10)}월 · 색이 진할수록 높은 NAV
-          </p>
-          <NavHeatmap month={selectedMonth} today={today} snapshots={monthSnapshots} />
-        </div>
       </div>
 
       {/* Modals */}
@@ -1358,72 +1158,6 @@ export default function PerformancePage() {
           })()
         ) : null}
       </Modal>
-    </div>
-  );
-}
-
-interface NavHeatmapProps {
-  month: string;
-  today: string;
-  snapshots: TotalAssetSnapshot[];
-}
-
-function NavHeatmap({ month, today, snapshots }: NavHeatmapProps) {
-  const dates = useMemo(
-    () => (isValidDate(month + "-01") ? getDatesInMonthFromYm(month) : []),
-    [month],
-  );
-  const snapshotMap = useMemo(
-    () => new Map(snapshots.map((s) => [s.date, s.totalAssetKrwInt])),
-    [snapshots],
-  );
-
-  if (dates.length === 0) {
-    return <div className="perf-heatmap-empty">데이터 없음</div>;
-  }
-
-  const values = dates
-    .map((d) => snapshotMap.get(d))
-    .filter((v): v is number => typeof v === "number");
-
-  const min = values.length > 0 ? Math.min(...values) : 0;
-  const max = values.length > 0 ? Math.max(...values) : 0;
-  const mid = values.length > 0 ? (min + max) / 2 : 0;
-
-  const firstDate = dates[0];
-  const firstDow = new Date(`${firstDate}T00:00:00Z`).getUTCDay();
-
-  return (
-    <div className="perf-heatmap">
-      {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
-        <div className="perf-hm-dow" key={d}>
-          {d}
-        </div>
-      ))}
-      {Array.from({ length: firstDow }).map((_, i) => (
-        <div className="perf-hm-cell empty" key={`b-${i}`} />
-      ))}
-      {dates.map((date) => {
-        const value = snapshotMap.get(date);
-        const dayNum = Number.parseInt(date.slice(8, 10), 10);
-        const isToday = date === today;
-        let bg = "var(--east-surface-2)";
-        if (typeof value === "number") {
-          bg = navColor(value, min, max, mid);
-        }
-        return (
-          <div
-            key={date}
-            className={`perf-hm-cell${isToday ? " is-today" : ""}`}
-            style={{ background: bg }}
-            title={
-              typeof value === "number"
-                ? `${dayNum}: ${moneyFormat("KRW", value)}`
-                : `${dayNum}`
-            }
-          />
-        );
-      })}
     </div>
   );
 }

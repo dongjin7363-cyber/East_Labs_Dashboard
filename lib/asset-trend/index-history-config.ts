@@ -16,10 +16,15 @@ export const ASSET_TREND_INDEX_HISTORY_CONFIG = {
   sp500: {
     label: "S&P",
     providers: [
+      { type: "naver_api", symbol: ".INX" },
       { type: "fred", symbol: "SP500" },
       { type: "yahoo", symbol: "^GSPC" },
       { type: "stooq", symbol: "^spx" },
     ],
+  },
+  nasdaq: {
+    label: "NASDAQ",
+    providers: [{ type: "naver_api", symbol: ".IXIC" }, { type: "fred", symbol: "NASDAQCOM" }],
   },
 } as const;
 
