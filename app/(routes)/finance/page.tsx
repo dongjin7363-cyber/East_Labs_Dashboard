@@ -546,9 +546,9 @@ function AnnualCashflowChart({ months }: { months: SalaryMonthRow[] }) {
           let positive = 0;
           let negative = 0;
           const segments = [
-            { key: "income", value: row.income, present: row.presence.income, positiveColor: "#646970", negativeColor: "#969ba2" },
-            { key: "stock", value: row.stock, present: row.presence.stock, positiveColor: "#91c9ad", negativeColor: "#b4cfc1" },
-            { key: "spending", value: -row.spending, present: row.presence.spending, positiveColor: "#db999d", negativeColor: "#deb0b3" },
+            { key: "income", value: row.income, present: row.presence.income, positiveColor: "#555b63", negativeColor: "#858b94" },
+            { key: "stock", value: row.stock, present: row.presence.stock, positiveColor: "#76b696", negativeColor: "#98bda9" },
+            { key: "spending", value: -row.spending, present: row.presence.spending, positiveColor: "#ce858b", negativeColor: "#ce979d" },
           ].filter((segment) => segment.present && segment.value !== 0).map((segment) => {
             const start = segment.value >= 0 ? positive : negative;
             const end = start + segment.value;
@@ -575,25 +575,25 @@ function AnnualCashflowChart({ months }: { months: SalaryMonthRow[] }) {
         <div className="fin-chart-tooltip" style={{ left: tooltipLeft }}>
           <div className="fin-chart-tooltip-month">{hoveredRow.month}월</div>
           <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#646970" }} />
+            <span className="fin-chart-tooltip-dot" style={{ background: "#555b63" }} />
             <span>급여</span>
-            <span>{formatChartAmount(hoveredRow.income)}</span>
+            <span className={hoveredRow.income < 0 ? "is-negative" : undefined}>{formatChartAmount(hoveredRow.income)}</span>
           </div>
           <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#91c9ad" }} />
+            <span className="fin-chart-tooltip-dot" style={{ background: "#76b696" }} />
             <span>주식</span>
-            <span>{formatChartAmount(hoveredRow.stock)}</span>
+            <span className={hoveredRow.stock < 0 ? "is-negative" : undefined}>{formatChartAmount(hoveredRow.stock)}</span>
           </div>
           <div className="fin-chart-tooltip-row">
-            <span className="fin-chart-tooltip-dot" style={{ background: "#deb0b3" }} />
+            <span className="fin-chart-tooltip-dot" style={{ background: "#ce979d" }} />
             <span>지출</span>
-            <span>{formatChartAmount(-hoveredRow.spending)}</span>
+            <span className={-hoveredRow.spending < 0 ? "is-negative" : undefined}>{formatChartAmount(-hoveredRow.spending)}</span>
           </div>
-          <div className="fin-chart-tooltip-row"><span>총수입</span><span>{formatChartAmount(hoveredRow.earnings)}</span></div>
+          <div className="fin-chart-tooltip-row"><span>총수입</span><span className={hoveredRow.earnings < 0 ? "is-negative" : undefined}>{formatChartAmount(hoveredRow.earnings)}</span></div>
           <div className="fin-chart-tooltip-divider" />
           <div className="fin-chart-tooltip-row fin-chart-tooltip-total">
             <span>순수익</span>
-            <span>{formatChartAmount(hoveredRow.earnings - hoveredRow.spending)}</span>
+            <span className={hoveredRow.earnings - hoveredRow.spending < 0 ? "is-negative" : undefined}>{formatChartAmount(hoveredRow.earnings - hoveredRow.spending)}</span>
           </div>
         </div>
       )}
