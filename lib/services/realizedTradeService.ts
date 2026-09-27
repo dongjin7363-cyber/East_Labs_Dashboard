@@ -832,6 +832,21 @@ export function convertTradeAmountToKrw(
   return convertPnlIntByMarket(amountInt, market, fxRate);
 }
 
+export function sortRealizedTradesByPerformance(
+  trades: RealizedTrade[],
+  column: "returnPct" | "pnlInt",
+  direction: "asc" | "desc",
+  fxRate: number,
+): RealizedTrade[] {
+  const value = (trade: RealizedTrade) => column === "pnlInt"
+    ? convertTradeAmountToKrw(trade.pnlInt, trade.market, fxRate)
+    : trade.returnPct;
+  return [...trades].sort((a, b) => {
+    const diff = value(a) - value(b);
+    return direction === "desc" ? -diff : diff;
+  });
+}
+
 export function listRealizedTrades(): RealizedTrade[] {
   return sortByDateAsc(readSchema().trades);
 }

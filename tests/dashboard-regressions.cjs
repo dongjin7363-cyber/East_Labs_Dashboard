@@ -8,6 +8,26 @@ const vm = require('node:vm');
 const ts = require('typescript');
 const root = path.resolve(__dirname, '..');
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('performance PnL sorting compares KRW values across markets in both directions', () => {
+  const {load}=environment();
+  const {sortRealizedTradesByPerformance:sort}=load(path.join(root,'lib/services/realizedTradeService.ts'));
+  const trades=[
+    {id:'KR-profit',market:'KR',pnlInt:786717,returnPct:9.6},
+    {id:'SOXL',market:'US',pnlInt:302496,returnPct:41.8},
+    {id:'KR-loss',market:'KR',pnlInt:-133234,returnPct:-2.7},
+    {id:'US-loss',market:'US',pnlInt:-20000,returnPct:-1},
+    {id:'zero',market:'KR',pnlInt:0,returnPct:0},
+  ];
+  const ids=rows=>Array.from(rows,t=>t.id);
+  assert.deepEqual(ids(sort(trades,'pnlInt','desc',1357.08)),['SOXL','KR-profit','zero','KR-loss','US-loss']);
+  assert.deepEqual(ids(sort(trades,'pnlInt','asc',1357.08)),['US-loss','KR-loss','zero','KR-profit','SOXL']);
+  assert.deepEqual(ids(sort(trades,'returnPct','asc',1357.08)),['KR-loss','US-loss','zero','KR-profit','SOXL']);
+  assert.deepEqual(ids(trades),['KR-profit','SOXL','KR-loss','US-loss','zero']);
+  const close=[{id:'KR',market:'KR',pnlInt:135000,returnPct:0},{id:'US',market:'US',pnlInt:10000,returnPct:0}];
+  assert.deepEqual(ids(sort(close,'pnlInt','desc',1300)),['KR','US']);
+  assert.deepEqual(ids(sort(close,'pnlInt','desc',1400)),['US','KR']);
+});
 const holding = { id: 'holding-A', market: 'US', currency: 'USD', ticker: 'TEST', qty: 1,
   avgPrice: 10000, currentPrice: 11000, sector: 'Other', position: 'N', updatedAt: '2026-09-16T00:00:00Z' };
 

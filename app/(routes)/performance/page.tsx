@@ -22,6 +22,7 @@ import {
   convertTradeAmountToKrw,
   filterRealizedTrades,
   resolveTradeCurrency,
+  sortRealizedTradesByPerformance,
   summarizeRealizedTrades,
 } from "@/lib/services/realizedTradeService";
 import {
@@ -565,11 +566,8 @@ export default function PerformancePage() {
 
   const sortedTrades = useMemo(() => {
     if (!sortCol) return sortedTableTrades;
-    return [...sortedTableTrades].sort((a, b) => {
-      const diff = Number(a[sortCol]) - Number(b[sortCol]);
-      return sortDir === 'desc' ? -diff : diff;
-    });
-  }, [sortedTableTrades, sortCol, sortDir]);
+    return sortRealizedTradesByPerformance(sortedTableTrades, sortCol, sortDir, fxRate);
+  }, [sortedTableTrades, sortCol, sortDir, fxRate]);
 
   const summary = useMemo(
     () => summarizeRealizedTrades(monthFilteredTrades, { fxRate, includeUsd: true }),
