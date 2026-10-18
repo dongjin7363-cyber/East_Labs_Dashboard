@@ -10,7 +10,7 @@ export const dynamic = "force-static";
 export default async function WeeklyReportPage() {
   const [latest, ...archive] = await getWeeklyReports();
   return <section>
-    <PageHeader title="Weekly Report" description="한 주의 매크로 변화, 다음 주 시장의 핵심 변수." titleMeta={<span className="weekly-schedule">매주 일요일 10:00 KST</span>} />
+    <PageHeader title="Weekly Report" description="한 주의 매크로 변화, 다음 주 시장의 핵심 변수." titleMeta={<span className="weekly-schedule">매주 일요일 07:00 KST</span>} />
     {latest ? <>
       <Link className="weekly-feature" href={`/weekly-report/${latest.published_date}`}>
         <div className="weekly-eyebrow">LATEST REPORT <span>US MACRO</span></div>
@@ -28,7 +28,7 @@ export default async function WeeklyReportPage() {
       <span className="weekly-eyebrow">EAST RESEARCH · US MACRO</span>
       <h2>일요일 아침, 한 주의 매크로를 정리합니다.</h2>
       <p>주요 지표와 시장 내러티브의 변화, 다음 주 핵심 변수를 담은<br />Macro Weekly 리포트가 발행되면 이곳에서 볼 수 있습니다.</p>
-      <span className="weekly-schedule">매주 일요일 10:00 KST · 완성 후 게시</span>
+      <span className="weekly-schedule">매주 일요일 07:00 KST · 완성 후 게시</span>
     </div>}
   </section>;
 }
