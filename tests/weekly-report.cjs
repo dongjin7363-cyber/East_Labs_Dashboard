@@ -42,3 +42,36 @@ test('all published files meet the same contract used by the website', () => {
     parseWeeklyReport(JSON.parse(fs.readFileSync(`${directory}/${filename}`, 'utf8')), filename);
   }
 });
+
+test('Key Data compares signed numbers and normalized counts, leaving equal or unknown values neutral', () => {
+  const markdown = `## Key Data
+
+| 지표 | 실제치 | 예상치 |
+| --- | --- | --- |
+| Higher | **+0.3%** | +0.2% |
+| Lower | −0.5% | -0.3% |
+| Counts | 199K | 0.2M |
+| Equal | 3.00% | 3.0% |
+| Missing | — | 2% |
+| Range | 1–2% | 1.5% |
+| Mixed units | 3% | 3 |
+
+## Market Read-through
+
+| 지표 | 실제치 | 예상치 |
+| --- | --- | --- |
+| Unrelated | 5% | 4% |`;
+  const html = renderToStaticMarkup(React.createElement(ReportBody, { markdown }));
+  const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(match => match[1]);
+  const row = name => rows.find(value => value.includes(`>${name}</th>`));
+  assert.match(row('Higher'), /class="weekly-actual-above"/);
+  assert.match(row('Lower'), /class="weekly-actual-below"/);
+  assert.match(row('Counts'), /class="weekly-actual-below"/);
+  for (const name of ['Equal', 'Missing', 'Range', 'Mixed units']) {
+    assert.doesNotMatch(row(name), /weekly-actual-(above|below)/);
+  }
+  assert.match(html, /<th scope="row">Higher<\/th>/);
+  assert.match(html, /aria-label="\+0.3% · 예상치 상회"/);
+  assert.equal((html.match(/weekly-actual-above/g) || []).length, 1);
+  assert.match(html, /<td>Unrelated<\/td><td>5%<\/td>/);
+});

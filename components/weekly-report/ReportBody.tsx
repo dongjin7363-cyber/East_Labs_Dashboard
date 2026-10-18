@@ -16,24 +16,66 @@ function cells(line: string): string[] {
   return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
 }
 
+function plain(text: string): string {
+  return text.replace(/\*\*/g, "").trim();
+}
+
+function numericValue(text: string): { value: number; unit: string } | null {
+  const match = plain(text).replace(/,/g, "").replace(/−/g, "-").match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*(%|[KMBT])?$/i);
+  if (!match) return null;
+  const suffix = (match[2] ?? "").toUpperCase();
+  const scale: Record<string, number> = { K: 1e3, M: 1e6, B: 1e9, T: 1e12 };
+  const value = Number(match[1]) * (scale[suffix] ?? 1);
+  return Number.isFinite(value) ? { value, unit: suffix === "%" ? "percent" : "number" } : null;
+}
+
+function comparison(actual: string, expected: string): "above" | "below" | undefined {
+  const a = numericValue(actual);
+  const e = numericValue(expected);
+  if (!a || !e || a.unit !== e.unit) return undefined;
+  if (a.value > e.value) return "above";
+  if (a.value < e.value) return "below";
+  return undefined;
+}
+
 export function ReportBody({ markdown }: { markdown: string }) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
+  let keyDataLevel: number | null = null;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line || /^[-*_]{3,}$/.test(line)) { i++; continue; }
     const key = i;
-    const heading = line.match(/^#{1,6}\s+(.+)$/);
-    if (heading) { blocks.push(<h2 key={key}>{inline(heading[1])}</h2>); i++; continue; }
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const level = heading[1].length;
+      if (/\bKey\s+Data\b/i.test(heading[2])) keyDataLevel = level;
+      else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
+      blocks.push(<h2 key={key}>{inline(heading[2])}</h2>); i++; continue;
+    }
     if (line.includes("|") && i + 1 < lines.length && /^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) {
       const headers = cells(line);
+      const isKeyData = keyDataLevel !== null;
+      const normalized = headers.map((header) => plain(header).replace(/\s/g, "").toLowerCase());
+      const actualCol = normalized.findIndex((header) => ["실제치", "실제", "actual"].includes(header));
+      const expectedCol = normalized.findIndex((header) => ["예상치", "예상", "컨센서스", "consensus", "forecast"].includes(header));
+      const indicatorCol = Math.max(0, normalized.findIndex((header) => ["지표", "항목", "indicator"].includes(header)));
       i += 2;
       const rows: string[][] = [];
       while (i < lines.length && lines[i].includes("|") && lines[i].trim()) rows.push(cells(lines[i++]));
-      blocks.push(<div className="weekly-table" key={key} tabIndex={0} role="region" aria-label="주요 매크로 지표 표"><table>
+      blocks.push(<div className={`weekly-table${isKeyData ? " weekly-key-data" : ""}`} key={key} tabIndex={0} role="region" aria-label={isKeyData ? "주요 매크로 지표 표" : "리포트 데이터 표"}><table>
         <thead><tr>{headers.map((cell, col) => <th scope="col" key={col}>{inline(cell)}</th>)}</tr></thead>
-        <tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{headers.map((_, col) => <td key={col}>{inline(row[col] ?? "")}</td>)}</tr>)}</tbody>
+        <tbody>{rows.map((row, rowIndex) => {
+          const direction = isKeyData && actualCol >= 0 && expectedCol >= 0 ? comparison(row[actualCol] ?? "", row[expectedCol] ?? "") : undefined;
+          return <tr key={rowIndex}>{headers.map((_, col) => {
+            const value = row[col] ?? "";
+            if (isKeyData && col === indicatorCol) return <th scope="row" key={col}>{inline(value)}</th>;
+            const status = col === actualCol ? direction : undefined;
+            const label = status === "above" ? "예상치 상회" : status === "below" ? "예상치 하회" : undefined;
+            return <td key={col} className={status ? `weekly-actual-${status}` : undefined} title={label} aria-label={label ? `${plain(value)} · ${label}` : undefined}>{inline(value)}</td>;
+          })}</tr>;
+        })}</tbody>
       </table></div>);
       continue;
     }

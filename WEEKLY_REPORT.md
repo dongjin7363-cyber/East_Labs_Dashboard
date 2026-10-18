@@ -17,6 +17,8 @@ The date is the actual Sunday publication date in Asia/Seoul, not the preceding 
 
 Serialize with a JSON serializer; use real newlines in the Markdown string before serialization. Do not include secrets, execution logs, tool markers, internal metadata or a fabricated report. The website supports headings, paragraphs, bold, bullets, Markdown tables and HTTP(S) links. Raw HTML is displayed as text.
 
+Keep Key Data as a Markdown table under its Key Data heading, with separate `지표`, `실제치`, and `예상치` columns. The site automatically makes indicator names bold and colors actual values red when above consensus, blue when below, and the default color when equal or not comparable. Compare numerical values, not whether the surprise is economically positive or negative. Do not inject HTML or inline colors into the report content.
+
 ## Publish and verify
 
 1. Read the target file via the connected GitHub app in `dongjin7363-cyber/East_Labs_Dashboard`, branch `main`.
