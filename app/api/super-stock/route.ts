@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         watchlist: watch,
         snapshots: (rows ?? []).map(unpack),
         researchSnapshots: (research.data ?? []).map((r) => r.snapshot),
-        benchmarks: Object.fromEntries(BENCHMARKS.filter((t) => tickers.includes(t)).map((t) => [t, historicalPrices[t as keyof typeof historicalPrices]])),
+        benchmarks: Object.fromEntries(BENCHMARKS.filter((t) => t === "SPY" || tickers.includes(t)).map((t) => [t, historicalPrices[t as keyof typeof historicalPrices]])),
         cohorts,
         configured: true,
         analysisProvider: "chatgpt-cloud",

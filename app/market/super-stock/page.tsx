@@ -28,6 +28,7 @@ import {
   type Watch,
   type Ranked,
 } from "@/lib/super-stock/model";
+import { recentRawRows, scoreAxis } from "@/lib/super-stock/presentation";
 import styles from "./super-stock.module.css";
 type Data = {
   researchSnapshots: Snapshot[];
@@ -410,7 +411,7 @@ export default function SuperStockPage() {
         </article>
       </div>
       {detail ? (
-        <Detail detail={detail} history={history} />
+        <Detail detail={detail} history={history} benchmarkPrices={data?.benchmarks?.SPY?.rows} />
       ) : (
         <div className={styles.method}>
           <h2>From evidence to conviction</h2>
@@ -455,9 +456,11 @@ function Change({ value }: { value: number | null }) {
 function Detail({
   detail: d,
   history,
+  benchmarkPrices,
 }: {
   detail: Ranked;
   history: Snapshot[];
+  benchmarkPrices?: NonNullable<Snapshot["research"]>["prices"];
 }) {
   return (
     <article className={`${styles.panel} ${styles.detail}`}>
@@ -475,7 +478,7 @@ function Detail({
           <span>SUPER SCORE / 100</span>
         </div>
       </div>
-      {d.research && <RawData snapshot={d} history={history} />}
+      {d.research && <RawData snapshot={d} history={history} benchmarkPrices={benchmarkPrices} />}
       <div className={styles.detailGrid}>
         <div>
           <h3>
@@ -604,40 +607,31 @@ function ComponentBar({
   );
 }
 
-function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[]}) {
+function RawData({snapshot: s, history, benchmarkPrices}: {snapshot: Snapshot; history: Snapshot[]; benchmarkPrices?: NonNullable<Snapshot["research"]>["prices"]}) {
   const raw = s.research!;
-  const prices = new Map(raw.prices.map(p => [p.date, p]));
-  for (const h of history) {
-    const price = h.research?.prices[0];
-    if (price) prices.set(price.date, price);
-  }
-  const dates = [...prices.keys()].sort();
+  const rows = recentRawRows(s, history, benchmarkPrices);
   const changeClass = (value: number | null | undefined) => value == null || value === 0 ? "" : value > 0 ? styles.valueUp : styles.valueDown;
-  const percent = (value: number | null | undefined, unit = "%") => <span className={changeClass(value)}>{value == null ? "—" : `${signed(value)}${unit}`}</span>;
+  const percent = (value: number | null | undefined, unit = "%") => <span className={changeClass(value)}>{value == null ? "자료 부족" : `${signed(value)}${unit}`}</span>;
   return <section className={styles.raw} aria-label="평가 원자료">
     <div className={styles.evidenceHeader}><h3>Raw data · 평가 원자료</h3></div>
     <p>기준 시각 {kst(raw.cutoff)} KST · 조사일 {raw.researched_at} · {raw.version}</p>
     <div className={styles.rawScroll} role="region" aria-label="5주 점수와 가격 원자료 · 가로 스크롤" tabIndex={0}>
       <table className={styles.combinedData}>
-        <caption>5주 점수와 실제 가격 변화 · 가격 원자료 및 비교 기준</caption>
+        <caption>최근 5주 점수와 실제 가격 변화</caption>
         <thead><tr>{["평가 주", "거래일", "Super", "Quality", "Delta", "종가 USD", "거래량", "1주 수익률", "4주 수익률", "SPY 4주 수익률", "SPY 대비 4주"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
-        <tbody>{!dates.length && <tr><td colSpan={11}>확인된 가격 원자료가 없습니다.</td></tr>}{dates.map(date => {
-          const price = prices.get(date)!;
-          const h = history.find(v => v.research?.prices[0]?.date === date);
-          const previousDate = new Date(Date.parse(date) - 7 * 86400000).toISOString().slice(0,10);
-          const previousPrice = prices.get(previousDate) ?? h?.research?.prices.find(p => p.date === previousDate);
-          const previous = history.find(v => v.research?.prices[0]?.date === previousDate);
-          return <tr key={date} className={h?.week_date === s.week_date ? styles.selected : undefined}>
-            <td>{h?.week_date ?? "비교 기준"}</td><td>{date}</td>
-            {(["super_score", "quality_score", "delta_score"] as const).map(key => <td key={key} className={changeClass(h && previous ? h[key] - previous[key] : null)}>{h?.[key].toFixed(1) ?? "—"}</td>)}
-            {(["close", "volume"] as const).map(key => <td key={key} className={changeClass(previousPrice ? price[key] - previousPrice[key] : null)}>{price[key].toLocaleString()}{key === "close" && <small className={styles.currency}>$</small>}</td>)}
-            <td>{percent(h?.research?.return_1w)}</td><td>{percent(h?.research?.return_4w)}</td><td>{percent(h?.research?.spy_return_4w)}</td><td>{percent(h?.research?.excess_4w, "pp")}</td>
+        <tbody>{rows.map(row => {
+          const {week, price, previousPrice, score: h, previousScore: previous} = row;
+          return <tr key={week} className={week === s.week_date ? styles.selected : undefined}>
+            <td>{week}</td><td>{price?.date ?? "자료 부족"}</td>
+            {h ? (["super_score", "quality_score", "delta_score"] as const).map(key => <td key={key} className={changeClass(previous ? h[key] - previous[key] : null)}>{h[key].toFixed(1)}</td>) : <td colSpan={3} style={{textAlign: "center"}}>평가 기록 없음</td>}
+            {(["close", "volume"] as const).map(key => <td key={key} className={changeClass(price && previousPrice ? price[key] - previousPrice[key] : null)}>{price ? price[key].toLocaleString("en-US", key === "close" ? {minimumFractionDigits: 2, maximumFractionDigits: 2} : {maximumFractionDigits: 0}) : "자료 부족"}{price && key === "close" && <small className={styles.currency}>$</small>}</td>)}
+            <td>{percent(row.return1w)}</td><td>{percent(row.return4w)}</td><td>{percent(row.spyReturn4w)}</td><td>{percent(row.excess4w, "pp")}</td>
           </tr>;
         })}</tbody>
       </table>
     </div>
     <p>좌우로 스크롤해 전체 항목을 확인하세요. 점수·가격·거래량은 전주 대비 상승 시 빨강, 하락 시 파랑으로 표시합니다. 수익률은 양수·음수 기준입니다.</p>
-    <p>최근 완료된 미국 거래일의 일봉이며 거래량은 해당 거래일 수치입니다. 선택 주의 4주 비교에 필요한 이전 날짜도 포함하며, 평가가 없는 날짜는 점수를 표시하지 않습니다. 배당 제외·제공업체 분할 조정 종가 기준. {raw.price_url && <a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a>}</p>
+    <p>선택 주까지 최근 5주만 표시합니다. 주별 마지막 미국 거래일의 종가·일일 거래량이며 수익률은 이전 가격 원자료까지 사용해 계산합니다. 당시 평가하지 않은 주는 ‘평가 기록 없음’으로 표시합니다. 배당 제외·제공업체 분할 조정 종가 기준. {raw.price_url && <a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a>}</p>
     <details><summary>Super Stock Logic</summary>
       <p>Super = Quality ÷ 40 × 30 + Delta ÷ 40 × 45 + 내러티브 모멘텀 × 0.15 + 시장 확인 × 0.10.</p>
       {raw.origin === "historical_reassessment" ? <p>과거 자료의 시장 확인 = 50 + 4주 SPY 초과수익률(pp) × 2 + 1주 수익률(%), 0–100 제한. 공시 신규성 = 30 + 실적 신선도 × 30 + 최근 28일 수집 이벤트 수 × 10, 0–100 제한. 신선도는 발표 후 7/14/28일 이내에 각각 1/0.75/0.5, 그 이후 0.25입니다.</p> : <p>16개 평가 항목과 내러티브·시장 확인 점수는 기준 시각 이전의 검증된 자료를 바탕으로 평가합니다. 수익률은 저장된 실제 가격으로 계산하며 확인하지 못한 값은 표시하지 않습니다.</p>}
@@ -649,10 +643,12 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
 
 function QualityMap({rows, selected, onSelect}: {rows: Ranked[]; selected?: string; onSelect: (ticker: string) => void}) {
   const [fullScale, setFullScale] = useState(false);
-  const minX = fullScale || !rows.length ? 0 : Math.max(0, Math.floor(Math.min(...rows.map(r => r.quality_score)) / 5) * 5 - 5);
-  const minY = fullScale || !rows.length ? 0 : Math.max(0, Math.floor(Math.min(...rows.map(r => r.delta_score)) / 5) * 5 - 5);
-  const x = (v: number) => 60 + (v - minX) / (40 - minX) * 970;
-  const y = (v: number) => 520 - (v - minY) / (40 - minY) * 470;
+  const xAxis = scoreAxis(rows.map(r => r.quality_score), fullScale);
+  const yAxis = scoreAxis(rows.map(r => r.delta_score), fullScale);
+  const {min: minX, max: maxX} = xAxis;
+  const {min: minY, max: maxY} = yAxis;
+  const x = (v: number) => 60 + (v - minX) / (maxX - minX) * 970;
+  const y = (v: number) => 520 - (v - minY) / (maxY - minY) * 470;
   const points = rows.map(r => ({...r, x: x(r.quality_score), y: y(r.delta_score)}));
   const boxes: {x: number; y: number; width: number}[] = [];
   const labels = points.map(p => {
@@ -676,10 +672,10 @@ function QualityMap({rows, selected, onSelect}: {rows: Ranked[]; selected?: stri
     <div className={styles.chart}>
       <svg viewBox="0 0 1100 570" role="group" aria-label="Quality와 Delta 종목 분포">
         <text x="60" y="20" className={styles.quadrant}>↖ High-risk Inflection</text><text x="1030" y="20" textAnchor="end" className={styles.quadrant}>Super Stock ↗</text>
-        {Array.from({length: 9}, (_, i) => i * 5).map(v => <g key={v}>
-          {v >= minX && <><line x1={x(v)} x2={x(v)} y1="50" y2="520" stroke={v === 30 ? "#8da3c6" : "#e5eaf2"} strokeDasharray="4 4"/><text x={x(v)} y="542" textAnchor="middle" fontSize="11" fill="#738199">{v}</text></>}
-          {v >= minY && <><line x1="60" x2="1030" y1={y(v)} y2={y(v)} stroke={v === 30 ? "#8da3c6" : "#e5eaf2"} strokeDasharray="4 4"/><text x="46" y={y(v)+4} textAnchor="end" fontSize="11" fill="#738199">{v}</text></>}
-        </g>)}
+        {xAxis.ticks.map(v => <g key={`x-${v}`}><line x1={x(v)} x2={x(v)} y1="50" y2="520" stroke="#e5eaf2" strokeDasharray="4 4"/><text x={x(v)} y="542" textAnchor="middle" fontSize="11" fill="#738199">{v}</text></g>)}
+        {yAxis.ticks.map(v => <g key={`y-${v}`}><line x1="60" x2="1030" y1={y(v)} y2={y(v)} stroke="#e5eaf2" strokeDasharray="4 4"/><text x="46" y={y(v)+4} textAnchor="end" fontSize="11" fill="#738199">{v}</text></g>)}
+        {minX <= 30 && maxX >= 30 && <line x1={x(30)} x2={x(30)} y1="50" y2="520" stroke="#8da3c6" strokeDasharray="4 4"/>}
+        {minY <= 30 && maxY >= 30 && <line x1="60" x2="1030" y1={y(30)} y2={y(30)} stroke="#8da3c6" strokeDasharray="4 4"/>}
         {labels.map(p => <g key={p.ticker} role="button" tabIndex={0} aria-label={`${p.ticker}: Quality ${p.quality_score}, Delta ${p.delta_score}`} aria-pressed={selected === p.ticker} onClick={() => onSelect(p.ticker)} onKeyDown={e => {if(e.key === "Enter" || e.key === " "){e.preventDefault();onSelect(p.ticker);}}} className={styles.mapPoint}>
           <title>{p.ticker} · Quality {p.quality_score} · Delta {p.delta_score}</title>
           <line x1={p.x} y1={p.y} x2={p.label.x} y2={p.label.y} stroke={selected === p.ticker ? "#2457e8" : "#b6c4d9"} />
@@ -690,6 +686,6 @@ function QualityMap({rows, selected, onSelect}: {rows: Ranked[]; selected?: stri
         <text x="60" y="564" className={styles.quadrant}>Story / Early Stage</text><text x="1030" y="564" textAnchor="end" className={styles.quadrant}>Compounder →</text>
       </svg>
     </div>
-    <p className={styles.footnote}>경계 기준: Quality 30 / Delta 30 · {fullScale ? "전체 점수 범위" : `종목 구간 확대: Quality ${minX}–40 / Delta ${minY}–40`} · 연결선 끝의 점이 실제 점수입니다. 종목을 선택하면 아래에서 상세 평가를 확인할 수 있습니다.</p>
+    <p className={styles.footnote}>경계 기준: Quality 30 / Delta 30 · {fullScale ? "전체 점수 범위" : `종목 구간 확대: Quality ${minX}–${maxX} / Delta ${minY}–${maxY}`} · 연결선 끝의 점이 실제 점수입니다. 종목을 선택하면 아래에서 상세 평가를 확인할 수 있습니다.</p>
   </>;
 }
