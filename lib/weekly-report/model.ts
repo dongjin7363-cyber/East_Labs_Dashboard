@@ -18,8 +18,8 @@ export function parseWeeklyReport(value: unknown, filename: string): WeeklyRepor
     throw new Error(`Report date must match filename: ${filename}`);
   }
   const parsed = new Date(`${date}T00:00:00Z`);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || parsed.getUTCDay() !== 0) {
-    throw new Error(`Report publication date must be a valid Sunday: ${filename}`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || ![0, 6].includes(parsed.getUTCDay())) {
+    throw new Error(`Report publication date must be a valid weekend date: ${filename}`);
   }
   return {
     published_date: date,
@@ -30,5 +30,5 @@ export function parseWeeklyReport(value: unknown, filename: string): WeeklyRepor
 }
 
 export function formatReportDate(date: string): string {
-  return `${date.replace(/-/g, ".")} · 일요일`;
+  return `${date.replace(/-/g, ".")} · ${new Date(`${date}T00:00:00Z`).getUTCDay() === 6 ? "토요일" : "일요일"}`;
 }

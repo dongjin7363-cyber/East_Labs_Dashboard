@@ -82,11 +82,12 @@ function assessment() {
   };
 }
 const cutoff = new Date("2026-09-12T00:00:00Z");
-test("Saturday KST 09:00 boundary is exact across US DST", () => {
-  assert.equal(m.weekDate(new Date("2026-09-11T23:59:59Z")), "2026-09-05");
+test("Saturday KST 07:00 boundary is exact across US DST", () => {
+  assert.equal(m.weekDate(new Date("2026-09-11T21:59:59Z")), "2026-09-05");
+  assert.equal(m.weekDate(new Date("2026-09-11T22:00:00Z")), "2026-09-12");
   assert.equal(m.weekDate(cutoff), "2026-09-12");
-  assert.equal(m.weekDate(new Date("2026-03-14T00:00:00Z")), "2026-03-14");
-  assert.equal(m.nextUpdate(cutoff), "2026-09-19T00:00:00.000Z");
+  assert.equal(m.weekDate(new Date("2026-03-13T22:00:00Z")), "2026-03-14");
+  assert.equal(m.nextUpdate(cutoff), "2026-09-18T22:00:00.000Z");
 });
 test("weighted formula uses normalized 40-point components", () => {
   const a = assessment();

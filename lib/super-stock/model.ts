@@ -57,7 +57,7 @@ export type Evidence = {
 };
 export type Assessment = {
   research?: {
-    origin: "historical_reassessment";
+    origin: "historical_reassessment" | "cloud_weekly";
     version: string;
     researched_at: string;
     cutoff: string;
@@ -66,10 +66,12 @@ export type Assessment = {
     releases: { published_at: string; url: string; metrics: Record<string, number> }[];
     prices: { date: string; open: number; high: number; low: number; close: number; volume: number }[];
     price_url: string;
-    return_1w: number;
-    return_4w: number;
-    spy_return_4w: number;
-    excess_4w: number;
+    return_1w: number | null;
+    return_4w: number | null;
+    spy_return_4w: number | null;
+    excess_4w: number | null;
+    spy_prices?: { date: string; open: number; high: number; low: number; close: number; volume: number }[];
+    spy_price_url?: string;
   };
   components: Record<ComponentKey, Component>;
   narrative_momentum: number;
@@ -99,15 +101,16 @@ export type Ranked = Snapshot & {
 export const WEEK = 7 * 86400000;
 export const BENCHMARKS = ["SPY", "QQQ", "MAGS"];
 export function weekDate(now = new Date()): string {
-  // Saturday 00:00 UTC is Saturday 09:00 KST, including US DST changes.
+  // Saturday 07:00 KST is Friday 22:00 UTC, independent of US DST.
+  const shifted = new Date(now.getTime() + 2 * 3600000);
   const date = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate()),
   );
   date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 1) % 7));
   return date.toISOString().slice(0, 10);
 }
 export function nextUpdate(now = new Date()): string {
-  return new Date(Date.parse(weekDate(now)) + WEEK).toISOString();
+  return new Date(Date.parse(weekDate(now)) + WEEK - 2 * 3600000).toISOString();
 }
 export function normalizeTicker(value: unknown): string {
   if (typeof value !== "string") throw new Error("티커를 입력해 주세요.");

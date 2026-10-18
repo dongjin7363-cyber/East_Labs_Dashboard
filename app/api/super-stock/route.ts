@@ -68,7 +68,8 @@ export async function GET(request: Request) {
         researchSnapshots: (research.data ?? []).map((r) => r.snapshot),
         benchmarks: Object.fromEntries(BENCHMARKS.filter((t) => tickers.includes(t)).map((t) => [t, historicalPrices[t as keyof typeof historicalPrices]])),
         cohorts,
-        configured: Boolean(process.env.OPENAI_API_KEY),
+        configured: true,
+        analysisProvider: "chatgpt-cloud",
         run: run
           ? {
               status: run.status,

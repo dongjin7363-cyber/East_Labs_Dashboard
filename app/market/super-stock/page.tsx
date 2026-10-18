@@ -67,7 +67,7 @@ export default function SuperStockPage() {
     [query, setQuery] = useState(""),
     [view, setView] = useState("");
   const base = stored?.owner === userId ? stored : null;
-  const researchMode = view ? view === "research" : !!base?.researchSnapshots?.length;
+  const researchMode = view ? view === "research" : !base?.snapshots?.length && !!base?.researchSnapshots?.length;
   const data = useMemo(() => {
     if (!base || !researchMode) return base;
     const snapshots = base.researchSnapshots ?? [];
@@ -110,6 +110,18 @@ export default function SuperStockPage() {
       counter.current++;
     };
   }, [userId, refresh]);
+  useEffect(() => {
+    if (!token) return;
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    const timer = window.setInterval(refreshVisible, 60000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [token, refresh]);
   const mutate = async (ticker: string, active: boolean) => {
     const id = generation.current;
     setBusy(true);
@@ -193,7 +205,7 @@ export default function SuperStockPage() {
         </div>
         <div className={styles.schedule}>
           <span>WEEKLY SNAPSHOT</span>
-          <strong>매주 토요일 09:00 KST</strong>
+          <strong>매주 토요일 07:00 KST</strong>
           <small>다음 기준 시각 {kst(nextUpdate())} KST</small>
           <small>{researchMode ? "과거 자료 조사일 2026.09.16" : `최근 분석 ${data?.snapshots.length ? kst(data.snapshots.reduce((latest,s)=>s.created_at > latest ? s.created_at : latest,data.snapshots[0].created_at)) + " KST" : "아직 없음"}`}</small>
         </div>
@@ -239,11 +251,6 @@ export default function SuperStockPage() {
       ) : !userId ? (
         <div className={styles.notice}>
           로그인하면 관심종목을 등록하고 나만의 주간 랭킹을 확인할 수 있습니다.
-        </div>
-      ) : data && !data.configured ? (
-        <div className={styles.notice}>
-          OpenAI 연결 대기 · 관심종목은 저장할 수 있습니다. 연결 완료 후 주간
-          분석이 시작됩니다.
         </div>
       ) : null}
       {!!active.length && (
@@ -525,7 +532,7 @@ function Detail({
           </div>
           <h3>Score change drivers</h3>
           <p className={styles.footnote}>
-            {d.research ? "이전 주 대비 점수 변화의 산술적 기여도입니다. 첫 주는 비교 기록이 없습니다." : "각 요인의 기여도는 AI 추정이며 실제 점수 변화의 합계와 다를 수 있습니다."}
+            {d.research?.origin === "historical_reassessment" ? "이전 주 대비 점수 변화의 산술적 기여도입니다. 첫 주는 비교 기록이 없습니다." : "각 요인의 기여도는 AI 추정이며 실제 점수 변화의 합계와 다를 수 있습니다."}
           </p>
           {d.drivers.map((v, i) => (
             <div className={styles.driver} key={i}>
@@ -544,7 +551,7 @@ function Detail({
       <div className={styles.evidenceHeader}>
         <h3>Evidence feed</h3>
         <span>
-          {d.evidence.length} SOURCES · {d.research ? `${d.research.researched_at} 과거 자료 재평가` : `${kst(d.created_at)} KST 분석 완료`}
+          {d.evidence.length} SOURCES · {d.research?.origin === "historical_reassessment" ? `${d.research.researched_at} 과거 자료 재평가` : `${kst(d.created_at)} KST 분석 완료`}
         </span>
       </div>
       <div className={styles.evidenceGrid}>
@@ -609,12 +616,12 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
   const percent = (value: number | null | undefined, unit = "%") => <span className={changeClass(value)}>{value == null ? "—" : `${signed(value)}${unit}`}</span>;
   return <section className={styles.raw} aria-label="평가 원자료">
     <div className={styles.evidenceHeader}><h3>Raw data · 평가 원자료</h3></div>
-    <p>기준 시각 {raw.cutoff.slice(0,10)} 09:00 KST · 조사일 {raw.researched_at} · {raw.version}</p>
+    <p>기준 시각 {kst(raw.cutoff)} KST · 조사일 {raw.researched_at} · {raw.version}</p>
     <div className={styles.rawScroll} role="region" aria-label="5주 점수와 가격 원자료 · 가로 스크롤" tabIndex={0}>
       <table className={styles.combinedData}>
         <caption>5주 점수와 실제 가격 변화 · 가격 원자료 및 비교 기준</caption>
         <thead><tr>{["평가 주", "거래일", "Super", "Quality", "Delta", "종가 USD", "거래량", "1주 수익률", "4주 수익률", "SPY 4주 수익률", "SPY 대비 4주"].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
-        <tbody>{dates.map(date => {
+        <tbody>{!dates.length && <tr><td colSpan={11}>확인된 가격 원자료가 없습니다.</td></tr>}{dates.map(date => {
           const price = prices.get(date)!;
           const h = history.find(v => v.research?.prices[0]?.date === date);
           const previousDate = new Date(Date.parse(date) - 7 * 86400000).toISOString().slice(0,10);
@@ -630,10 +637,10 @@ function RawData({snapshot: s, history}: {snapshot: Snapshot; history: Snapshot[
       </table>
     </div>
     <p>좌우로 스크롤해 전체 항목을 확인하세요. 점수·가격·거래량은 전주 대비 상승 시 빨강, 하락 시 파랑으로 표시합니다. 수익률은 양수·음수 기준입니다.</p>
-    <p>금요일 일봉이며 거래량은 해당 거래일 수치입니다. 선택 주의 4주 비교에 필요한 이전 날짜도 포함하며, 평가가 없는 날짜는 점수를 표시하지 않습니다. 배당 제외·제공업체 분할 조정 종가 기준. <a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a></p>
+    <p>최근 완료된 미국 거래일의 일봉이며 거래량은 해당 거래일 수치입니다. 선택 주의 4주 비교에 필요한 이전 날짜도 포함하며, 평가가 없는 날짜는 점수를 표시하지 않습니다. 배당 제외·제공업체 분할 조정 종가 기준. {raw.price_url && <a href={raw.price_url} target="_blank" rel="noopener noreferrer">가격 출처 ↗</a>}</p>
     <details><summary>Super Stock Logic</summary>
-      <p>Super = Quality ÷ 40 × 30 + Delta ÷ 40 × 45 + 공시 신규성 × 0.15 + 시장 확인 × 0.10.</p>
-      <p>시장 확인 = 50 + 4주 SPY 초과수익률(pp) × 2 + 1주 수익률(%), 0–100 제한. 공시 신규성 = 30 + 실적 신선도 × 30 + 최근 28일 수집 이벤트 수 × 10, 0–100 제한. 신선도는 발표 후 7/14/28일 이내에 각각 1/0.75/0.5, 그 이후 0.25입니다.</p>
+      <p>Super = Quality ÷ 40 × 30 + Delta ÷ 40 × 45 + 내러티브 모멘텀 × 0.15 + 시장 확인 × 0.10.</p>
+      {raw.origin === "historical_reassessment" ? <p>과거 자료의 시장 확인 = 50 + 4주 SPY 초과수익률(pp) × 2 + 1주 수익률(%), 0–100 제한. 공시 신규성 = 30 + 실적 신선도 × 30 + 최근 28일 수집 이벤트 수 × 10, 0–100 제한. 신선도는 발표 후 7/14/28일 이내에 각각 1/0.75/0.5, 그 이후 0.25입니다.</p> : <p>16개 평가 항목과 내러티브·시장 확인 점수는 기준 시각 이전의 검증된 자료를 바탕으로 평가합니다. 수익률은 저장된 실제 가격으로 계산하며 확인하지 못한 값은 표시하지 않습니다.</p>}
       <p>그 외 정성 항목은 출처를 해석한 연구 판단입니다. 각 항목을 펼치면 근거를 볼 수 있습니다. 미확인: {raw.missing.map(k=>LABELS[k]??k).join(", ")}.</p>
       <ul>{raw.limitations.map(l=><li key={l}>{l}</li>)}</ul>
     </details>

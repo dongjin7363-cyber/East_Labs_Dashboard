@@ -13,12 +13,15 @@ function loadTypeScript(filename) {
   new Function('require', 'module', 'exports', code)(require, mod, mod.exports);
   return mod.exports;
 }
-const { parseWeeklyReport } = loadTypeScript('lib/weekly-report/model.ts');
+const { parseWeeklyReport, formatReportDate } = loadTypeScript('lib/weekly-report/model.ts');
 const { ReportBody } = loadTypeScript('components/weekly-report/ReportBody.tsx');
 
 test('rejects malformed publication dates and duplicate-week filenames', () => {
   const report = { published_date: '2026-10-18', title: 'US Weekly Macro', headline: 'Headline', body_markdown: 'Body' };
   assert.equal(parseWeeklyReport(report, '2026-10-18.json').published_date, '2026-10-18');
+  assert.equal(parseWeeklyReport({ ...report, published_date: '2026-10-24' }, '2026-10-24.json').published_date, '2026-10-24');
+  assert.equal(formatReportDate('2026-10-24'), '2026.10.24 · 토요일');
+  assert.equal(formatReportDate('2026-10-18'), '2026.10.18 · 일요일');
   for (const date of ['2026-10-19', '2026-02-30', 'not-a-date']) {
     assert.throws(() => parseWeeklyReport({ ...report, published_date: date }, `${date}.json`));
   }

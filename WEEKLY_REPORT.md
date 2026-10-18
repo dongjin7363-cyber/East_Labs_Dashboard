@@ -2,10 +2,10 @@
 
 The schedule and presentation below are the user's fixed operating standard, confirmed on 2026-10-18. Both tasks run in ChatGPT Cloud in Asia/Seoul and continue until the user requests a change.
 
-- Sunday 06:00: the existing `미국 위클리 매크로 리포트` task generates and delivers the original macro briefing, then saves the same completed report as website-ready JSON in `data/weekly-report-drafts/YYYY-MM-DD.json`. It must not write the final publication path.
-- Sunday 07:00: `EAST Weekly Report 게시` reads that day's complete draft and publishes it to `data/weekly-reports/YYYY-MM-DD.json`, then checks the matching production deployment. It must not regenerate the analysis or reconstruct it from personal memory or partial conversation retrieval.
+- Saturday 06:00: the existing `미국 위클리 매크로 리포트` task generates and delivers the original macro briefing, then saves the same completed report as website-ready JSON in `data/weekly-report-drafts/YYYY-MM-DD.json`. It must not write the final publication path.
+- Saturday 07:00: `EAST Weekly Report 게시` reads that day's complete draft and publishes it to `data/weekly-reports/YYYY-MM-DD.json`, then checks the matching production deployment. It must not regenerate the analysis or reconstruct it from personal memory or partial conversation retrieval.
 
-The first runs under this split schedule are 2026-10-25. The website reads only `data/weekly-reports`; draft commits do not add a report to the website. Keep drafts durable so publication does not depend on the previous task's conversation context or a local computer. If a complete current-day draft is unavailable, report publication failure instead of substituting another week or inventing content. The original chat briefing remains available even if draft storage fails.
+The first runs under this split schedule are 2026-10-24. The website reads only `data/weekly-reports`; draft commits do not add a report to the website. Keep drafts durable so publication does not depend on the previous task's conversation context or a local computer. If a complete current-day draft is unavailable, report publication failure instead of substituting another week or inventing content. The original chat briefing remains available even if draft storage fails.
 
 ## Content contract
 
@@ -13,10 +13,10 @@ Use the same four-field UTF-8 JSON contract for each day's draft and final publi
 
 `data/weekly-reports/YYYY-MM-DD.json`
 
-The date is the actual Sunday publication date in Asia/Seoul, not the preceding Friday's market date. Fields:
+The date is the actual Saturday publication date in Asia/Seoul, not the preceding Friday's market date. Fields:
 
-- `published_date`: `YYYY-MM-DD`, matching the filename, a valid Sunday.
-- `title`: the original report title, e.g. `🇺🇸 US Weekly Macro | YYYY.MM.DD(일)`.
+- `published_date`: `YYYY-MM-DD`, matching the filename, a valid Saturday. Existing Sunday articles remain readable for historical compatibility.
+- `title`: the original report title, e.g. `🇺🇸 US Weekly Macro | YYYY.MM.DD(토)`.
 - `headline`: the original key headline, without its leading red-circle marker.
 - `body_markdown`: the complete original report, including its title, headline, all sections, figures, tables and verified source links. Preserve its wording. Convert source-reference markers into ordinary Markdown links to their verified URLs and apply Markdown headings to section labels for readability. For the website, place the full `## ➡️ Regime` section immediately before `## 📌 Weekly Takeaway`, retaining its bold text and removing the duplicate at the bottom. Do not add an introduction explaining that the page is based on a briefing, a web edition, or a reconstructed report. This presentation order applies only to the website; preserve the existing chat briefing format.
 

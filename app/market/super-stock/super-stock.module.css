@@ -606,6 +606,8 @@
 .hero h1 { font-size: 28px; letter-spacing: -.04em; font-weight: 650; }
 .page input, .page select, .page button { border-radius: 9px; font-family: var(--east-font); }
 .page button { background: var(--east-cobalt); }
+.page .chips button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 22px; width: 22px; height: 22px; min-height: 0; margin-left: 4px; padding: 0; background: transparent; border: 0; border-radius: 4px; color: #7c8ba1; font-size: 16px; line-height: 1; }
+.page .chips button:hover { background: #f1f5f9; color: #334155; }
 .page button:disabled { cursor: not-allowed; }
 @media (max-width: 760px) {
   .page { padding: 20px 16px; }
