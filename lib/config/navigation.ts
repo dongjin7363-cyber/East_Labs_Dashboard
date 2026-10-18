@@ -38,14 +38,11 @@ export const NAV_GROUPS: NavigationGroup[] = [
       { type: "link", label: "Daily Stock", href: "/market/daily" },
       { type: "link", label: "수출입 데이터", href: "/market/export" },
       { type: "link", label: "Super Stock", href: "/market/super-stock" },
+      { type: "link", label: "Weekly Report", href: "/weekly-report" },
     ],
   },
   {
     label: "Membership",
     items: [{ type: "link", label: "Membership", href: "/membership" }],
-  },
-  {
-    label: "Weekly Report",
-    items: [{ type: "link", label: "Weekly Report", href: "/weekly-report" }],
   },
 ];

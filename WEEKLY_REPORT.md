@@ -29,6 +29,6 @@ If GitHub or Vercel tools are unavailable in a scheduled run, deliver the origin
 
 ## Site
 
-The bottom navigation link opens `/weekly-report`. The newest report is featured; older reports remain in descending date order. Detail pages are `/weekly-report/YYYY-MM-DD`. With no published content, the page shows its publication schedule without inventing a sample market report. Each content commit builds the list and report pages together, so the website changes only after a successful deployment.
+The navigation link directly below Super Stock opens `/weekly-report`. The newest report is featured; older reports remain in descending date order. Detail pages are `/weekly-report/YYYY-MM-DD`. With no published content, the page shows its publication schedule without inventing a sample market report. Each content commit builds the list and report pages together, so the website changes only after a successful deployment.
 
 Validation: `node --test tests/weekly-report.cjs`, `npx tsc --noEmit`, `npm run build`.
