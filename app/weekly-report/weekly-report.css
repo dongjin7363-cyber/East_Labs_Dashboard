@@ -45,6 +45,11 @@
 .weekly-key-data .weekly-actual, .weekly-key-data .weekly-interpretation { font-weight: 700; }
 .weekly-key-data .weekly-actual-above { color: #dc2626; }
 .weekly-key-data .weekly-actual-below { color: #2563eb; }
+.weekly-market-data tbody th { background: transparent; font-weight: 700; }
+.weekly-market-data tbody tr:last-child th { border-bottom: 0; }
+.weekly-market-data .weekly-market-value, .weekly-market-data .weekly-market-value a { color: #000000; }
+.weekly-market-data .weekly-market-positive { color: #dc2626; }
+.weekly-market-data .weekly-market-negative { color: #2563eb; }
 .weekly-article-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-top: 1px solid var(--east-border); margin-top: 40px; padding-top: 22px; color: #1444fd; font-size: 12px; }
 .weekly-shell a:focus-visible, .weekly-table:focus-visible { outline: 3px solid #93b4ff; outline-offset: 4px; }
 @media (max-width: 640px) {

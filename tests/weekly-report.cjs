@@ -86,3 +86,30 @@ test('Key Data emphasizes actuals and interpretations with the requested heading
     assert.match(html, /<td class="weekly-interpretation">근원물가 고착<\/td>/);
   }
 });
+
+test('Market Read-through colors changes individually while preserving black prices', () => {
+  const markdown = `## Market Read-through
+
+| 자산 | 주간 변화 | 가격 |
+| --- | --- | --- |
+| Brent | **+4.9% / $109.86** | $109.86 |
+| Treasury | 약 −15bp | 5.10% |
+| Gold | -0.7% | $3,000 |
+| Flat | 0.0% | 100 |
+
+## Next Week
+
+| 자산 | 주간 변화 |
+| --- | --- |
+| Other | +2.0% |`;
+  const html = renderToStaticMarkup(React.createElement(ReportBody, { markdown }));
+  assert.match(html, /<th scope="row">Brent<\/th>/);
+  assert.match(html, /<strong><span class="weekly-market-positive">\+4.9%<\/span> \/ \$109.86<\/strong>/);
+  assert.match(html, /weekly-market-negative">−15bp<\/span>/);
+  assert.match(html, /weekly-market-negative">-0.7%<\/span>/);
+  assert.match(html, /<td class="weekly-market-value">5.10%<\/td>/);
+  assert.match(html, /<td class="weekly-market-value">0.0%<\/td>/);
+  assert.match(html, /<td>Other<\/td><td>\+2.0%<\/td>/);
+  assert.equal((html.match(/weekly-market-positive/g) || []).length, 1);
+  assert.equal((html.match(/weekly-market-negative/g) || []).length, 2);
+});

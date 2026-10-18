@@ -19,6 +19,8 @@ Serialize with a JSON serializer; use real newlines in the Markdown string befor
 
 Keep Key Data as a Markdown table under its Key Data heading, with separate `지표`, `실제치`, `예상치`, and `마켓 해석` columns. The site automatically makes indicator names, actual values, and market interpretations bold and colors actual values red when above consensus, blue when below, and the default color when equal or not comparable. Legacy `시장 의미` headers display as `마켓 해석`. Compare numerical values, not whether the surprise is economically positive or negative. Do not inject HTML or inline colors into the report content.
 
+Under Market Read-through, use `자산` and `주간 변화` table headers. Asset names render bold. Positive percentage/basis-point changes render red, negative changes blue, and prices stay black. Mixed cells such as `+4.9% / $109.86` color only the percentage change. Zero changes stay black. Keep percentage or bp units explicit so changes can be distinguished from prices.
+
 ## Publish and verify
 
 1. Read the target file via the connected GitHub app in `dongjin7363-cyber/East_Labs_Dashboard`, branch `main`.
