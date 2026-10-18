@@ -13,7 +13,7 @@ The date is the actual Sunday publication date in Asia/Seoul, not the preceding 
 - `published_date`: `YYYY-MM-DD`, matching the filename, a valid Sunday.
 - `title`: the original report title, e.g. `🇺🇸 US Weekly Macro | YYYY.MM.DD(일)`.
 - `headline`: the original key headline, without its leading red-circle marker.
-- `body_markdown`: the complete original report, including its title, headline, all sections, figures, tables and verified source links. Preserve its wording. Only convert source-reference markers into ordinary Markdown links to their verified URLs and apply Markdown headings to section labels for readability.
+- `body_markdown`: the complete original report, including its title, headline, all sections, figures, tables and verified source links. Preserve its wording. Convert source-reference markers into ordinary Markdown links to their verified URLs and apply Markdown headings to section labels for readability. For the website, place the full `## ➡️ Regime` section immediately before `## 📌 Weekly Takeaway`, retaining its bold text and removing the duplicate at the bottom. Do not add an introduction explaining that the page is based on a briefing, a web edition, or a reconstructed report. This presentation order applies only to the website; preserve the existing chat briefing format.
 
 Serialize with a JSON serializer; use real newlines in the Markdown string before serialization. Do not include secrets, execution logs, tool markers, internal metadata or a fabricated report. The website supports headings, paragraphs, bold, bullets, Markdown tables and HTTP(S) links. Raw HTML is displayed as text.
 
