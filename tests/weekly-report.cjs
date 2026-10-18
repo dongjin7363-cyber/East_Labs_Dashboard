@@ -64,9 +64,9 @@ test('Key Data compares signed numbers and normalized counts, leaving equal or u
   const html = renderToStaticMarkup(React.createElement(ReportBody, { markdown }));
   const rows = [...html.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map(match => match[1]);
   const row = name => rows.find(value => value.includes(`>${name}</th>`));
-  assert.match(row('Higher'), /class="weekly-actual-above"/);
-  assert.match(row('Lower'), /class="weekly-actual-below"/);
-  assert.match(row('Counts'), /class="weekly-actual-below"/);
+  assert.match(row('Higher'), /class="weekly-actual weekly-actual-above"/);
+  assert.match(row('Lower'), /class="weekly-actual weekly-actual-below"/);
+  assert.match(row('Counts'), /class="weekly-actual weekly-actual-below"/);
   for (const name of ['Equal', 'Missing', 'Range', 'Mixed units']) {
     assert.doesNotMatch(row(name), /weekly-actual-(above|below)/);
   }
@@ -74,4 +74,15 @@ test('Key Data compares signed numbers and normalized counts, leaving equal or u
   assert.match(html, /aria-label="\+0.3% · 예상치 상회"/);
   assert.equal((html.match(/weekly-actual-above/g) || []).length, 1);
   assert.match(html, /<td>Unrelated<\/td><td>5%<\/td>/);
+});
+
+test('Key Data emphasizes actuals and interpretations with the requested heading', () => {
+  for (const label of ['시장 의미', '마켓 해석']) {
+    const markdown = `## Key Data\n\n| 지표 | 실제치 | 예상치 | ${label} |\n| --- | --- | --- | --- |\n| CPI | 3.0% | 3.0% | 근원물가 고착 |`;
+    const html = renderToStaticMarkup(React.createElement(ReportBody, { markdown }));
+    assert.match(html, /<th scope="col">마켓 해석<\/th>/);
+    assert.doesNotMatch(html, />시장 의미</);
+    assert.match(html, /<td class="weekly-actual">3.0%<\/td>/);
+    assert.match(html, /<td class="weekly-interpretation">근원물가 고착<\/td>/);
+  }
 });

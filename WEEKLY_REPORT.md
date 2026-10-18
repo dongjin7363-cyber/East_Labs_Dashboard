@@ -17,7 +17,7 @@ The date is the actual Sunday publication date in Asia/Seoul, not the preceding 
 
 Serialize with a JSON serializer; use real newlines in the Markdown string before serialization. Do not include secrets, execution logs, tool markers, internal metadata or a fabricated report. The website supports headings, paragraphs, bold, bullets, Markdown tables and HTTP(S) links. Raw HTML is displayed as text.
 
-Keep Key Data as a Markdown table under its Key Data heading, with separate `지표`, `실제치`, and `예상치` columns. The site automatically makes indicator names bold and colors actual values red when above consensus, blue when below, and the default color when equal or not comparable. Compare numerical values, not whether the surprise is economically positive or negative. Do not inject HTML or inline colors into the report content.
+Keep Key Data as a Markdown table under its Key Data heading, with separate `지표`, `실제치`, `예상치`, and `마켓 해석` columns. The site automatically makes indicator names, actual values, and market interpretations bold and colors actual values red when above consensus, blue when below, and the default color when equal or not comparable. Legacy `시장 의미` headers display as `마켓 해석`. Compare numerical values, not whether the surprise is economically positive or negative. Do not inject HTML or inline colors into the report content.
 
 ## Publish and verify
 

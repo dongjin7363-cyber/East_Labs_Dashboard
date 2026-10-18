@@ -60,12 +60,13 @@ export function ReportBody({ markdown }: { markdown: string }) {
       const normalized = headers.map((header) => plain(header).replace(/\s/g, "").toLowerCase());
       const actualCol = normalized.findIndex((header) => ["실제치", "실제", "actual"].includes(header));
       const expectedCol = normalized.findIndex((header) => ["예상치", "예상", "컨센서스", "consensus", "forecast"].includes(header));
+      const interpretationCol = normalized.findIndex((header) => ["시장의미", "마켓해석", "marketinterpretation"].includes(header));
       const indicatorCol = Math.max(0, normalized.findIndex((header) => ["지표", "항목", "indicator"].includes(header)));
       i += 2;
       const rows: string[][] = [];
       while (i < lines.length && lines[i].includes("|") && lines[i].trim()) rows.push(cells(lines[i++]));
       blocks.push(<div className={`weekly-table${isKeyData ? " weekly-key-data" : ""}`} key={key} tabIndex={0} role="region" aria-label={isKeyData ? "주요 매크로 지표 표" : "리포트 데이터 표"}><table>
-        <thead><tr>{headers.map((cell, col) => <th scope="col" key={col}>{inline(cell)}</th>)}</tr></thead>
+        <thead><tr>{headers.map((cell, col) => <th scope="col" key={col}>{inline(isKeyData && col === interpretationCol ? "마켓 해석" : cell)}</th>)}</tr></thead>
         <tbody>{rows.map((row, rowIndex) => {
           const direction = isKeyData && actualCol >= 0 && expectedCol >= 0 ? comparison(row[actualCol] ?? "", row[expectedCol] ?? "") : undefined;
           return <tr key={rowIndex}>{headers.map((_, col) => {
@@ -73,7 +74,12 @@ export function ReportBody({ markdown }: { markdown: string }) {
             if (isKeyData && col === indicatorCol) return <th scope="row" key={col}>{inline(value)}</th>;
             const status = col === actualCol ? direction : undefined;
             const label = status === "above" ? "예상치 상회" : status === "below" ? "예상치 하회" : undefined;
-            return <td key={col} className={status ? `weekly-actual-${status}` : undefined} title={label} aria-label={label ? `${plain(value)} · ${label}` : undefined}>{inline(value)}</td>;
+            const classes = [
+              isKeyData && col === actualCol ? "weekly-actual" : null,
+              isKeyData && col === interpretationCol ? "weekly-interpretation" : null,
+              status ? `weekly-actual-${status}` : null,
+            ].filter(Boolean).join(" ") || undefined;
+            return <td key={col} className={classes} title={label} aria-label={label ? `${plain(value)} · ${label}` : undefined}>{inline(value)}</td>;
           })}</tr>;
         })}</tbody>
       </table></div>);
