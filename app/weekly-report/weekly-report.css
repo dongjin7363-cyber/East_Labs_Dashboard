@@ -1,0 +1,51 @@
+.weekly-shell { max-width: 1120px; margin: 0 auto; padding-bottom: 48px; }
+.weekly-schedule { display: inline-block; border: 1px solid #dbe4ff; border-radius: 6px; padding: 5px 9px; color: #1444fd; background: #f4f7ff; font-size: 11px; font-weight: 500; }
+.weekly-eyebrow { display: flex; align-items: center; gap: 16px; font-size: 11px; font-weight: 700; letter-spacing: .09em; }
+.weekly-eyebrow span { font-weight: 500; opacity: .65; }
+.weekly-feature { display: block; position: relative; background: #1444fd; border: 1px solid #1444fd; border-radius: 12px; color: white; padding: 34px 38px; transition: background .15s; }
+.weekly-feature:hover { background: #1038d8; }
+.weekly-feature time { display: block; margin-top: 25px; font-size: 12px; opacity: .8; }
+.weekly-feature h2 { font-size: clamp(22px, 2.5vw, 32px); line-height: 1.45; max-width: 800px; margin: 13px 0; word-break: keep-all; }
+.weekly-feature p { color: #e0e7ff; font-size: 13px; }
+.weekly-read { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; font-size: 12px; font-weight: 600; }
+.weekly-read span { font-size: 22px; }
+.weekly-archive-title { display: flex; align-items: center; justify-content: space-between; margin: 32px 0 14px; }
+.weekly-archive-title h2 { font-size: 15px; margin: 0; }
+.weekly-archive-title > span, .weekly-note { color: var(--east-text-2); font-size: 12px; }
+.weekly-archive { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.weekly-card { display: flex; flex-direction: column; padding: 24px; border: 1px solid var(--east-border); background: white; border-radius: 10px; }
+.weekly-card:hover { border-color: #1444fd; }
+.weekly-card time, .weekly-article time { color: var(--east-text-2); font-size: 12px; }
+.weekly-card h3 { font-size: 17px; line-height: 1.6; margin: 16px 0 8px; word-break: keep-all; }
+.weekly-card p { font-size: 12px; color: var(--east-text-2); margin: 0 0 20px; }
+.weekly-card .weekly-read { margin-top: auto; color: #1444fd; }
+.weekly-empty { padding: 64px 36px; background: white; border: 1px solid var(--east-border); border-radius: 12px; }
+.weekly-empty .weekly-eyebrow { color: #1444fd; }
+.weekly-empty h2 { margin: 25px 0 15px; font-size: clamp(22px, 3vw, 28px); word-break: keep-all; }
+.weekly-empty p { color: var(--east-text-2); line-height: 1.9; font-size: 14px; margin-bottom: 30px; }
+.weekly-article { padding: 32px 44px; background: white; border: 1px solid var(--east-border); border-radius: 12px; }
+.weekly-back { color: var(--east-text-2); font-size: 12px; }
+.weekly-article-header { margin-top: 32px; padding-bottom: 30px; border-bottom: 1px solid var(--east-border); }
+.weekly-article-header .weekly-eyebrow { color: #1444fd; margin-bottom: 20px; }
+.weekly-article-header h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.5; margin: 16px 0; word-break: keep-all; }
+.weekly-article-header p { color: var(--east-text-2); font-size: 13px; }
+.weekly-body { max-width: 900px; font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
+.weekly-body h2 { margin: 34px 0 15px; font-size: 18px; line-height: 1.6; }
+.weekly-body p { margin: 15px 0; }
+.weekly-body ul { padding-left: 22px; }
+.weekly-body li { padding-left: 3px; margin: 8px 0; }
+.weekly-body a { color: #1444fd; text-decoration: underline; text-underline-offset: 3px; }
+.weekly-table { overflow-x: auto; margin: 20px 0; border: 1px solid var(--east-border); border-radius: 8px; }
+.weekly-table table { width: 100%; min-width: 580px; border-collapse: collapse; text-align: left; font-size: 12px; line-height: 1.7; }
+.weekly-table th { background: #f4f7ff; font-weight: 600; }
+.weekly-table th, .weekly-table td { padding: 11px 14px; border-bottom: 1px solid var(--east-border); }
+.weekly-table tr:last-child td { border-bottom: 0; }
+.weekly-article-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-top: 1px solid var(--east-border); margin-top: 40px; padding-top: 22px; color: #1444fd; font-size: 12px; }
+.weekly-shell a:focus-visible, .weekly-table:focus-visible { outline: 3px solid #93b4ff; outline-offset: 4px; }
+@media (max-width: 640px) {
+  .weekly-archive { grid-template-columns: 1fr; }
+  .weekly-feature, .weekly-empty { padding: 28px 22px; }
+  .weekly-article { padding: 24px 20px; }
+  .weekly-body { font-size: 13px; }
+  .weekly-eyebrow { gap: 10px; font-size: 10px; }
+}

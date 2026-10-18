@@ -44,4 +44,8 @@ export const NAV_GROUPS: NavigationGroup[] = [
     label: "Membership",
     items: [{ type: "link", label: "Membership", href: "/membership" }],
   },
+  {
+    label: "Weekly Report",
+    items: [{ type: "link", label: "Weekly Report", href: "/weekly-report" }],
+  },
 ];

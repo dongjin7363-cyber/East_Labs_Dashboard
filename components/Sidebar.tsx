@@ -40,6 +40,8 @@ const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Super Stock", href: "/market/super-stock", icon: "screening" },
   { type: "sep" },
   { type: "link", label: "Membership", href: "/membership", icon: "membership" },
+  { type: "sep" },
+  { type: "link", label: "Weekly Report", href: "/weekly-report", icon: "memo" },
 ];
 
 function Icon({ name }: { name: IconName }) {
