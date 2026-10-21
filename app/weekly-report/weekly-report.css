@@ -1,11 +1,11 @@
-.weekly-shell { max-width: 1120px; margin: 0 auto; padding-bottom: 48px; }
+.weekly-shell { width: 100%; min-width: 0; box-sizing: border-box; max-width: 1600px; margin: 0 auto; padding: 28px; }
 .weekly-schedule { display: inline-block; border: 1px solid #dbe4ff; border-radius: 6px; padding: 5px 9px; color: #1444fd; background: #f4f7ff; font-size: 11px; font-weight: 500; }
 .weekly-eyebrow { display: flex; align-items: center; gap: 16px; font-size: 11px; font-weight: 700; letter-spacing: .09em; }
 .weekly-eyebrow span { font-weight: 500; opacity: .65; }
 .weekly-feature { display: block; position: relative; background: #1444fd; border: 1px solid #1444fd; border-radius: 12px; color: white; padding: 34px 38px; transition: background .15s; }
 .weekly-feature:hover { background: #1038d8; }
 .weekly-feature time { display: block; margin-top: 25px; font-size: 12px; opacity: .8; }
-.weekly-feature h2 { font-size: clamp(22px, 2.5vw, 32px); line-height: 1.45; max-width: 800px; margin: 13px 0; word-break: keep-all; }
+.weekly-feature h2 { font-size: clamp(22px, 2.5vw, 32px); line-height: 1.45; max-width: 100%; margin: 13px 0; word-break: keep-all; }
 .weekly-feature p { color: #e0e7ff; font-size: 13px; }
 .weekly-read { display: flex; justify-content: space-between; align-items: center; margin-top: 30px; font-size: 12px; font-weight: 600; }
 .weekly-read span { font-size: 22px; }
@@ -29,7 +29,7 @@
 .weekly-article-header .weekly-eyebrow { color: #1444fd; margin-bottom: 20px; }
 .weekly-article-header h1 { font-size: clamp(24px, 3vw, 34px); line-height: 1.5; margin: 16px 0; word-break: keep-all; }
 .weekly-article-header p { color: var(--east-text-2); font-size: 13px; }
-.weekly-body { max-width: 900px; font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
+.weekly-body { min-width: 0; max-width: 100%; font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
 .weekly-body h2 { margin: 34px 0 15px; font-size: 18px; line-height: 1.6; }
 .weekly-body p { margin: 15px 0; }
 .weekly-body ul { padding-left: 22px; }
@@ -52,6 +52,9 @@
 .weekly-market-data .weekly-market-negative { color: #2563eb; }
 .weekly-article-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-top: 1px solid var(--east-border); margin-top: 40px; padding-top: 22px; color: #1444fd; font-size: 12px; }
 .weekly-shell a:focus-visible, .weekly-table:focus-visible { outline: 3px solid #93b4ff; outline-offset: 4px; }
+@media (max-width: 760px) {
+  .weekly-shell { padding: 20px 16px; }
+}
 @media (max-width: 640px) {
   .weekly-archive { grid-template-columns: 1fr; }
   .weekly-feature, .weekly-empty { padding: 28px 22px; }
