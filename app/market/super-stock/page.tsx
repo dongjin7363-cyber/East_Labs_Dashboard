@@ -196,13 +196,10 @@ export default function SuperStockPage() {
     <section className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <span className={styles.eyebrow}>
-            EAST RESEARCH / WEEKLY INTELLIGENCE
-          </span>
           <h1>
             Super Stock<span className={styles.dot}>.</span>
           </h1>
-          <p>좋은 기업을 넘어, 빠르게 달라지는 기업을 발견하세요.</p>
+          <p>좋은 기업을 넘어, 빠르게 성장하는 기업을 East Intelligence 로 발견하세요</p>
         </div>
         <div className={styles.schedule}>
           <span>WEEKLY SNAPSHOT</span>
