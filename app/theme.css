@@ -63,6 +63,17 @@ button:disabled { cursor: not-allowed; }
 .east-logo-wrap { padding: 28px 20px 24px; display: flex; align-items: center; flex-wrap: wrap; border: 0; gap: 4px; }
 .east-logo { color: #253145; font-size: 25px; font-weight: 750; letter-spacing: -.06em; line-height: 1.2; }
 .east-logo-dot { color: var(--east-cobalt); }
+/* Page titles share the EAST logo's baseline dot. */
+.page-header h1::after,
+.pf-page-title::after,
+.perf-page-title::after,
+.fin-page-title::after,
+.memo-page-header h1::after,
+.east-page-title::after {
+  content: ".";
+  color: var(--east-cobalt);
+  font: inherit;
+}
 .east-logo-sub { width: 100%; margin-top: 5px; font-size: 11px; color: var(--east-text-2); letter-spacing: .02em; }
 .east-sidebar-toggle, .east-mobile-toggle { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; margin-left: auto; border: 0; border-radius: 8px; background: transparent; color: #697587; cursor: pointer; }
 .east-sidebar-toggle:hover, .east-mobile-toggle:hover { background: rgba(255,255,255,.65); color: #20252d; }

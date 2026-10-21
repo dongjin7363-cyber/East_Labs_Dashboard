@@ -196,9 +196,7 @@ export default function SuperStockPage() {
     <section className={styles.page}>
       <header className={styles.hero}>
         <div>
-          <h1>
-            Super Stock<span className={styles.dot}>.</span>
-          </h1>
+          <h1 className="east-page-title">Super Stock</h1>
           <p>좋은 기업을 넘어, 빠르게 성장하는 기업을 East Intelligence 로 발견하세요</p>
         </div>
         <div className={styles.schedule}>
