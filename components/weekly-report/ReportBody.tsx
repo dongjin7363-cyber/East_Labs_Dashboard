@@ -51,6 +51,7 @@ export function ReportBody({ markdown, initialMarketData = false, headingLabels 
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
+  let hasSection = initialMarketData;
   let keyDataLevel: number | null = null;
   let marketLevel: number | null = initialMarketData ? 2 : null;
   while (i < lines.length) {
@@ -60,6 +61,10 @@ export function ReportBody({ markdown, initialMarketData = false, headingLabels 
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
+      if (level === 2) {
+        if (hasSection) blocks.push(<hr key={`divider-${key}`} className="weekly-section-divider" />);
+        hasSection = true;
+      }
       if (/\bKey\s+Data\b/i.test(heading[2])) keyDataLevel = level;
       else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
       if (/\bMarket\s+Read[\s-]*through\b|^01 Weekly Market Dashboard$|^03 Bonds Commodities & Crypto$/i.test(heading[2])) marketLevel = level;
