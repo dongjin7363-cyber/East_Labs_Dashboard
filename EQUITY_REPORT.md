@@ -10,7 +10,7 @@ Separate from US Weekly Macro: never modify its schedule, instructions, drafts o
 - Repository `dongjin7363-cyber/East_Labs_Dashboard`, branch `main`.
 - Draft: `data/equity-report-drafts/YYYY-MM-DD.json`.
 - Published: `data/equity-reports/YYYY-MM-DD.json`.
-- Shared library `/weekly-report?type=equity` under the single Weekly Report menu. Display label: `📊 Weekly Equity`; macro label: `🌏 Weekly Macro`. Legacy `/equity-report` redirects to the Equity tab. Detail URLs remain `/equity-report/YYYY-MM-DD`. The stored report type/title contract is unchanged.
+- Shared library `/weekly-report` under the single Weekly Report menu. Both latest reports appear together: `🌏 Weekly Macro` in green and `📊 Weekly Equity` in blue, followed by a combined chronological archive of small white cards. There are no category tabs. Legacy `/equity-report` redirects to this shared page; old type query parameters do not filter it. Detail URLs remain `/equity-report/YYYY-MM-DD`. The stored report type/title contract is unchanged.
 - Existing Vercel Git integration: project `prj_Q5THAig5c5Hj6duRcIGCIh39ddcU`, team `team_bThRpgLUEvuoIFXPLdfiP6iY`. Production domain `https://east-labs-dashboard.vercel.app`.
 - Never write `data/weekly-report-drafts` or `data/weekly-reports`, change other scheduled jobs, send Telegram/email, or alter deployment settings for this workflow.
 
@@ -62,7 +62,7 @@ Use connected GitHub tools. After validation read exact draft target again. On c
 2. Fetch final path. Treat only confirmed 404/absence as absent. Save fetched draft temporarily outside `data/equity-reports` and run the validator in publish mode: `npx tsx scripts/validate-equity-report.ts <temp>/YYYY-MM-DD.json publish YYYY-MM-DD`. `publicationDecision` in the model defines duplicate/conflict semantics; compare parsed JSON deeply, independent of object-key ordering. Identical existing final is a no-op; conflicting final is a hard stop.
 3. On confirmed absence, GitHub `create_file` writes the exact validated draft bytes to the final path on main, commit `Publish EAST Weekly Equity YYYY-MM-DD`. Never overwrite a published file automatically. Reread after uncertainty before retrying.
 4. Find the production Vercel deployment matching the returned Git commit SHA in the exact project/team above. For a no-op, verify the deployment serving the existing report. Wait with bounded checks for READY; pending/error is not success. Do not change settings or deploy a different commit.
-5. Verify both production URL `/equity-report/YYYY-MM-DD` (headline, seven sections, ten charts) and `/weekly-report?type=equity` (newest entry; legacy `/equity-report` redirects here). Report the publication URL or the specific failed stage. Quietly stop only when an already-published identical report is confirmed live and nothing changed.
+5. Verify both production URL `/equity-report/YYYY-MM-DD` (headline, seven sections, ten charts) and `/weekly-report` (latest Equity banner; legacy `/equity-report` redirects here). Report the publication URL or the specific failed stage. Quietly stop only when an already-published identical report is confirmed live and nothing changed.
 
 ## Validation
 

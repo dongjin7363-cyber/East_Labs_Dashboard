@@ -21,7 +21,7 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
   const report = reports[index];
   const previous = reports[index + 1];
   return <article className="weekly-article">
-    <Link className="weekly-back" href="/weekly-report?type=equity">← 📊 Weekly Equity</Link>
+    <Link className="weekly-back" href="/weekly-report">← Weekly Report</Link>
     <header className="weekly-article-header">
       <div className="weekly-eyebrow">EAST RESEARCH <span>📊 Weekly Equity</span></div>
       <time dateTime={report.published_date}>{formatReportDate(report.published_date)} · KST</time>
@@ -29,7 +29,7 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
     </header>
     <EquityBody report={report} />
     <footer className="weekly-article-footer">
-      <Link href="/weekly-report?type=equity">목록으로</Link>
+      <Link href="/weekly-report">목록으로</Link>
       {previous ? <Link href={`/equity-report/${previous.published_date}`}>이전 리포트 · {previous.published_date} →</Link> : null}
     </footer>
   </article>;
