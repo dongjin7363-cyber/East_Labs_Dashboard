@@ -1,6 +1,21 @@
 import { ReportBody } from "@/components/weekly-report/ReportBody";
 import { EquityReport, MarketSeries, weeklyChange } from "@/lib/equity-report/model";
 
+const EQUITY_HEADING_LABELS: Readonly<Record<string, string>> = {
+  "Regime": "➡️ Regime",
+  "Weekly Takeaway": "📌 Weekly Takeaway",
+  "01 Weekly Market Dashboard": "📊 Weekly Market Dashboard",
+  "02 Macro & Economic Conditions": "🏦 Macro & Economic Conditions",
+  "03 Equity Market & Earnings": "🏢 Equity Market & Earnings",
+  "04 Bonds Commodities & Crypto": "💹 Bonds Commodities & Crypto",
+  "05 Next Week Watchlist": "🎯 Next Week Watchlist",
+  "Key Data": "📊 Key Data",
+  "Key Earnings & Market Movers": "📋 Key Earnings & Market Movers",
+  "Cross-Asset Data": "📊 Cross-Asset Data",
+  "Market Read-through": "📈 Market Read-through",
+  "Weekly Outlook": "🧭 Weekly Outlook",
+};
+
 function Sparkline({ series }: { series: MarketSeries }) {
   const values = series.points.map(p => p.value);
   const min = Math.min(...values), max = Math.max(...values);
@@ -14,7 +29,7 @@ export function EquityBody({ report }: { report: EquityReport }) {
   const marker = "## 01 Weekly Market Dashboard";
   const offset = report.body_markdown.indexOf(marker) + marker.length;
   if (report.schema_version === 2) return <>
-    <ReportBody markdown={report.body_markdown.slice(0, offset)} />
+    <ReportBody headingLabels={EQUITY_HEADING_LABELS} markdown={report.body_markdown.slice(0, offset)} />
     <figure className="equity-performance">
       <figcaption><strong>주간 주요 위험자산 수익률</strong><p>2026년 10월 16일 대비 23일 · BTC는 UTC 일별 종가 기준</p></figcaption>
       <svg viewBox="0 0 760 300" role="img" aria-label={report.performance.map(p => `${p.label} ${p.change}%`).join(", ")}>
@@ -26,10 +41,10 @@ export function EquityBody({ report }: { report: EquityReport }) {
       </svg>
       <p>원문 표에 주간 변화율이 명시된 자산 · 금은 약 -4.0%</p>
     </figure>
-    <ReportBody markdown={report.body_markdown.slice(offset)} initialMarketData />
+    <ReportBody headingLabels={EQUITY_HEADING_LABELS} markdown={report.body_markdown.slice(offset)} initialMarketData />
   </>;
   return <>
-    <ReportBody markdown={report.body_markdown.slice(0, offset)} />
+    <ReportBody headingLabels={EQUITY_HEADING_LABELS} markdown={report.body_markdown.slice(0, offset)} />
     <div className="equity-dashboard">{report.dashboard.map(s => {
       const change = weeklyChange(s), last = s.points[s.points.length - 1];
       return <section className="equity-asset" key={s.id}>
@@ -43,6 +58,6 @@ export function EquityBody({ report }: { report: EquityReport }) {
         {s.note && <p>{s.note}</p>}
       </section>;
     })}</div>
-    <ReportBody markdown={report.body_markdown.slice(offset)} initialMarketData />
+    <ReportBody headingLabels={EQUITY_HEADING_LABELS} markdown={report.body_markdown.slice(offset)} initialMarketData />
   </>;
 }

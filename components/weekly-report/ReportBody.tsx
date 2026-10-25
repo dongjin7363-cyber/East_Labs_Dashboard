@@ -47,7 +47,7 @@ function comparison(actual: string, expected: string): "above" | "below" | undef
   return undefined;
 }
 
-export function ReportBody({ markdown, initialMarketData = false }: { markdown: string; initialMarketData?: boolean }) {
+export function ReportBody({ markdown, initialMarketData = false, headingLabels = {} }: { markdown: string; initialMarketData?: boolean; headingLabels?: Readonly<Record<string, string>> }) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -64,7 +64,7 @@ export function ReportBody({ markdown, initialMarketData = false }: { markdown: 
       else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
       if (/\bMarket\s+Read[\s-]*through\b|^01 Weekly Market Dashboard$|^04 Bonds Commodities & Crypto$/i.test(heading[2])) marketLevel = level;
       else if (marketLevel !== null && level <= marketLevel) marketLevel = null;
-      blocks.push(<h2 key={key}>{inline(heading[2])}</h2>); i++; continue;
+      blocks.push(<h2 key={key}>{inline(headingLabels[heading[2]] ?? heading[2])}</h2>); i++; continue;
     }
     if (line.includes("|") && i + 1 < lines.length && /^\|?\s*:?-{3,}/.test(lines[i + 1].trim())) {
       const headers = cells(line);
