@@ -26,7 +26,7 @@ export default async function WeeklyReportPage() {
       </Link>)}</div> : <p className="weekly-note">발행된 리포트가 주차별로 이곳에 쌓입니다.</p>}
     </> : <div className="weekly-empty">
       <span className="weekly-eyebrow">EAST RESEARCH · KR · US · CROSS-ASSET</span>
-      <h2>토요일 아침, 한 주의 주식·크로스에셋를 정리합니다.</h2>
+      <h2>토요일 아침, 한 주의 주식·크로스에셋을 정리합니다.</h2>
       <p>주요 지표와 시장 내러티브의 변화, 다음 주 핵심 변수를 담은<br />EAST Weekly Equity 리포트가 발행되면 이곳에서 볼 수 있습니다.</p>
       <span className="weekly-schedule">매주 토요일 07:00 KST · 완성 후 게시</span>
     </div>}
