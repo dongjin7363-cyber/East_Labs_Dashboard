@@ -68,7 +68,7 @@ test('user-supplied historical issue retains provenance and cannot enter schedul
   assert.throws(() => parseEquityReport({...archive, source_description: ''}, '2026-10-24.json'));
   assert.throws(() => parseEquityReport({...archive, imported_at: '2026-10-23T06:00:00+09:00'}, '2026-10-24.json'));
   const html = renderToStaticMarkup(React.createElement(EquityBody, {report: archive}));
-  assert.match(html, /EAST \/ GLOBAL MARKET RESEARCH/);
+  assert.doesNotMatch(html, /EAST \/ GLOBAL MARKET RESEARCH|GLOBAL CROSS-ASSET PERFORMANCE/);
   assert.doesNotMatch(html, /FELLAS|SYNTHETIC/);
   assert.match(html, /7,623.68/);
   assert.match(html, /<th scope="row">KOSPI<\/th>/);
