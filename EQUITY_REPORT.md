@@ -37,20 +37,21 @@ Fields (all required):
 - `cutoff_at`: explicit timezone timestamp of information cutoff, <= generated_at, >= 05:00 KST
 - `title`: starts `EAST Weekly Equity Report`, append date
 - `headline`: concise Korean weekly narrative
-- `body_markdown`: complete report with the exact seven level-two headings below, in order
+- `body_markdown`: complete report with the exact six level-two headings below, in order
 - `dashboard`: array of source-backed series. Each has `id`, `label`, `unit`, `kind` (`price` or `yield`), `source_name`, `source_url` (http/https), `as_of` (timezone timestamp of latest source observation), `note` (empty allowed), and `points` (2–10 ascending unique `{date: YYYY-MM-DD, value: finite number}` observations). Source links must support the observations. Earliest point is the previous week's close (8–11 days before Saturday), latest is 1–4 days before Saturday. Non-Friday endpoints require a note. Never mix adjusted/unadjusted bases or units within a series.
+
+Do not include a Macro & Economic Conditions section or duplicate the macro report’s economic indicator tables. Focus on equities and cross-asset implications.
 
 Exact headings:
 
 1. `## Regime`: regime classification, evidence and what would invalidate it.
 2. `## Weekly Takeaway`: 3–5 short bullet points summarizing the week.
 3. `## 01 Weekly Market Dashboard`: website inserts the ten source-backed charts, closes, weekly changes and observation tables directly after this heading. Add a short cross-market summary; do not duplicate manually calculated dashboard values.
-4. `## 02 Macro & Economic Conditions`: short bullets and table columns exactly `| 지표 | 실제치 | 예상치 | 직전치 | 마켓 해석 |`. Identify release date/reference period and revisions in the indicator label or bullets. Explain growth/inflation/liquidity changes succinctly.
-5. `## 03 Equity Market & Earnings`: prioritize KR/US companies whose actual earnings, guidance or events changed market momentum. Identify company/ticker/date, actual revenue/EPS vs verifiable consensus/previous period, guidance, price reaction and sector read-through. Separate earnings-driven moves from other catalysts; if no relevant verified result, state that rather than inventing one.
-6. `## 04 Bonds Commodities & Crypto`: KR/US short/long yields, curves and weekly bp moves; gold and BTC performance, verified catalysts and implications for equities.
-7. `## 05 Next Week Watchlist`: dated KST calendar for economics, central banks and major earnings; expected vs previous if verified, release-time timezone, bull/bear scenarios and variables to watch. Distinguish confirmed from tentative events.
+4. `## 02 Equity Market & Earnings`: prioritize KR/US companies whose actual earnings, guidance or events changed market momentum. Identify company/ticker/date, actual revenue/EPS vs verifiable consensus/previous period, guidance, price reaction and sector read-through. Separate earnings-driven moves from other catalysts; if no relevant verified result, state that rather than inventing one.
+5. `## 03 Bonds Commodities & Crypto`: KR/US short/long yields, curves and weekly bp moves; gold and BTC performance, verified catalysts and implications for equities.
+6. `## 04 Next Week Watchlist`: dated KST calendar for economics, central banks and major earnings; expected vs previous if verified, release-time timezone, bull/bear scenarios and variables to watch. Distinguish confirmed from tentative events.
 
-Each numbered section ends with `### Market Read-through` followed by a concise Korean synthesis. Sections 02–05 each require verified source links. Avoid long prose blocks; use bullets, compact tables and a final synthesis in each section. The top Regime/Weekly Takeaway must remain above the dashboard.
+Each numbered section ends with `### Market Read-through` followed by a concise Korean synthesis. Sections 02–04 each require verified source links. Avoid long prose blocks; use bullets, compact tables and a final synthesis in each section. The top Regime/Weekly Takeaway must remain above the dashboard.
 
 ## Durable draft write
 

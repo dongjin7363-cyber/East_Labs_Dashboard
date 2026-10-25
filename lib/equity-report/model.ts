@@ -1,7 +1,7 @@
 export const SECTION_TITLES = [
   "Regime", "Weekly Takeaway", "01 Weekly Market Dashboard",
-  "02 Macro & Economic Conditions", "03 Equity Market & Earnings",
-  "04 Bonds Commodities & Crypto", "05 Next Week Watchlist",
+  "02 Equity Market & Earnings",
+  "03 Bonds Commodities & Crypto", "04 Next Week Watchlist",
 ] as const;
 export const REQUIRED_ASSETS = ["kospi", "kosdaq", "sp500", "nasdaq", "us2y", "us10y", "kr3y", "kr10y", "gold", "bitcoin"] as const;
 export interface MarketSeries {
@@ -76,8 +76,6 @@ export function parseEquityReport(value: unknown, filename: string): EquityRepor
     const section = r.body_markdown.slice(headings[i].index, headings[i + 1]?.index);
     check(/^### Market Read-through\s*\n\s*\S/m.test(section), `Missing Market Read-through: ${SECTION_TITLES[i]}`);
   }
-  const macro = r.body_markdown.slice(headings[3].index, headings[4].index);
-  check(/\|\s*지표\s*\|\s*실제치\s*\|\s*예상치\s*\|\s*직전치\s*\|\s*마켓 해석\s*\|/.test(macro), "Macro comparison columns required");
   for (let i = 3; i < headings.length; i++) {
     check(/\[[^\]]+\]\(https?:\/\/[^\s)]+\)/.test(r.body_markdown.slice(headings[i].index, headings[i + 1]?.index)), `Missing section sources: ${SECTION_TITLES[i]}`);
   }

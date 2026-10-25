@@ -19,7 +19,7 @@ function fixture() {
     schema_version: 1, report_type: 'east_weekly_equity', published_date: '2026-10-24',
     generated_at: '2026-10-24T06:30:00+09:00', cutoff_at: '2026-10-24T06:00:00+09:00',
     title: 'EAST Weekly Equity Report | TEST ONLY', headline: '검증용 합성 데이터 — 실제 시장 리포트 아님',
-    body_markdown: SECTION_TITLES.map((s, i) => `## ${s}\n\n${i === 3 ? '| 지표 | 실제치 | 예상치 | 직전치 | 마켓 해석 |\n| --- | --- | --- | --- | --- |\n| TEST | 3% | 2% | 1% | Test |\n\n' : ''}검증용 본문. [TEST](https://example.com/test)\n\n${i >= 2 ? '### Market Read-through\n\n검증용 해석.' : ''}`).join('\n\n'),
+    body_markdown: SECTION_TITLES.map((s, i) => `## ${s}\n\n검증용 본문. [TEST](https://example.com/test)\n\n${i >= 2 ? '### Market Read-through\n\n검증용 해석.' : ''}`).join('\n\n'),
     dashboard: REQUIRED_ASSETS.map(id => ({ id, label: id.toUpperCase(), kind: /^(us|kr)\d/.test(id) ? 'yield' : 'price', unit: /^(us|kr)\d/.test(id) ? '%' : 'points', source_name: 'SYNTHETIC TEST', source_url: 'https://example.com/test', as_of: '2026-10-24T05:30:00+09:00', note: '', points: [{ date: '2026-10-16', value: 100 }, { date: '2026-10-23', value: 102 }] })),
   };
 }
@@ -29,7 +29,7 @@ test('valid fixture; percentages and basis points computed from observations', (
   assert.ok(Math.abs(weeklyChange({ ...r.dashboard[4], points: [{date:'2026-10-16',value:4.1},{date:'2026-10-23',value:4.2}] }) - 10) < 1e-8);
 });
 test('blocks malformed, partial, stale and future data', () => {
-  const mutations = [r => r.report_type = 'us_macro', r => r.published_date = '2026-10-25', r => r.generated_at = '2026-10-24T07:01:00+09:00', r => r.cutoff_at = '2026-10-24T07:00:00+09:00', r => r.dashboard.pop(), r => r.dashboard.push(r.dashboard[0]), r => r.dashboard[0].source_url = 'javascript:alert(1)', r => r.dashboard[0].points[1].value = NaN, r => r.dashboard[0].points[1].date = '2026-10-24', r => r.dashboard[0].points[0].date = '2026-10-19', r => r.dashboard[0].as_of = '2026-10-18T15:00:00+09:00', r => r.dashboard[4].kind = 'price', r => r.body_markdown = r.body_markdown.replace('### Market Read-through', '### Missing'), r => r.body_markdown = r.body_markdown.replace('직전치', 'missing'), r => r.body_markdown = r.body_markdown.replace('## Regime', '## Wrong')];
+  const mutations = [r => r.report_type = 'us_macro', r => r.published_date = '2026-10-25', r => r.generated_at = '2026-10-24T07:01:00+09:00', r => r.cutoff_at = '2026-10-24T07:00:00+09:00', r => r.dashboard.pop(), r => r.dashboard.push(r.dashboard[0]), r => r.dashboard[0].source_url = 'javascript:alert(1)', r => r.dashboard[0].points[1].value = NaN, r => r.dashboard[0].points[1].date = '2026-10-24', r => r.dashboard[0].points[0].date = '2026-10-19', r => r.dashboard[0].as_of = '2026-10-18T15:00:00+09:00', r => r.dashboard[4].kind = 'price', r => r.body_markdown = r.body_markdown.replace('### Market Read-through', '### Missing'), r => r.body_markdown = r.body_markdown.replace('## Regime', '## Wrong')];
   for (const mutate of mutations) { const r = fixture(); mutate(r); assert.throws(() => parseEquityReport(r, '2026-10-24.json')); }
 });
 test('publication is date gated, duplicate safe and conflict rejecting', () => {
@@ -46,10 +46,10 @@ test('article renders all charts between 01 and 02 with safe sources and accessi
   r.headline = '<script>bad</script>';
   const html = renderToStaticMarkup(React.createElement(EquityBody, { report: r }));
   assert.equal((html.match(/<svg /g) || []).length, 10);
-  assert.ok(html.indexOf('01 Weekly Market Dashboard') < html.indexOf('<svg'));
-  assert.ok(html.lastIndexOf('</svg>') < html.indexOf('02 Macro &amp; Economic Conditions'));
+  assert.ok(html.indexOf('📊 Weekly Market Dashboard') < html.indexOf('<svg'));
+  assert.ok(html.lastIndexOf('</svg>') < html.indexOf('🏢 Equity Market &amp; Earnings'));
   assert.match(html, /<summary>관측치 · 출처<\/summary>/);
-  assert.match(html, /weekly-actual-above/);
+  assert.doesNotMatch(html, /Macro &amp; Economic Conditions/);
   assert.doesNotMatch(html, /<script>/);
 });
 test('equity loader is isolated from macro and drafts; real publications validate', () => {

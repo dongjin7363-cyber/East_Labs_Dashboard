@@ -60,9 +60,9 @@ export function ReportBody({ markdown, initialMarketData = false, headingLabels 
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
-      if (/\bKey\s+Data\b|^02 Macro & Economic Conditions$/i.test(heading[2])) keyDataLevel = level;
+      if (/\bKey\s+Data\b/i.test(heading[2])) keyDataLevel = level;
       else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
-      if (/\bMarket\s+Read[\s-]*through\b|^01 Weekly Market Dashboard$|^04 Bonds Commodities & Crypto$/i.test(heading[2])) marketLevel = level;
+      if (/\bMarket\s+Read[\s-]*through\b|^01 Weekly Market Dashboard$|^03 Bonds Commodities & Crypto$/i.test(heading[2])) marketLevel = level;
       else if (marketLevel !== null && level <= marketLevel) marketLevel = null;
       blocks.push(<h2 key={key}>{inline(headingLabels[heading[2]] ?? heading[2])}</h2>); i++; continue;
     }
