@@ -60,7 +60,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
       const level = heading[1].length;
-      if (/\bKey\s+Data\b/i.test(heading[2])) keyDataLevel = level;
+      if (/\bKey\s+Data\b|^02 Macro & Economic Conditions$/i.test(heading[2])) keyDataLevel = level;
       else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
       if (/\bMarket\s+Read[\s-]*through\b/i.test(heading[2])) marketLevel = level;
       else if (marketLevel !== null && level <= marketLevel) marketLevel = null;

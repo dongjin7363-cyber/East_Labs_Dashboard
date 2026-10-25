@@ -1,0 +1,12 @@
+.equity-dashboard { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin:20px 0 24px; }
+.equity-asset { min-width:0; border:1px solid var(--east-border); border-radius:9px; padding:18px; font-size:12px; }
+.equity-asset h3 { font-size:14px; margin:0 0 12px; }
+.equity-close { font-size:22px; font-weight:700; margin-bottom:7px; }
+.equity-close small { font-size:12px; font-weight:400; }
+.equity-up { color:#dc2626; } .equity-down { color:#2563eb; }
+.equity-asset svg { width:100%; height:58px; color:#1444fd; margin:14px 0; }
+.equity-asset p { color:var(--east-text-2); line-height:1.6; margin:8px 0; }
+.equity-asset a { color:#1444fd; } .equity-asset summary { cursor:pointer; }
+.equity-asset table { width:100%; text-align:left; font-size:11px; line-height:1.8; }
+@media(max-width:1000px) { .equity-dashboard { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .equity-dashboard { grid-template-columns:1fr; } }
