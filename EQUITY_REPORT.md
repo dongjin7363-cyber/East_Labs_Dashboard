@@ -42,6 +42,8 @@ Fields (all required):
 
 Do not include a Macro & Economic Conditions section or duplicate the macro report’s economic indicator tables. Focus on equities and cross-asset implications.
 
+Do not append an EAST / GLOBAL MARKET RESEARCH / WEEKLY EDITION footer; the website provides its own navigation footer.
+
 Exact headings:
 
 1. `## Regime`: regime classification, evidence and what would invalidate it.
