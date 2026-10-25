@@ -38,8 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Market Screening", href: "/market/screening", icon: "screening" },
   { type: "link", label: "수출입 데이터", href: "/market/export", icon: "export" },
   { type: "link", label: "Super Stock", href: "/market/super-stock", icon: "screening" },
-  { type: "link", label: "US Weekly Macro", href: "/weekly-report", icon: "memo" },
-  { type: "link", label: "Weekly Equity Report", href: "/equity-report", icon: "memo" },
+  { type: "link", label: "Weekly Report", href: "/weekly-report", icon: "memo" },
   { type: "sep" },
   { type: "link", label: "Membership", href: "/membership", icon: "membership" },
 ];
@@ -163,6 +162,7 @@ export function Sidebar() {
   const isActive = useMemo(
     () => (href: string) =>
       pathname === href ||
+      (href === "/weekly-report" && (pathname === "/equity-report" || pathname?.startsWith("/equity-report/"))) ||
       (href !== "/" && pathname?.startsWith(`${href}/`)) ||
       false,
     [pathname],

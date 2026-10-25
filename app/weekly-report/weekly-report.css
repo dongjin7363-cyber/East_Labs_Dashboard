@@ -62,3 +62,16 @@
   .weekly-body { font-size: 13px; }
   .weekly-eyebrow { gap: 10px; font-size: 10px; }
 }
+
+.weekly-categories { display:flex; gap:6px; padding:5px; margin:0 0 22px; width:fit-content; max-width:100%; box-sizing:border-box; background:#edf1f7; border:1px solid var(--east-border); border-radius:10px; }
+.weekly-categories a { display:flex; align-items:center; justify-content:center; gap:10px; padding:12px 20px; border-radius:7px; font-size:14px; font-weight:600; color:var(--east-text-2); white-space:nowrap; }
+.weekly-categories a[aria-current="page"] { background:white; color:#1444fd; box-shadow:0 1px 4px #152b4d12; }
+.weekly-categories a span { font-size:11px; min-width:20px; padding:2px 5px; border-radius:5px; text-align:center; background:#e6ebf3; box-sizing:border-box; }
+.weekly-categories a[aria-current="page"] span { background:#edf2ff; }
+.weekly-category-intro { margin:0 0 22px; }
+.weekly-category-intro h2 { font-size:17px; margin:0 0 7px; }
+.weekly-category-intro p { font-size:13px; line-height:1.7; color:var(--east-text-2); margin:0; }
+@media(max-width:600px) {
+  .weekly-categories { width:100%; gap:4px; }
+  .weekly-categories a { flex:1; padding:11px 6px; gap:6px; font-size:12px; }
+}

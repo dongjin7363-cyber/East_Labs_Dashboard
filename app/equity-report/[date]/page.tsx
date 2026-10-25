@@ -11,7 +11,7 @@ export async function generateStaticParams() {
 }
 export async function generateMetadata({ params }: { params: { date: string } }): Promise<Metadata> {
   const report = (await getEquityReports()).find((item) => item.published_date === params.date);
-  return report ? { title: `${report.headline} | EAST Weekly Equity Report`, description: report.title } : { title: "리포트를 찾을 수 없습니다 | EAST" };
+  return report ? { title: `${report.headline} | 📊 Weekly Equity · EAST`, description: report.title } : { title: "리포트를 찾을 수 없습니다 | EAST" };
 }
 
 export default async function WeeklyReportDetail({ params }: { params: { date: string } }) {
@@ -21,15 +21,15 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
   const report = reports[index];
   const previous = reports[index + 1];
   return <article className="weekly-article">
-    <Link className="weekly-back" href="/equity-report">← EAST Weekly Equity Report</Link>
+    <Link className="weekly-back" href="/weekly-report?type=equity">← 📊 Weekly Equity</Link>
     <header className="weekly-article-header">
-      <div className="weekly-eyebrow">EAST RESEARCH <span>KR · US · CROSS-ASSET</span></div>
+      <div className="weekly-eyebrow">EAST RESEARCH <span>📊 Weekly Equity</span></div>
       <time dateTime={report.published_date}>{formatReportDate(report.published_date)} · KST</time>
-      <h1>{report.headline}</h1><p>{report.title}</p>
+      <h1>{report.headline}</h1><p>📊 Weekly Equity · {report.published_date.replace(/-/g, ".")}</p>
     </header>
     <EquityBody report={report} />
     <footer className="weekly-article-footer">
-      <Link href="/equity-report">목록으로</Link>
+      <Link href="/weekly-report?type=equity">목록으로</Link>
       {previous ? <Link href={`/equity-report/${previous.published_date}`}>이전 리포트 · {previous.published_date} →</Link> : null}
     </footer>
   </article>;
