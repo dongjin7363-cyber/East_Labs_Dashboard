@@ -9,4 +9,4 @@ if (mode === "publish") {
   if (!date) throw new Error("Publication date required");
   validatePublication(report, date);
 } else if (mode) throw new Error("Unknown validation mode");
-console.log(`VALID: ${report.report_type} ${report.published_date}, ${report.dashboard.length} assets`);
+console.log(`VALID: ${report.report_type} ${report.published_date}, ${report.schema_version === 1 ? report.dashboard.length : report.performance.length} assets`);

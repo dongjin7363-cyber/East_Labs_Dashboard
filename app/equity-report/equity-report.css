@@ -10,3 +10,9 @@
 .equity-asset table { width:100%; text-align:left; font-size:11px; line-height:1.8; }
 @media(max-width:1000px) { .equity-dashboard { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:600px) { .equity-dashboard { grid-template-columns:1fr; } }
+
+.equity-performance { margin:24px 0; padding:22px; border:1px solid var(--east-border); border-radius:10px; }
+.equity-performance figcaption { font-size:14px; }
+.equity-performance p { color:var(--east-text-2); font-size:12px; line-height:1.7; }
+.equity-performance svg { width:100%; height:auto; display:block; }
+@media(max-width:600px) { .equity-performance { margin:20px 0; padding:12px; overflow-x:auto; } .equity-performance svg { min-width:560px; } }

@@ -69,3 +69,7 @@ Use connected GitHub tools. After validation read exact draft target again. On c
 `node --test tests/equity-report.cjs tests/weekly-report.cjs`, `npx tsc --noEmit`, `npm run build`.
 
 Tests use explicit synthetic fixtures, never committed to either draft or final production folders. Test early/late publication, duplicate/conflicting writes, type isolation, stale/future data, missing assets, section order, computed returns/bp, safe rendering, and chart placement. The initial rollout may correctly show an empty archive until the first real scheduled report; do not publish a fabricated demonstration report.
+
+## User-supplied historical issue
+
+The user explicitly supplied and requested publication of issue 001 (2026-10-24) on 2026-10-25. It uses schema version 2, `publication_mode: user_supplied_archive`, the actual `imported_at` timestamp and an explicit source description. It transcribes the supplied screenshots; it does not claim independent source verification, a fabricated historical generation timestamp, or fabricated daily observations. The comparison chart uses only the seven assets with explicit weekly returns in the source table (the Dow graphic has no numeric value). The full source table and narrative are preserved, with EAST branding and the Macro page's formatting. No missing Korean yields or source URLs are fabricated. Archived records can render, but `validatePublication` rejects them: the scheduled pipeline continues to require the complete version 1 source-backed contract.

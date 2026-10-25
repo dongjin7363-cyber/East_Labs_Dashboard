@@ -47,12 +47,12 @@ function comparison(actual: string, expected: string): "above" | "below" | undef
   return undefined;
 }
 
-export function ReportBody({ markdown }: { markdown: string }) {
+export function ReportBody({ markdown, initialMarketData = false }: { markdown: string; initialMarketData?: boolean }) {
   const lines = markdown.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
   let keyDataLevel: number | null = null;
-  let marketLevel: number | null = null;
+  let marketLevel: number | null = initialMarketData ? 2 : null;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line || /^[-*_]{3,}$/.test(line)) { i++; continue; }
@@ -62,7 +62,7 @@ export function ReportBody({ markdown }: { markdown: string }) {
       const level = heading[1].length;
       if (/\bKey\s+Data\b|^02 Macro & Economic Conditions$/i.test(heading[2])) keyDataLevel = level;
       else if (keyDataLevel !== null && level <= keyDataLevel) keyDataLevel = null;
-      if (/\bMarket\s+Read[\s-]*through\b/i.test(heading[2])) marketLevel = level;
+      if (/\bMarket\s+Read[\s-]*through\b|^01 Weekly Market Dashboard$|^04 Bonds Commodities & Crypto$/i.test(heading[2])) marketLevel = level;
       else if (marketLevel !== null && level <= marketLevel) marketLevel = null;
       blocks.push(<h2 key={key}>{inline(heading[2])}</h2>); i++; continue;
     }

@@ -11,11 +11,34 @@ export interface MarketSeries {
   points: { date: string; value: number }[];
   note: string;
 }
-export interface EquityReport {
+export interface ScheduledEquityReport {
   schema_version: 1; report_type: "east_weekly_equity";
   published_date: string; generated_at: string; cutoff_at: string;
   title: string; headline: string; body_markdown: string;
   dashboard: MarketSeries[];
+}
+export interface ArchivedEquityReport {
+  schema_version: 2; report_type: "east_weekly_equity";
+  publication_mode: "user_supplied_archive";
+  published_date: string; imported_at: string; source_description: string;
+  title: string; headline: string; body_markdown: string; period: string;
+  performance: { label: string; change: number }[];
+}
+export type EquityReport = ScheduledEquityReport | ArchivedEquityReport;
+
+function parseArchive(value: unknown, filename: string): ArchivedEquityReport {
+  const r = value as ArchivedEquityReport;
+  check(r.report_type === "east_weekly_equity" && r.publication_mode === "user_supplied_archive", "Invalid archive provenance");
+  check(dateValue(r.published_date) && filename === `${r.published_date}.json` && new Date(r.published_date).getUTCDay() === 6, "Invalid archive date");
+  check(timestamp(r.imported_at) && kstDate(new Date(r.imported_at)) >= r.published_date, "Invalid import timestamp");
+  for (const key of ["source_description", "title", "headline", "body_markdown", "period"] as const) check(typeof r[key] === "string" && r[key].trim(), `Missing archive ${key}`);
+  check(r.title.startsWith("EAST Weekly Equity Report"), "Wrong archive title");
+  const headings = [...r.body_markdown.matchAll(/^## (.+)$/gm)];
+  check(headings.length === SECTION_TITLES.length && headings.every((h, i) => h[1].trim() === SECTION_TITLES[i]), "Archive section order mismatch");
+  check(Array.isArray(r.performance) && r.performance.length > 0 && r.performance.length <= 20, "Missing archive chart");
+  check(new Set(r.performance.map(p => p.label)).size === r.performance.length, "Duplicate archive chart labels");
+  for (const p of r.performance) check(typeof p.label === "string" && p.label.trim() && typeof p.change === "number" && Number.isFinite(p.change), "Invalid archive chart value");
+  return r;
 }
 function check(ok: unknown, message: string): asserts ok { if (!ok) throw new Error(message); }
 function dateValue(value: unknown): value is string {
@@ -35,7 +58,8 @@ export function weeklyChange(series: MarketSeries): number {
 }
 export function parseEquityReport(value: unknown, filename: string): EquityReport {
   check(value && typeof value === "object", "Invalid equity report");
-  const r = value as EquityReport;
+  if ((value as { schema_version?: number }).schema_version === 2) return parseArchive(value, filename);
+  const r = value as ScheduledEquityReport;
   check(r.schema_version === 1 && r.report_type === "east_weekly_equity", "Wrong report type/version");
   check(dateValue(r.published_date) && filename === `${r.published_date}.json` && new Date(r.published_date).getUTCDay() === 6, "Publication must match a Saturday filename");
   check(timestamp(r.generated_at) && timestamp(r.cutoff_at), "Explicit timestamp timezones required");
@@ -86,6 +110,7 @@ export function parseEquityReport(value: unknown, filename: string): EquityRepor
 }
 export function validatePublication(value: unknown, date: string, now = new Date()): EquityReport {
   const r = parseEquityReport(value, `${date}.json`);
+  check(r.schema_version === 1, "Scheduled publication cannot import an archive");
   check(kstDate(now) === date && now.getTime() >= Date.parse(`${date}T07:00:00+09:00`), "Publish only on the same Saturday at/after 07:00 KST");
   check(Date.parse(r.generated_at) <= now.getTime(), "Future draft");
   return r;

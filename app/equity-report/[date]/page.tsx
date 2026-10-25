@@ -25,7 +25,7 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
     <header className="weekly-article-header">
       <div className="weekly-eyebrow">EAST RESEARCH <span>📊 Weekly Equity</span></div>
       <time dateTime={report.published_date}>{formatReportDate(report.published_date)} · KST</time>
-      <h1>{report.headline}</h1><p>📊 Weekly Equity · {report.published_date.replace(/-/g, ".")}</p>
+      <h1>{report.headline}</h1>{report.schema_version === 2 ? <p>Global Weekly Market | {report.period} · ISSUE 001</p> : null}<p>📊 Weekly Equity · {report.published_date.replace(/-/g, ".")}</p>
     </header>
     <EquityBody report={report} />
     <footer className="weekly-article-footer">

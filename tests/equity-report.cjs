@@ -60,3 +60,19 @@ test('equity loader is isolated from macro and drafts; real publications validat
 });
 // Fixture generation is opt-in and writes only to the caller's temporary path.
 if (process.env.EQUITY_TEST_FIXTURE) fs.writeFileSync(process.env.EQUITY_TEST_FIXTURE, JSON.stringify(fixture(), null, 2));
+
+test('user-supplied historical issue retains provenance and cannot enter scheduled publication', () => {
+  const archive = JSON.parse(fs.readFileSync('data/equity-reports/2026-10-24.json', 'utf8'));
+  assert.equal(parseEquityReport(archive, '2026-10-24.json').schema_version, 2);
+  assert.throws(() => model.validatePublication(archive, '2026-10-24', new Date('2026-10-24T07:00:00+09:00')), /cannot import an archive/);
+  assert.throws(() => parseEquityReport({...archive, source_description: ''}, '2026-10-24.json'));
+  assert.throws(() => parseEquityReport({...archive, imported_at: '2026-10-23T06:00:00+09:00'}, '2026-10-24.json'));
+  const html = renderToStaticMarkup(React.createElement(EquityBody, {report: archive}));
+  assert.match(html, /EAST \/ GLOBAL MARKET RESEARCH/);
+  assert.doesNotMatch(html, /FELLAS|SYNTHETIC/);
+  assert.match(html, /7,623.68/);
+  assert.match(html, /<th scope="row">KOSPI<\/th>/);
+  assert.match(html, /weekly-market-negative">-5bp/);
+  assert.match(html, /<td class="weekly-market-value">4.69%<\/td>/);
+  assert.equal(archive.performance.length, 7);
+});
