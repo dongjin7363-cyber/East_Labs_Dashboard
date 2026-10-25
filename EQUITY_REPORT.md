@@ -6,7 +6,7 @@ Separate from US Weekly Macro: never modify its schedule, instructions, drafts o
 
 - Asia/Seoul Saturday 06:00: research and generate an equity draft. First scheduled run: 2026-10-31.
 - Saturday 07:00: validate and publish that exact completed draft. The time is the start of publication; Git/Vercel build latency can delay website availability.
-- Scheduler: two Codex app heartbeat automations in the implementing chat. These run locally, so the computer must be on and the app running. They are **not** the existing macro ChatGPT Cloud tasks. Do not claim cloud execution. Durable data lives in GitHub, not chat memory.
+- Scheduler: two ChatGPT Cloud scheduled tasks, verified in the web Scheduled view on 2026-10-25. They run without the user’s computer or app. Generation ID `6ade168103dc81908acccd0d8219d6f4` (Saturday 06:00 Asia/Seoul); publication ID `6ade17095ec88190b62dfeeeadaf66a8` (Saturday 07:00 Asia/Seoul). The former local Codex automations `east-weekly-equity-report` and `east-weekly-equity-report-2` are paused to prevent duplicate execution. Durable data lives in GitHub, not chat memory. Existing Macro cloud schedules remain separate and unchanged.
 - Repository `dongjin7363-cyber/East_Labs_Dashboard`, branch `main`.
 - Draft: `data/equity-report-drafts/YYYY-MM-DD.json`.
 - Published: `data/equity-reports/YYYY-MM-DD.json`.
@@ -26,7 +26,7 @@ Minimum asset IDs: `kospi`, `kosdaq`, `sp500`, `nasdaq`, `us2y`, `us10y`, `kr3y`
 
 ## JSON contract
 
-UTF-8 JSON; serializer required. No raw HTML, secrets, execution notes, unresolved tool citation markers or synthetic data. Validate with `npx tsx scripts/validate-equity-report.ts <temporary-directory>/YYYY-MM-DD.json` in a checkout of current main before writing. Keep temporary files outside published data directories. Failure means no draft commit.
+UTF-8 JSON; serializer required. No raw HTML, secrets, execution notes, unresolved tool citation markers or synthetic data. Validate with `npx tsx scripts/validate-equity-report.ts <temporary-directory>/YYYY-MM-DD.json` in a temporary cloud execution environment using current main before writing. Never require a user Mac path or local Codex process. If cloud code execution, dependencies or connected tools are unavailable, report the failed stage and do not publish Keep temporary files outside published data directories. Failure means no draft commit.
 
 Fields (all required):
 
@@ -90,3 +90,7 @@ Use this saved contract on every run, rather than relying on conversation memory
 - Major sections have a centered 80%-width, 1px #e7eaf0 separator, with 10% side margins and 48px above / 40px below. The article title separator stays full width. Do not add Markdown separators or duplicate lines between subheadings.
 - Omit GLOBAL CROSS-ASSET PERFORMANCE between chart and table. Omit EAST / GLOBAL MARKET RESEARCH · WEEKLY EDITION 001 at the end.
 - No Macro & Economic Conditions section in Equity. Keep the market dashboard, earnings, cross-assets and next-week watchlist.
+
+## Cloud migration verification
+
+Both cloud tasks were saved for Saturday 06:00 / 07:00 GMT+9, first run 2026-10-31; old local schedules paused. Configuration and repository validation have been checked. A live cloud research-to-publication run has not yet completed; do not represent configuration checks as an end-to-end scheduled execution test. Generation and publication must each have connected GitHub and required source/Vercel tools available at runtime. On missing access or failed validation, report clearly and leave existing publications intact.
