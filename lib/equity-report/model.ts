@@ -16,6 +16,9 @@ export interface ScheduledEquityReport {
   published_date: string; generated_at: string; cutoff_at: string;
   title: string; headline: string; body_markdown: string;
   dashboard: MarketSeries[];
+  publication_mode?: "manual_recovery";
+  recovery_authorized_at?: string;
+  recovery_reason?: string;
 }
 export interface ArchivedEquityReport {
   schema_version: 2; report_type: "east_weekly_equity";
@@ -65,7 +68,16 @@ export function parseEquityReport(value: unknown, filename: string): EquityRepor
   check(timestamp(r.generated_at) && timestamp(r.cutoff_at), "Explicit timestamp timezones required");
   const start = Date.parse(`${r.published_date}T06:00:00+09:00`);
   const deadline = Date.parse(`${r.published_date}T07:00:00+09:00`);
-  check(Date.parse(r.generated_at) >= start && Date.parse(r.generated_at) < deadline, "Generate between 06:00 and 07:00 KST");
+  check(r.publication_mode === undefined || r.publication_mode === "manual_recovery", "Unknown publication mode");
+  if (r.publication_mode === "manual_recovery") {
+    check(timestamp(r.recovery_authorized_at) && kstDate(new Date(r.recovery_authorized_at)) === r.published_date, "Manual recovery needs same-day authorization");
+    check(typeof r.recovery_reason === "string" && r.recovery_reason.trim(), "Manual recovery reason required");
+    check(Date.parse(r.generated_at) >= deadline && kstDate(new Date(r.generated_at)) === r.published_date, "Manual recovery must use actual same-day late generation time");
+    check(Date.parse(r.recovery_authorized_at) <= Date.parse(r.generated_at), "Recovery authorization cannot follow generation");
+  } else {
+    check(r.recovery_authorized_at === undefined && r.recovery_reason === undefined, "Recovery metadata requires manual mode");
+    check(Date.parse(r.generated_at) >= start && Date.parse(r.generated_at) < deadline, "Generate between 06:00 and 07:00 KST");
+  }
   check(Date.parse(r.cutoff_at) <= Date.parse(r.generated_at) && Date.parse(r.cutoff_at) >= start - 3600000, "Invalid report cutoff");
   for (const key of ["title", "headline", "body_markdown"] as const) check(typeof r[key] === "string" && r[key].trim(), `Missing ${key}`);
   check(r.title.startsWith("EAST Weekly Equity Report"), "Wrong title");
@@ -109,6 +121,7 @@ export function parseEquityReport(value: unknown, filename: string): EquityRepor
 export function validatePublication(value: unknown, date: string, now = new Date()): EquityReport {
   const r = parseEquityReport(value, `${date}.json`);
   check(r.schema_version === 1, "Scheduled publication cannot import an archive");
+  check(r.publication_mode === undefined, "Scheduled publication cannot publish manual recovery");
   check(kstDate(now) === date && now.getTime() >= Date.parse(`${date}T07:00:00+09:00`), "Publish only on the same Saturday at/after 07:00 KST");
   check(Date.parse(r.generated_at) <= now.getTime(), "Future draft");
   return r;
