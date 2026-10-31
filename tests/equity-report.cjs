@@ -76,3 +76,22 @@ test('user-supplied historical issue retains provenance and cannot enter schedul
   assert.match(html, /<td class="weekly-market-value">4.69%<\/td>/);
   assert.equal(archive.performance.length, 7);
 });
+
+test('explicit late recovery renders with actual timestamp but cannot enter scheduled publication', () => {
+  const r = {...fixture(), publication_mode: 'manual_recovery', generated_at:'2026-10-24T19:30:00+09:00', recovery_authorized_at:'2026-10-24T19:00:00+09:00', recovery_reason:'User explicitly requested recovery of missing issue.'};
+  assert.equal(parseEquityReport(r,'2026-10-24.json').generated_at, r.generated_at);
+  assert.throws(() => model.validatePublication(r,'2026-10-24',new Date('2026-10-24T20:00:00+09:00')), /cannot publish manual recovery/);
+  assert.equal((renderToStaticMarkup(React.createElement(EquityBody,{report:r})).match(/<svg /g)||[]).length,10);
+  for (const mutation of [
+    x => delete x.recovery_authorized_at, x => x.recovery_reason='',
+    x => x.recovery_authorized_at='2026-10-25T19:00:00+09:00',
+    x => x.recovery_authorized_at='2026-10-24T20:00:00+09:00',
+    x => x.generated_at='2026-10-25T06:00:00+09:00',
+    x => x.generated_at='2026-10-24T06:30:00+09:00',
+    x => x.publication_mode='unknown', x => x.dashboard=[],
+    x => x.dashboard[0].as_of='2026-10-25T06:00:00+09:00',
+  ]) {
+    const invalid=structuredClone(r); mutation(invalid);
+    assert.throws(()=>parseEquityReport(invalid,'2026-10-24.json'));
+  }
+});
