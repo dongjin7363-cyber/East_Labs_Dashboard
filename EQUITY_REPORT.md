@@ -26,7 +26,7 @@ Minimum asset IDs: `kospi`, `kosdaq`, `sp500`, `nasdaq`, `us2y`, `us10y`, `kr3y`
 
 ## JSON contract
 
-UTF-8 JSON; serializer required. No raw HTML, secrets, execution notes, unresolved tool citation markers or synthetic data. Validate with `npx tsx scripts/validate-equity-report.ts <temporary-directory>/YYYY-MM-DD.json` in a temporary cloud execution environment using current main before writing. Never require a user Mac path or local Codex process. If cloud code execution, dependencies or connected tools are unavailable, report the failed stage and do not publish Keep temporary files outside published data directories. Failure means no draft commit.
+UTF-8 JSON. No raw HTML, secrets, execution notes, unresolved tool citation markers or synthetic data. Use the same connected-tool workflow as Macro: ChatGPT Cloud researches and checks the report, GitHub stores the draft, and a separate publication task copies the checked draft to the published path. A shell, repository checkout, npm/npx installation or local Mac process is NOT a prerequisite. If a cloud code runtime is available, use JSON serialization/parsing and the current model validator as an additional check; otherwise explicitly check every rule in `lib/equity-report/model.ts` using the checklist below. Do not claim an automated validator ran when it did not. Missing mandatory source data, invalid schema, or failed GitHub access still means no draft commit. The website continues to run the unchanged `parseEquityReport` against published records; only a matching production READY deployment plus the live page is publication success.
 
 Fields (all required):
 
@@ -62,7 +62,7 @@ Use connected GitHub tools. After validation read exact draft target again. On c
 ## Publish at 07:00
 
 1. Verify today's KST Saturday and clock >=07:00. Fetch complete same-day draft from main; no personal memory, regeneration, previous-week fallback or partial content. If missing, fail visibly and do not publish.
-2. Fetch final path. Treat only confirmed 404/absence as absent. Save fetched draft temporarily outside `data/equity-reports` and run the validator in publish mode: `npx tsx scripts/validate-equity-report.ts <temp>/YYYY-MM-DD.json publish YYYY-MM-DD`. `publicationDecision` in the model defines duplicate/conflict semantics; compare parsed JSON deeply, independent of object-key ordering. Identical existing final is a no-op; conflicting final is a hard stop.
+2. Fetch final path. Treat only confirmed 404/absence as absent. Recheck the full schema and source/time checklist below against the fetched draft and current model. If available, run the model in a cloud runtime as an additional check; npm/npx or shell access is not mandatory. `validatePublication` and `publicationDecision` define the same-day/07:00 and duplicate/conflict rules; all still apply without a shell. Compare parsed JSON deeply, independent of object-key ordering, or copy and compare exact fetched draft text. Identical existing final is a no-op; conflicting final is a hard stop.
 3. On confirmed absence, GitHub `create_file` writes the exact validated draft bytes to the final path on main, commit `Publish EAST Weekly Equity YYYY-MM-DD`. Never overwrite a published file automatically. Reread after uncertainty before retrying.
 4. Find the production Vercel deployment matching the returned Git commit SHA in the exact project/team above. For a no-op, verify the deployment serving the existing report. Wait with bounded checks for READY; pending/error is not success. Do not change settings or deploy a different commit.
 5. Verify both production URL `/equity-report/YYYY-MM-DD` (headline, six main sections, at least ten required asset charts) and `/weekly-report` (latest Equity banner; legacy `/equity-report` redirects here). Report the publication URL or the specific failed stage. Quietly stop only when an already-published identical report is confirmed live and nothing changed.
@@ -94,3 +94,24 @@ Use this saved contract on every run, rather than relying on conversation memory
 ## Cloud migration verification
 
 Both cloud tasks were saved for Saturday 06:00 / 07:00 GMT+9, first run 2026-10-31; old local schedules paused. Configuration and repository validation have been checked. A live cloud research-to-publication run has not yet completed; do not represent configuration checks as an end-to-end scheduled execution test. Generation and publication must each have connected GitHub and required source/Vercel tools available at runtime. On missing access or failed validation, report clearly and leave existing publications intact.
+
+## Cloud workflow recovery — 2026-10-31
+
+The 2026-10-31 generation run ended without a draft, with empty result text and requires_user_action=true; the generation task was subsequently found disabled. The publication run correctly reported missing draft/final. Available run metadata does not expose the disabling actor or exact error. The previous mandatory npm/npx runtime was a separate architectural dependency, not a proven cause of that run's failure. Remove that runtime prerequisite; retain all model/data checks.
+
+### Required checks without a shell
+
+- Read current main contract/model, then today's exact draft and final paths. Only confirmed NOT_FOUND is absence; permission/network errors are failures.
+- schema_version=1, report_type=east_weekly_equity; filename/published_date must agree and be the actual Saturday in Asia/Seoul. Title starts EAST Weekly Equity Report. All required text fields are nonempty; no unresolved tool citation markers.
+- generated_at is the true completion time in [06:00,07:00) KST. cutoff_at is timezone-explicit, at/after 05:00 and at/before generated_at. Never fabricate timestamps to recover a late run.
+- Exactly six level-two headings in SECTION_TITLES order. Sections 01–04 each contain a nonempty level-three Market Read-through; 02–04 contain verified ordinary source links.
+- dashboard has 10–20 unique IDs including all REQUIRED_ASSETS. Every item has nonempty id/label/unit/source_name, a verified HTTP(S) source_url, note string, timezone-explicit as_of, kind and points. Four treasury IDs use kind=yield, unit=%; other assets use kind=price.
+- as_of is no later than cutoff_at and no earlier than publication-date UTC minus three days, matching the model. Every points array has 2–10 finite numeric observations, valid ascending unique dates, all before published_date; prices are positive. First date is 8–11 days before publication and last date no more than four days before publication. Non-Friday endpoints require an explanation; source timestamps and observations must be genuine. Respect the documented BTC completed-UTC-day cutoff.
+- Check the complete fetched JSON and numeric units; preserve all source links and content. GitHub round-trip read must match the authored JSON before claiming draft storage success. No incomplete chart, placeholder value, interpolated missing price, archive-schema substitution or fabricated consensus.
+- Publishing additionally requires actual KST date=published_date and clock>=07:00, with generated_at not in the future. Existing identical final is a no-op; conflicting final is never overwritten. Copy the exact draft bytes on confirmed absence. Confirm matching commit production READY and the dated report plus shared listing.
+
+### Scheduling and failure behavior
+
+Keep existing two ChatGPT Cloud tasks, explicitly Asia/Seoul Saturday 06:00 generation and 07:00 publication. If scheduler starts early, read contracts and prepare but wait until the actual boundary before timestamping the completed draft or publishing; do not declare failure solely for an early start. Never require the user's MacBook or application to be running.
+
+No scheduled execution may modify, disable or delete its own or another task. Failures are per-run: record date, stage (source collection / schema check / draft write / draft read / publication write / deployment), exact tool error, and last successful step. Always emit a readable failure result; never silently finish with empty output. Retry a confirmed transient read/network failure at most twice respecting Retry-After; re-read after any ambiguous write, never blindly duplicate it. Do not add watcher tasks or regenerate a report during publication. Platform-imposed pauses cannot be prevented by prompt instructions and must not be described as impossible.
