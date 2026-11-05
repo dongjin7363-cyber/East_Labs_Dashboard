@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 
 function getSafeNextPath(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  if (
+    !value ||
+    !value.startsWith("/") ||
+    value.startsWith("//") ||
+    /[\\\u0000-\u0020\u007f]/.test(value)
+  ) {
     return "/portfolio";
   }
 
