@@ -57,13 +57,12 @@ export function MemoEntryForm({
       </div>
       <div className="form-grid memo-form-grid">
         <label className="full">
-          Title *
+          Title (선택)
           <input
             value={titleInput}
             onChange={(event) => onTitleChange(event.target.value)}
-            placeholder="CPI 우려 지속"
+            placeholder="비워두면 본문 첫 줄이 제목으로 사용됩니다"
             disabled={!isAuthed}
-            required
           />
         </label>
         <label>

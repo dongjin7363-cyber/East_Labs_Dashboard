@@ -216,11 +216,6 @@ export default function MemoPage() {
     const title = titleInput.trim();
     const content = contentInput.trim();
 
-    if (!title) {
-      window.alert("Title을 입력해주세요.");
-      return;
-    }
-
     if (!content) {
       window.alert("Content를 입력해주세요.");
       return;
