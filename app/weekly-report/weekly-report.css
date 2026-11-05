@@ -5,7 +5,7 @@
 .weekly-feature {
   --weekly-feature-accent: #304981;
   --weekly-feature-border: rgba(112, 143, 196, .4);
-  --weekly-feature-tint: linear-gradient(135deg, rgba(157, 185, 240, .96), rgba(190, 188, 230, .88));
+  --weekly-feature-tint: linear-gradient(135deg, rgba(135, 190, 255, .96), rgba(183, 210, 255, .9));
   display: block;
   position: relative;
   background: linear-gradient(115deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, .08) 55%, rgba(255, 255, 255, .18)), var(--weekly-feature-tint);
@@ -87,5 +87,5 @@
 .weekly-feature-macro {
   --weekly-feature-accent: #2d5344;
   --weekly-feature-border: rgba(100, 153, 125, .4);
-  --weekly-feature-tint: linear-gradient(135deg, rgba(143, 201, 174, .96), rgba(184, 218, 185, .88));
+  --weekly-feature-tint: linear-gradient(135deg, rgba(119, 226, 177, .96), rgba(186, 243, 198, .9));
 }
