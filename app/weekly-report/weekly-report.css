@@ -4,11 +4,11 @@
 .weekly-eyebrow span { font-weight: 500; opacity: .65; }
 .weekly-feature {
   --weekly-feature-accent: #405c9c;
-  --weekly-feature-border: rgba(135, 155, 195, .28);
-  --weekly-feature-tint: linear-gradient(135deg, rgba(221, 232, 250, .88), rgba(238, 236, 247, .72));
+  --weekly-feature-border: rgba(112, 143, 196, .4);
+  --weekly-feature-tint: linear-gradient(135deg, rgba(157, 185, 240, .96), rgba(190, 188, 230, .88));
   display: block;
   position: relative;
-  background: linear-gradient(115deg, rgba(255, 255, 255, .65), rgba(255, 255, 255, .2) 55%, rgba(255, 255, 255, .38)), var(--weekly-feature-tint);
+  background: linear-gradient(115deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, .08) 55%, rgba(255, 255, 255, .18)), var(--weekly-feature-tint);
   border: 1px solid var(--weekly-feature-border);
   border-radius: 16px;
   color: var(--east-text-1);
@@ -86,6 +86,6 @@
 .weekly-latest { display:grid; gap:22px; }
 .weekly-feature-macro {
   --weekly-feature-accent: #396b58;
-  --weekly-feature-border: rgba(125, 165, 146, .28);
-  --weekly-feature-tint: linear-gradient(135deg, rgba(218, 237, 228, .88), rgba(237, 243, 234, .72));
+  --weekly-feature-border: rgba(100, 153, 125, .4);
+  --weekly-feature-tint: linear-gradient(135deg, rgba(143, 201, 174, .96), rgba(184, 218, 185, .88));
 }
