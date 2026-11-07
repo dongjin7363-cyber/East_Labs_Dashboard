@@ -1419,12 +1419,11 @@ export default function PortfolioPage() {
         <section className="pf-overview-card" aria-labelledby="pf-overview-title">
           <div className="pf-overview-heading">
             <h2 id="pf-overview-title" className="pf-sec-title">투자 현황</h2>
-          </div>
-          <div className="pf-overview-allocation" aria-label="자산 구성">
           <div className="pf-tab-group pf-allocation-tabs" aria-label="자산 구성 기준">
             <button
               type="button"
               className={`pf-tab${donutMode === "TICKER" ? " is-active" : ""}`}
+              aria-pressed={donutMode === "TICKER"}
               onClick={() => setDonutMode("TICKER")}
             >
               종목별
@@ -1432,6 +1431,7 @@ export default function PortfolioPage() {
             <button
               type="button"
               className={`pf-tab${donutMode === "SECTOR" ? " is-active" : ""}`}
+              aria-pressed={donutMode === "SECTOR"}
               onClick={() => setDonutMode("SECTOR")}
             >
               섹터별
@@ -1439,11 +1439,14 @@ export default function PortfolioPage() {
             <button
               type="button"
               className={`pf-tab${donutMode === "COUNTRY" ? " is-active" : ""}`}
+              aria-pressed={donutMode === "COUNTRY"}
               onClick={() => setDonutMode("COUNTRY")}
             >
               국가별
             </button>
           </div>
+          </div>
+          <div className="pf-overview-allocation" aria-label="자산 구성">
             <div className="pf-donut-outer">
               <DonutChart slices={donutSlices} total={donutTotal} />
               <div className="pf-donut-center">
