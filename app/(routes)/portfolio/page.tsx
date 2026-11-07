@@ -415,7 +415,7 @@ function buildDonutSlices(
   const sorted = Array.from(grouped.entries())
     .map(([key, amountKrw]) => ({
       key,
-      label: labelMap.get(key) ?? key,
+      label: labelMap.get(key) ?? ({ Deposit: "예수금", Cash: "현금", KR: "한국", US: "미국" } as Record<string, string>)[key] ?? key,
       amountKrw,
       // Mixed-market sectors retain a single KRW total.
       amountUsdCents: domesticGroups.has(key) || key === "Deposit" || key === "Cash"
@@ -445,28 +445,27 @@ function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) 
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const hoveredSlice = slices.find(slice => slice.key === hoveredKey);
   const tooltipWidth = Math.min(330, Math.max(90, (hoveredSlice?.label.length ?? 0) * 10 + 28));
-  const cx = 180, cy = 140, radius = 88;
+  const cx = 180, cy = 120, radius = 78;
   let cumulative = 0;
   const arcs = total > 0 ? slices.map((slice) => {
     const fraction = slice.amountKrw / total;
     const span = fraction * 2 * Math.PI;
     const start = cumulative / total * 2 * Math.PI - Math.PI / 2;
     cumulative += slice.amountKrw;
-    const stroke = Math.min(20, span * radius * .65);
+    const stroke = Math.min(16, span * radius * .65);
     const inset = (stroke / radius + Math.min(.07, span * .15)) / 2;
     const from = start + inset, to = start + span - inset;
     const mid = start + span / 2;
     const point = (angle: number, r: number) => [cx + Math.cos(angle) * r, cy + Math.sin(angle) * r];
     const [x1, y1] = point(from, radius), [x2, y2] = point(to, radius);
-    const [lx, ly] = point(mid, radius + 16);
+    const [lx, ly] = point(mid, radius + 24);
     const right = Math.cos(mid) >= 0;
     return { ...slice, fraction, stroke, lx, ly, right,
       d: `M ${x1} ${y1} A ${radius} ${radius} 0 ${to - from > Math.PI ? 1 : 0} 1 ${x2} ${y2}` };
   }) : [];
   return (
-    <svg className="pf-donut-svg" viewBox="0 0 360 280" role="img" aria-label="자산 구성 비중">
-      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--east-surface-2)" strokeWidth="2" />
-      <circle cx={cx} cy={cy} r="65" fill="white" stroke="var(--east-border)" />
+    <svg className="pf-donut-svg" viewBox="0 0 360 240" role="img" aria-label="자산 구성 비중">
+      {arcs.length === 0 ? <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--east-surface-2)" strokeWidth="16" /> : null}
       {arcs.map(arc => (
         <g key={arc.key}>
           <path d={arc.d} fill="none" stroke={arc.color} strokeWidth={arc.stroke} strokeLinecap="round"
@@ -477,10 +476,8 @@ function DonutChart({ slices, total }: { slices: DonutSlice[]; total: number }) 
           />
           {arc.fraction >= .08 && slices.length <= 6 ? (
             <g className="pf-donut-callout">
-              <path d={`M ${arc.lx} ${arc.ly} L ${arc.right ? 294 : 66} ${arc.ly + (arc.ly < cy ? -14 : 14)} H ${arc.right ? 346 : 14}`}
-                stroke={arc.color} strokeOpacity=".5" fill="none" />
-              <text x={arc.right ? 346 : 14} y={arc.ly + (arc.ly < cy ? -20 : 8)}
-                textAnchor={arc.right ? "end" : "start"} fill={arc.color}>
+              <text x={arc.lx + (arc.right ? 8 : -8)} y={arc.ly + 4}
+                textAnchor={arc.right ? "start" : "end"} fill={arc.color}>
                 {(arc.fraction * 100).toFixed(1)}%
               </text>
             </g>
@@ -556,7 +553,6 @@ export default function PortfolioPage() {
   const [market, setMarket] = useState<"ALL" | Market>("ALL");
   const [search, setSearch] = useState("");
   const [donutMode, setDonutMode] = useState<DonutMode>("TICKER");
-  const [overviewExpanded, setOverviewExpanded] = useState(false);
   const [sortState, setSortState] = useState<SortState<PortfolioSortKey>>({
     key: null,
     mode: null,
@@ -1482,13 +1478,29 @@ export default function PortfolioPage() {
         <section className="pf-overview-card" aria-labelledby="pf-overview-title">
           <div className="pf-overview-heading">
             <h2 id="pf-overview-title" className="pf-sec-title">투자 현황</h2>
-            <button type="button" className="pf-detail-toggle" aria-expanded={overviewExpanded}
-              aria-controls="pf-overview-extra" onClick={() => setOverviewExpanded(value => !value)}>
-              <span aria-hidden="true">{overviewExpanded ? "▾" : "▸"}</span> Detail
-            </button>
+          </div>
+          <div className="pf-overview-allocation" aria-label="자산 구성">
+            <div className="pf-donut-outer">
+              <DonutChart slices={donutSlices} total={donutTotal} />
+              <div className="pf-donut-center">
+                <div className="pf-donut-center-val"><CompactKrw amount={totalAssetKrw} /></div>
+                <div className="pf-donut-center-sub">총 자산</div>
+              </div>
+            </div>
+            {donutSlices.length === 0 ? <div className="pf-empty-chart">데이터가 없습니다.</div> : (
+              <ul className="pf-allocation-legend" aria-label="자산별 비중">
+                {donutSlices.map(slice => (
+                  <li key={slice.key} title={slice.label}>
+                    <span className="pf-allocation-dot" style={{ background: slice.color }} aria-hidden="true" />
+                    <span className="pf-allocation-label">{slice.label}</span>
+                    <span className="pf-allocation-percent">{donutTotal > 0 ? ((slice.amountKrw / donutTotal) * 100).toFixed(1) : "0.0"}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         <div className="pf-minimal-assets">
-          {/* Compact accounts and inline cash editors. */}
+          {/* Compact accounts and modal cash editors. */}
           <div className="pf-nav-stack">
             <div className="pf-account-banner">
               <section className="pf-country-account" aria-label="미국 계좌" data-empty={usHoldingsMarketValueCents === 0 && usdHoldingsPnlCents === 0}>
@@ -1525,7 +1537,6 @@ export default function PortfolioPage() {
           </div>
 
         </div>
-          <div id="pf-overview-extra" className="pf-overview-extra" hidden={!overviewExpanded}>
             <div className="pf-overview-meta">
           {fxSummaryText.split("\n").map((line, idx) => (
             <div key={idx}>{line}</div>
@@ -1556,45 +1567,6 @@ export default function PortfolioPage() {
             </div>
           ) : null}
             </div>
-          <div className="pf-chart-card">
-            <div className="pf-donut-outer">
-              <DonutChart slices={donutSlices} total={donutTotal} />
-              <div className="pf-donut-center">
-                <div className="pf-donut-center-val"><CompactKrw amount={totalAssetKrw} /></div>
-                <div className="pf-donut-center-sub">총 자산</div>
-              </div>
-            </div>
-            {donutSlices.length === 0 ? (
-              <div className="pf-empty-chart">데이터가 없습니다.</div>
-            ) : (
-              <div className="pf-legend">
-                {donutSlices.map((slice) => (
-                  <div key={slice.key} className="pf-legend-item">
-                    <div className="pf-ldot" style={{ background: slice.color }} />
-                    <span className="pf-lname" title={slice.label}>
-                      {slice.label}
-                    </span>
-                    <span className="pf-lval">
-                      {slice.amountUsdCents !== undefined ? (
-                        <span className="pf-dual-money">
-                          <Money currency="USD" amountInt={slice.amountUsdCents} />
-                          <span className="pf-krw-equivalent" title="현재 적용 환율 기준 원화 환산액">
-                            ≈ <Money currency="KRW" amountInt={slice.amountKrw} />
-                          </span>
-                        </span>
-                      ) : <Money currency="KRW" amountInt={slice.amountKrw} />}
-                    </span>
-                    <span className="pf-lpct">
-                      {donutTotal > 0
-                        ? `${((slice.amountKrw / donutTotal) * 100).toFixed(2)}%`
-                        : "0.00%"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          </div>
         </section>
 
         {/* Holdings bar */}
