@@ -858,7 +858,7 @@ button:disabled { cursor: not-allowed; }
 .perf-market-toggle { display: flex; min-width: 0; border: 1px solid var(--east-border-md); border-radius: 9px; overflow: hidden; }
 .perf-market-toggle button { flex: 1; min-width: 0; padding: 6px; border: 0; background: transparent; color: var(--east-text-2); font: inherit; font-size: 12px; cursor: pointer; }
 .perf-market-toggle button.is-active { color: var(--east-cobalt); background: var(--east-cobalt-bg); font-weight: 600; }
-.perf-summary-primary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.perf-summary-primary { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 14px; }
 .perf-summary-primary > div { min-width: 0; }
 .perf-summary-primary > div + div { padding-left: 16px; border-left: 1px solid var(--east-border); }
 .perf-summary-label { display: block; margin-bottom: 6px; color: var(--east-text-2); font-size: 11px; }
@@ -872,7 +872,7 @@ button:disabled { cursor: not-allowed; }
 .perf-page .is-neg { color: var(--east-neg); }
 .perf-analysis-panel { min-width: 0; padding: var(--east-panel-padding); border: 1px solid var(--east-border); border-radius: var(--east-panel-radius); background: #fff; }
 .perf-analysis-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-.perf-analysis-tabs { display: flex; flex: 1; min-width: 0; gap: 2px; padding: 4px; border-radius: 11px; background: #f1f3f7; }
+.perf-analysis-tabs { display: flex; flex: 1 1 220px; min-width: 0; gap: 2px; padding: 4px; border-radius: 11px; background: #f1f3f7; }
 .perf-analysis-tabs button { flex: 1; min-width: 0; padding: 8px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--east-text-2); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .perf-analysis-tabs button.is-active { color: var(--east-cobalt); background: #fff; font-weight: 650; box-shadow: 0 1px 4px #1e293b0d; }
 .perf-analysis-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
