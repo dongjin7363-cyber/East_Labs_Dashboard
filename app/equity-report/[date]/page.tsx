@@ -26,6 +26,7 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
       <div className="weekly-eyebrow">EAST RESEARCH <span>📊 Weekly Equity</span></div>
       <time dateTime={report.published_date}>{formatReportDate(report.published_date)} · KST</time>
       <h1>{report.headline}</h1>{report.schema_version === 2 ? <p>Global Weekly Market | {report.period} · ISSUE 001</p> : null}<p>📊 Weekly Equity · {report.published_date.replace(/-/g, ".")}</p>
+      {report.schema_version === 1 && report.published_at ? <p>게시 기록 · <time dateTime={report.published_at}>{new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "medium" }).format(new Date(report.published_at))} KST</time> (게시 저장 시작, 화면 반영은 배포 완료 후)</p> : null}
     </header>
     <EquityBody report={report} />
     <footer className="weekly-article-footer">
@@ -34,3 +35,4 @@ export default async function WeeklyReportDetail({ params }: { params: { date: s
     </footer>
   </article>;
 }
+

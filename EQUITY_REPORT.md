@@ -119,3 +119,9 @@ No scheduled execution may modify, disable or delete its own or another task. Fa
 ## User-authorized same-day recovery
 
 When the user explicitly requests a missing issue to be researched and published after 07:00 on the same Saturday, schema 1 may use publication_mode=manual_recovery, recovery_authorized_at (actual same-day authorization-processing timestamp), and recovery_reason. generated_at must be the true completion time at/after 07:00 on that Saturday. All source, coverage, heading, freshness and numeric checks remain unchanged. The normal scheduled validator rejects this mode; only the directly authorized recovery may write it. This is not permission for scheduled jobs to create late reports or change timestamps. On 2026-10-31 the user explicitly requested today's missing Equity report to be executed and published.
+
+
+
+## Standing verified recovery — 2026-11-07
+
+Read [WEEKLY_RECOVERY.md](./WEEKLY_RECOVERY.md) before each generation or publication. Its explicit standing authorization, source correction, actual-clock gates, optional published_at, automatic weekend recovery and duplicate-safe write protocol supersede conflicting earlier recovery/timing instructions above. Original research, chart, source and presentation requirements remain unchanged. Existing publishers provide hourly weekend recovery; no extra tasks or settings changes during execution.

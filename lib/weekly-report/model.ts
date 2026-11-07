@@ -1,5 +1,6 @@
 export interface WeeklyReport {
   published_date: string;
+  published_at?: string;
   title: string;
   headline: string;
   body_markdown: string;
@@ -21,8 +22,15 @@ export function parseWeeklyReport(value: unknown, filename: string): WeeklyRepor
   if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || ![0, 6].includes(parsed.getUTCDay())) {
     throw new Error(`Report publication date must be a valid weekend date: ${filename}`);
   }
+  if (report.published_at !== undefined) {
+    const written = report.published_at;
+    const start = Date.parse(`${date}T07:00:00+09:00`);
+    const end = Date.parse(`${date}T00:00:00+09:00`) + 2 * 86400000;
+    if (typeof written !== "string" || !/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(written) || !Number.isFinite(Date.parse(written)) || Date.parse(written) < start || Date.parse(written) >= end) throw new Error(`Invalid actual publication write timestamp: ${filename}`);
+  }
   return {
     published_date: date,
+    ...(report.published_at !== undefined ? { published_at: report.published_at as string } : {}),
     title: report.title as string,
     headline: report.headline as string,
     body_markdown: report.body_markdown as string,
@@ -32,3 +40,4 @@ export function parseWeeklyReport(value: unknown, filename: string): WeeklyRepor
 export function formatReportDate(date: string): string {
   return `${date.replace(/-/g, ".")} · ${new Date(`${date}T00:00:00Z`).getUTCDay() === 6 ? "토요일" : "일요일"}`;
 }
+

@@ -43,3 +43,9 @@ The navigation link directly below Super Stock opens `/weekly-report`. The newes
 Keep the website section order fixed: Regime → Weekly Takeaway → Key Data → Narrative Change → Fed / Rates → Market Read-through → Next Week. Preserve the confirmed formatting rules above and do not add production notes to the article.
 
 Validation: `node --test tests/weekly-report.cjs`, `npx tsc --noEmit`, `npm run build`.
+
+
+
+## Standing verified recovery — 2026-11-07
+
+Read [WEEKLY_RECOVERY.md](./WEEKLY_RECOVERY.md) before each generation or publication. Its explicit standing authorization, source correction, actual-clock gates, optional published_at, automatic weekend recovery and duplicate-safe write protocol supersede conflicting earlier recovery/timing instructions above. Original research, chart, source and presentation requirements remain unchanged. Existing publishers provide hourly weekend recovery; no extra tasks or settings changes during execution.

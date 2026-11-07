@@ -39,7 +39,8 @@ test('publication is date gated, duplicate safe and conflict rejecting', () => {
   assert.equal(publicationDecision(r, reordered, r.published_date, now), 'unchanged');
   assert.throws(() => publicationDecision(r, {...r, headline: 'Conflict'}, r.published_date, now));
   assert.throws(() => publicationDecision(r, null, r.published_date, new Date('2026-10-24T06:59:59+09:00')));
-  assert.throws(() => publicationDecision(r, null, r.published_date, new Date('2026-10-25T07:00:00+09:00')));
+  assert.equal(publicationDecision(r, null, r.published_date, new Date('2026-10-25T07:00:00+09:00')), 'create');
+  assert.throws(() => publicationDecision(r, null, r.published_date, new Date('2026-10-26T00:00:00+09:00')));
 });
 test('article renders all charts between 01 and 02 with safe sources and accessible observations', () => {
   const r = fixture();
@@ -95,3 +96,4 @@ test('explicit late recovery renders with actual timestamp but cannot enter sche
     assert.throws(()=>parseEquityReport(invalid,'2026-10-24.json'));
   }
 });
+
