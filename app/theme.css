@@ -189,16 +189,15 @@ button:disabled { cursor: not-allowed; }
   .east-shell { min-height: calc(100dvh - 16px); border-radius: 18px; flex-direction: column; }
   .east-main { border-radius: 16px; }
   .east-sidebar, .east-sidebar[data-collapsed="true"] { position: relative; top: 0; width: 100%; height: auto; border-right: 0; }
-  .east-logo-wrap, .east-sidebar[data-collapsed="true"] .east-logo-wrap { padding: 16px 18px; justify-content: flex-start; gap: 4px; }
+  .east-logo-wrap, .east-sidebar[data-collapsed="true"] .east-logo-wrap { padding: 10px 18px; min-height: 64px; justify-content: flex-start; gap: 4px; }
   .east-sidebar-toggle, .east-sidebar[data-collapsed="true"] .east-logo-compact, .east-sidebar[data-collapsed="true"] .east-account-expand { display: none; }
   .east-sidebar[data-collapsed="true"] .east-logo-full { display: inline; }
   .east-sidebar[data-collapsed="true"] .east-nav-link span, .east-sidebar[data-collapsed="true"] .east-user-block, .east-sidebar[data-collapsed="true"] .east-auth-stack { display: flex; }
   .east-logo-sub { display: none; }
-  .east-mobile-toggle { display: inline-flex; width: auto; padding: 0 12px; }
+  .east-mobile-toggle { display: inline-flex; width: 44px; height: 44px; padding: 10px; color: #000; flex-shrink: 0; }
+  .east-mobile-toggle:hover { color: #000; }
   .east-nav, .east-sidebar[data-collapsed="true"] .east-nav { display: none; padding: 4px 12px 12px; }
   .east-sidebar-footer { display: none; }
-  .east-sidebar[data-mobile-open="true"] .east-nav { display: flex; flex-direction: column; gap: 3px; }
-  .east-sidebar[data-mobile-open="true"] .east-sidebar-footer { display: flex; }
   .east-sidebar[data-collapsed="true"] .east-nav-link { justify-content: flex-start; }
   .east-nav-sep { margin: 7px 10px; }
   .pf-page-header, .perf-page-header { padding: 22px 18px; gap: 16px; }
@@ -570,3 +569,39 @@ button:disabled { cursor: not-allowed; }
 .perf-month-axis > span { position: absolute; right: 8px; transform: translateY(-50%); white-space: nowrap; }
 .perf-month-chart-layout .perf-monthly-scroll { min-width: 0; padding: 0; }
 .perf-month-chart-layout .perf-monthly-bars { min-width: 570px; }
+
+/* Mobile navigation overlays the page without changing the shell's height. */
+.east-top-sheet {
+  position: fixed;
+  inset: max(8px, env(safe-area-inset-top)) 8px auto;
+  width: calc(100% - 16px);
+  max-width: none;
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top));
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .95);
+  border-radius: 18px 18px 24px 24px;
+  background: linear-gradient(155deg, #f4fafc, #f5f4fa 55%, #fcfcfe);
+  color: var(--east-text-1);
+  box-shadow: 0 16px 50px rgba(29, 39, 57, .18);
+}
+.east-top-sheet[open] { display: flex; flex-direction: column; animation: east-sheet-enter .24s cubic-bezier(.2, .8, .2, 1); }
+.east-top-sheet::backdrop { background: rgba(25, 32, 44, .36); animation: east-scrim-enter .24s ease; }
+.east-top-sheet-header { display: flex; align-items: center; flex-shrink: 0; min-height: 64px; padding: 10px 18px; }
+.east-top-sheet .east-mobile-toggle { display: inline-flex; width: 44px; height: 44px; color: #000; }
+.east-top-sheet .east-nav { display: flex; flex-direction: column; flex-wrap: nowrap; flex: 0 1 auto; min-height: 0; padding: 4px 12px 8px; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }
+.east-top-sheet .east-nav-link { min-height: 44px; flex-shrink: 0; padding: 10px 12px; font-size: 14px; }
+.east-top-sheet .east-nav-link.is-active { background: #e7edff; border-color: transparent; box-shadow: none; }
+.east-top-sheet .east-nav-sep { flex-shrink: 0; margin: 6px 10px; }
+.east-top-sheet .east-sidebar-footer { display: flex; flex-shrink: 0; margin: 0 14px; padding: 10px 4px; }
+.east-top-sheet .east-user-block { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+.east-top-sheet .east-user-row { min-width: 0; }
+.east-top-sheet .east-user-name { font-size: 13px; }
+.east-top-sheet .east-user-email { display: none; }
+.east-top-sheet .east-logout-btn { width: auto; min-height: 44px; flex-shrink: 0; padding: 8px; background: transparent; border-color: transparent; }
+.east-top-sheet .east-auth-stack { flex-direction: row; }
+.east-top-sheet .east-auth-stack button { min-height: 44px; padding: 8px; }
+.east-top-sheet-handle { display: block; flex-shrink: 0; width: 44px; height: 4px; margin: 0 auto 12px; border-radius: 4px; background: #bfc6d3; }
+@keyframes east-sheet-enter { from { opacity: 0; transform: translateY(calc(-100% - 8px)); } to { opacity: 1; transform: translateY(0); } }
+@keyframes east-scrim-enter { from { background: transparent; } to { background: rgba(25, 32, 44, .36); } }

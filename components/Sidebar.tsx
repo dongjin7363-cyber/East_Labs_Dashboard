@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Modal } from "@/components/Modal";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -138,6 +139,8 @@ export function Sidebar() {
     useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileDialogRef = useRef<HTMLDialogElement>(null);
+  const mobileCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem("east.sidebar.v1") === "collapsed"); }
@@ -145,6 +148,34 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 761px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => {
+    const dialog = mobileDialogRef.current;
+    if (!mobileOpen || !dialog) return;
+
+    const previousFocus = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    mobileCloseRef.current?.focus({ preventScroll: true });
+
+    return () => {
+      dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+      }
+    };
+  }, [mobileOpen]);
 
   const toggleSidebar = () => {
     const next = !collapsed;
@@ -174,6 +205,7 @@ export function Sidebar() {
 
   const handleKakaoLogin = async () => {
     if (authBusy) return;
+    setMobileOpen(false);
     setAuthBusy(true);
     try {
       const result = await signInWithKakao();
@@ -186,6 +218,7 @@ export function Sidebar() {
   };
 
   const openEmailModal = () => {
+    setMobileOpen(false);
     setEmailInput("");
     setPasswordInput("");
     setEmailError("");
@@ -229,27 +262,8 @@ export function Sidebar() {
     }
   };
 
-  return (
-    <aside className="east-sidebar" data-collapsed={collapsed} data-mobile-open={mobileOpen}>
-      <div className="east-logo-wrap">
-        <Link href="/portfolio" className="east-logo" aria-label="EAST 홈">
-          <span className="east-logo-full">EAST<span className="east-logo-dot">.</span></span>
-          <span className="east-logo-compact" aria-hidden="true">E<span className="east-logo-dot">.</span></span>
-        </Link>
-        <button type="button" className="east-sidebar-toggle" onClick={toggleSidebar}
-          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
-          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-expanded={!collapsed} aria-controls="east-navigation">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
-          </svg>
-        </button>
-        <button type="button" className="east-mobile-toggle" onClick={() => setMobileOpen(!mobileOpen)}
-          aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"} aria-expanded={mobileOpen} aria-controls="east-navigation">
-          {mobileOpen ? "닫기" : "메뉴"}
-        </button>
-        <p className="east-logo-sub">리서치 대시보드</p>
-      </div>
-      <nav id="east-navigation" className="east-nav" aria-label="주 메뉴">
+  const renderNavigation = (id: string, mobile = false) => (
+      <nav id={id} className="east-nav" aria-label="주 메뉴">
         {NAV_ITEMS.map((item, idx) => {
           if (item.type === "sep") {
             return <div className="east-nav-sep" key={`sep-${idx}`} />;
@@ -259,6 +273,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={mobile ? () => setMobileOpen(false) : undefined}
               aria-label={item.label}
               title={item.label}
               aria-current={isActive(item.href) ? "page" : undefined}
@@ -270,7 +285,9 @@ export function Sidebar() {
           );
         })}
       </nav>
+  );
 
+  const accountFooter = (
       <div className="east-sidebar-footer">
         <button type="button" className="east-account-expand" onClick={toggleSidebar} aria-label="계정 메뉴 펼치기" title="계정 메뉴 펼치기">{initials}</button>
         {loading ? (
@@ -320,6 +337,59 @@ export function Sidebar() {
           </div>
         )}
       </div>
+  );
+
+  return (
+    <aside className="east-sidebar" data-collapsed={collapsed} data-mobile-open={mobileOpen}>
+      <div className="east-logo-wrap">
+        <Link href="/portfolio" className="east-logo" aria-label="EAST 홈">
+          <span className="east-logo-full">EAST<span className="east-logo-dot">.</span></span>
+          <span className="east-logo-compact" aria-hidden="true">E<span className="east-logo-dot">.</span></span>
+        </Link>
+        <button type="button" className="east-sidebar-toggle" onClick={toggleSidebar}
+          aria-label={collapsed ? "사이드바 펼치기" : "사이드바 접기"}
+          title={collapsed ? "사이드바 펼치기" : "사이드바 접기"} aria-expanded={!collapsed} aria-controls="east-navigation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
+          </svg>
+        </button>
+        <button type="button" className="east-mobile-toggle" onClick={() => setMobileOpen(true)}
+          aria-label="메뉴 열기" aria-expanded={mobileOpen} aria-haspopup="dialog" aria-controls="east-mobile-menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M3 5h18M3 12h18M3 19h18" />
+          </svg>
+        </button>
+        <p className="east-logo-sub">리서치 대시보드</p>
+      </div>
+      {renderNavigation("east-navigation")}
+      {accountFooter}
+
+      {mobileOpen ? createPortal(
+        <dialog
+          ref={mobileDialogRef}
+          id="east-mobile-menu"
+          className="east-top-sheet"
+          aria-label="주 메뉴"
+          onCancel={(event) => { event.preventDefault(); setMobileOpen(false); }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setMobileOpen(false);
+          }}
+        >
+          <div className="east-top-sheet-header">
+            <Link href="/portfolio" className="east-logo" aria-label="EAST 홈" onClick={() => setMobileOpen(false)}>
+              EAST<span className="east-logo-dot">.</span>
+            </Link>
+            <button ref={mobileCloseRef} type="button" className="east-mobile-toggle" aria-label="메뉴 닫기" onClick={() => setMobileOpen(false)}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="m5 5 14 14M19 5 5 19" />
+              </svg>
+            </button>
+          </div>
+          {renderNavigation("east-mobile-navigation", true)}
+          {accountFooter}
+          <span className="east-top-sheet-handle" aria-hidden="true" />
+        </dialog>, document.body,
+      ) : null}
 
       <Modal
         open={emailModalOpen}
