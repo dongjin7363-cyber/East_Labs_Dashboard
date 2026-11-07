@@ -17,16 +17,16 @@ source.forEachChild(node => {
   }
   if (ts.isVariableStatement(node)) {
     for (const declaration of node.declarationList.declarations) {
-      if (['SERIES_ORDER', 'SERIES_COLOR', 'SERIES_LABEL'].includes(declaration.name.getText(source))) {
+      if (['SERIES_ORDER', 'SERIES_COLOR', 'SERIES_LABEL', 'DEFAULT_VISIBLE_BENCHMARKS'].includes(declaration.name.getText(source))) {
         pieces.push('const ' + declaration.getText(source) + ';');
       }
     }
   }
 });
-const executable = ts.transpileModule(pieces.join('\n') + '\nBenchmarkLineChart;', {
+const executable = ts.transpileModule(pieces.join('\n') + '\n({ Chart: BenchmarkLineChart, defaultVisibility: DEFAULT_VISIBLE_BENCHMARKS });', {
   compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText;
-const Chart = vm.runInNewContext(executable, {
+const { Chart, defaultVisibility } = vm.runInNewContext(executable, {
   require, exports: {}, useState: React.useState, useRef: React.useRef, useEffect: React.useEffect,
 });
 const data = [
@@ -60,4 +60,12 @@ test('missing benchmark points are not drawn as a fabricated zero return', () =>
   assert.match(html, /data-series="portfolio"/);
   assert.doesNotMatch(html, /data-series="kospi"/);
   assert.match(render([], 'kospi'), /선택한 기간의 비교 데이터가 없습니다/);
+});
+
+
+test('the default Performance comparison includes every original index with a distinct color', () => {
+  const html = renderToStaticMarkup(React.createElement(Chart, { data, visible: { portfolio: true, ...defaultVisibility } }));
+  const series = Array.from(html.matchAll(/<path[^>]*data-series="([^"]+)"[^>]*stroke="([^"]+)"/g));
+  assert.deepEqual(series.map(match => match[1]), ['portfolio', 'kospi', 'kosdaq', 'sp500', 'nasdaq']);
+  assert.equal(new Set(series.map(match => match[2])).size, 5);
 });

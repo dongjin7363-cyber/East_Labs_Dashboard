@@ -40,6 +40,7 @@ const SSR_SAFE_MONTH = "1970-01";
 
 type PeriodKey = "1m" | "3m" | "6m" | "1y" | "custom";
 type BenchmarkKey = Exclude<AssetTrendBenchmarkKey, "portfolio">;
+const DEFAULT_VISIBLE_BENCHMARKS: Record<BenchmarkKey, boolean> = { kospi: true, kosdaq: true, sp500: true, nasdaq: true };
 const PERIOD_SHORT_LABELS = { "1m": "1M", "3m": "3M", "6m": "6M", "1y": "1Y" };
 
 const PERIOD_LABELS: Record<PeriodKey, string> = {
@@ -51,11 +52,11 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 };
 
 const SERIES_COLOR: Record<AssetTrendBenchmarkKey, string> = {
-  portfolio: "#4564c7",
-  kospi: "#9ca3af",
-  sp500: "#9ca3af",
-  kosdaq: "#9ca3af",
-  nasdaq: "#9ca3af",
+  portfolio: "#111111",
+  kospi: "#ef4444",
+  sp500: "#16a34a",
+  kosdaq: "#2563eb",
+  nasdaq: "#f97316",
 };
 
 const SERIES_LABEL: Record<AssetTrendBenchmarkKey, string> = {
@@ -406,7 +407,7 @@ export default function PerformancePage() {
   const [editing, setEditing] = useState<RealizedTrade | undefined>();
   const [selected, setSelected] = useState<RealizedTrade | undefined>();
   const [chartTab, setChartTab] = useState<"benchmark" | "nav" | "trades">("benchmark");
-  const [selectedBenchmark, setSelectedBenchmark] = useState<BenchmarkKey>("kospi");
+  const [visibleBenchmarks, setVisibleBenchmarks] = useState(() => ({ ...DEFAULT_VISIBLE_BENCHMARKS }));
   const [navSelectedDate, setNavSelectedDate] = useState(SSR_SAFE_DATE);
   const [navCalendarMap, setNavCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [isRecording, setIsRecording] = useState(false);
@@ -750,9 +751,12 @@ export default function PerformancePage() {
           </button>
         </div>
         <div className="perf-summary-filters">
+          <div className="perf-month-select">
           <select aria-label="손익 조회 월" className="perf-select-sm" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} disabled={!mounted}>
             {monthOptions.map(ym => <option key={ym} value={ym}>{formatMonthLabel(ym)}</option>)}
           </select>
+            <svg className="perf-month-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </div>
           <div className="perf-market-toggle" aria-label="손익 조회 국가">
             {(["ALL", "KR", "US"] as const).map(value => <button key={value} type="button" aria-pressed={market === value} className={market === value ? "is-active" : ""} onClick={() => setMarket(value)}>{value}</button>)}
           </div>
@@ -890,9 +894,6 @@ export default function PerformancePage() {
                   {key === "custom" ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 11h18" /></svg> : PERIOD_SHORT_LABELS[key]}
                 </button>)}
               </div>
-              <select aria-label="비교 지수" className="perf-benchmark-select" value={selectedBenchmark} onChange={event => setSelectedBenchmark(event.target.value as BenchmarkKey)}>
-                {(["kospi", "kosdaq", "sp500", "nasdaq"] as const).map(key => <option key={key} value={key}>{SERIES_LABEL[key]}</option>)}
-              </select>
             </div>
               {period === "custom" ? (
                 <div className="perf-custom-range">
@@ -923,12 +924,13 @@ export default function PerformancePage() {
 
             {historyStatus && <p className="perf-history-status" role="status">{historyStatus}</p>}
             <div className="perf-benchmark-chart">
-              <BenchmarkLineChart data={benchmarkData} visible={{ portfolio: true, kospi: selectedBenchmark === "kospi", kosdaq: selectedBenchmark === "kosdaq", sp500: selectedBenchmark === "sp500", nasdaq: selectedBenchmark === "nasdaq" }} />
+              <BenchmarkLineChart data={benchmarkData} visible={{ portfolio: true, ...visibleBenchmarks }} />
             </div>
             <div className="perf-compare-legend" aria-label="선택 기간 수익률">
-              {(["portfolio", selectedBenchmark] as const).map(key => {
+              {SERIES_ORDER.map(key => {
                 const value = benchmarkSummary[key].periodReturnPct;
-                return <div key={key}><span><i style={{ background: SERIES_COLOR[key] }} />{SERIES_LABEL[key]}</span><strong className={key !== "portfolio" || value === null ? "" : value > 0 ? "is-pos" : value < 0 ? "is-neg" : ""}>{value === null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(2)}%`}</strong></div>;
+                const content = <><span><i style={{ background: SERIES_COLOR[key] }} />{SERIES_LABEL[key]}</span><strong className={key !== "portfolio" || value === null ? "" : value > 0 ? "is-pos" : value < 0 ? "is-neg" : ""}>{value === null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(2)}%`}</strong></>;
+                return key === "portfolio" ? <div key={key}>{content}</div> : <button key={key} type="button" aria-label={`${SERIES_LABEL[key]} 비교`} title={`${SERIES_LABEL[key]} 표시 / 숨기기`} aria-pressed={visibleBenchmarks[key]} className={visibleBenchmarks[key] ? "" : "is-muted"} onClick={() => setVisibleBenchmarks(previous => ({ ...previous, [key]: !previous[key] }))}>{content}</button>;
               })}
             </div>
             <p className="perf-analysis-caption">전체 자산 기준 · {periodRange.from} — {periodRange.to}</p>
