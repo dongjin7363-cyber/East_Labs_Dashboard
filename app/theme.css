@@ -3,10 +3,10 @@
   --east-font: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", sans-serif;
   --east-mono: var(--east-font);
   --east-bg: #ffffff;
-  --east-surface: #f6f7f9;
-  --east-surface-2: #edf0f5;
-  --east-border: rgba(36, 48, 66, .08);
-  --east-border-md: rgba(36, 48, 66, .15);
+  --east-surface: #f5f6f8;
+  --east-surface-2: #ebeff4;
+  --east-border: rgba(36, 48, 66, .088);
+  --east-border-md: rgba(36, 48, 66, .165);
   --east-text-1: #20252d;
   --east-text-2: #626a77;
   --east-text-3: #737c89;
@@ -27,7 +27,7 @@
 html { background: #e9edf2; }
 body {
   padding: 20px;
-  background: radial-gradient(ellipse at 0% 20%, #d9e7ec 0, transparent 48%), radial-gradient(ellipse at 85% 0, #e6e3f0 0, transparent 45%), #edf0f3;
+  background: radial-gradient(ellipse at 0% 20%, #d5e5ea 0, transparent 48%), radial-gradient(ellipse at 85% 0, #e3e0ee 0, transparent 45%), #ebeef2;
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   font-variant-numeric: tabular-nums;
@@ -46,17 +46,17 @@ button:disabled { cursor: not-allowed; }
   overflow: clip;
   border: 1px solid rgba(255,255,255,.85);
   border-radius: 24px;
-  background: rgba(255,255,255,.3);
+  background: rgba(255,255,255,.27);
   box-shadow: 0 16px 60px rgba(43,55,77,.07), 0 2px 6px rgba(43,55,77,.03);
   align-items: stretch;
 }
-.east-main { background: #fafbfc; border-radius: 22px; overflow: clip; }
+.east-main { background: #f7f9fc; border-radius: 22px; overflow: clip; }
 .east-sidebar {
   position: sticky; top: 20px; align-self: flex-start;
   height: calc(100dvh - 42px); width: 224px;
-  background: linear-gradient(165deg, rgba(239,248,250,.72), rgba(239,237,246,.47) 52%, rgba(251,252,253,.67));
-  backdrop-filter: blur(28px) saturate(130%);
-  -webkit-backdrop-filter: blur(28px) saturate(130%);
+  background: linear-gradient(165deg, rgba(237,247,249,.792), rgba(237,235,245,.517) 52%, rgba(251,252,253,.737));
+  backdrop-filter: blur(28px) saturate(143%);
+  -webkit-backdrop-filter: blur(28px) saturate(143%);
   border-right: 1px solid rgba(255,255,255,.7);
   transition: width .2s ease;
 }
@@ -104,7 +104,7 @@ button:disabled { cursor: not-allowed; }
 .market-page, .memo-page, .fin-page, .east-main > section { padding: 28px; }
 .page-shell { width: 100%; max-width: none; padding: 28px; }
 .page-header, .memo-page-header, .fin-page-header { margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
-.panel, .fin-panel, .finviz-card, .export-item-panel { background: white; border-color: var(--east-border); border-radius: 16px; box-shadow: 0 2px 4px rgba(30,44,66,.015); }
+.panel, .fin-panel, .finviz-card, .export-item-panel { background: white; border-color: var(--east-border); border-radius: 16px; box-shadow: 0 2px 4px rgba(30,44,66,.0165); }
 .panel { padding: 20px; }
 :where(.primary-button, .secondary-button, .ghost-button, .pf-btn, .perf-btn-add) { border-radius: 10px; min-height: 36px; font-size: 13px; padding: 8px 14px; }
 .primary-button { background: var(--east-cobalt); border-color: var(--east-cobalt); }
@@ -131,7 +131,7 @@ button:disabled { cursor: not-allowed; }
 .pf-sec-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
 .pf-invest-wrap { grid-template-columns: minmax(240px, .85fr) minmax(0, 1.7fr); gap: 18px; margin-bottom: 28px; }
 .pf-nav-stack { gap: 12px; }
-.pf-nav-stat-card, .pf-cash-card, .pf-chart-card { background: #fff; border-color: var(--east-border); box-shadow: 0 2px 4px rgba(30,44,66,.015); }
+.pf-nav-stat-card, .pf-cash-card, .pf-chart-card { background: #fff; border-color: var(--east-border); box-shadow: 0 2px 4px rgba(30,44,66,.0165); }
 .pf-nav-stat-card { padding: 18px 20px; }
 .pf-nsc-label { font-size: 11px; letter-spacing: .025em; }
 .pf-nsc-val { font-size: 27px; font-weight: 600; letter-spacing: -.035em; }
@@ -582,7 +582,7 @@ button:disabled { cursor: not-allowed; }
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .95);
   border-radius: 18px 18px 24px 24px;
-  background: linear-gradient(155deg, #f4fafc, #f5f4fa 55%, #fcfcfe);
+  background: linear-gradient(155deg, #f3f9fc, #f4f3f9 55%, #fcfcfe);
   color: var(--east-text-1);
   box-shadow: 0 16px 50px rgba(29, 39, 57, .18);
 }
