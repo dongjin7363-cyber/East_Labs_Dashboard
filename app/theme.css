@@ -912,6 +912,78 @@ button:disabled { cursor: not-allowed; }
 /* Show all comparison indices by default; legend buttons toggle individual lines. */
 .perf-compare-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .perf-compare-legend > div:first-child { grid-column: 1 / -1; }
+
+/* Journal: compact authoring, date-grouped feed and optional calendar. */
+.east-main .memo-page .memo-page-header { flex-direction: column; align-items: stretch; }
+.east-main .memo-page .memo-page-header h1 { font-size: clamp(21px, 7vw, 27px); }
+.memo-page .memo-page-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; width: 100%; gap: 10px; }
+.memo-page .memo-view-toggle { height: 36px; border: 0; flex-shrink: 0; padding: 4px; }
+.memo-page .memo-view-toggle button { height: 28px; min-width: 62px; font-size: 12px; border-radius: 7px; }
+.memo-page .memo-view-toggle button.is-active { color: var(--east-cobalt); background: #fff; font-weight: 600; }
+.memo-page .memo-page-actions > input { min-width: 0; width: 160px; min-height: 36px; padding: 5px 8px; border: 1px solid var(--east-border-md); border-radius: 9px; background: #fff; font: inherit; font-size: 12px; color: var(--east-text-1); }
+.memo-composer-anchor { min-width: 0; scroll-margin-top: 20px; }
+.east-main .memo-page .memo-form-wrap { margin: 0; display: flex; flex-direction: column; gap: 8px; background: #fff; box-shadow: none; }
+.memo-composer-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.memo-title-toggle, .memo-title-input { flex: 1 1 0; min-width: 0; }
+.memo-title-toggle { text-align: left; min-height: 34px; border: 0; background: transparent; padding: 4px 2px; font: inherit; font-size: 13px; color: var(--east-cobalt); cursor: pointer; }
+.memo-page .memo-title-input, .memo-composer-top select { height: 34px; min-width: 0; border: 1px solid var(--east-border-md); border-radius: 8px; background-color: #fff; padding: 5px 8px; font: inherit; font-size: 12px; color: var(--east-text-1); }
+.memo-composer-top select { flex: 0 1 185px; width: 55%; max-width: 55%; }
+.memo-page .memo-composer-content { display: block; width: 100%; min-width: 0; min-height: 64px; max-height: none; border: 1px solid var(--east-border); border-radius: 9px; background: #fff; padding: 9px 10px; font: inherit; font-size: 13px; line-height: 1.6; color: var(--east-text-1); resize: none; overflow-y: hidden; }
+.memo-page .memo-composer-content::placeholder, .memo-page .memo-title-input::placeholder { color: var(--east-text-3); }
+.memo-composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.memo-page .memo-composer-footer > input { width: 152px; max-width: calc(100% - 100px); min-width: 0; height: 34px; padding: 4px 2px; background: transparent; border: 0; border-radius: 5px; font: inherit; font-size: 12px; color: var(--east-text-2); }
+.memo-page .memo-composer-footer .primary-button { flex: 0 0 auto; min-height: 34px; padding: 5px 16px; border-radius: 9px; font-size: 12px; }
+.memo-edit-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--east-border); padding-top: 8px; }
+.memo-page .memo-edit-actions button { min-height: 30px; padding: 4px 10px; font-size: 11px; }
+.memo-page :is(input, select, textarea, button, summary):focus-visible { outline: 2px solid var(--east-cobalt); outline-offset: 2px; }
+.memo-page .memo-calendar-board { min-width: 0; border: 1px solid var(--east-border); border-radius: var(--east-panel-radius); background: #fff; padding: var(--east-panel-padding); }
+.east-main .memo-page .memo-calendar-board > :is(.memo-calendar-wrap, .memo-day-panel) { border: 0; border-radius: 0; box-shadow: none; padding: 0; margin: 0; background: transparent; }
+.east-main .memo-page .memo-calendar-board > .memo-day-panel { border-top: 1px solid var(--east-border); margin-top: 14px; padding-top: 14px; }
+.memo-page .memo-calendar-wrap { max-width: 620px; margin-inline: auto !important; }
+.memo-page .memo-calendar-caption { display: flex; align-items: center; justify-content: space-between; margin: 0 0 12px; font-family: var(--east-font); font-size: 14px; letter-spacing: 0; color: var(--east-text-1); }
+.memo-page .memo-calendar-caption button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; font-size: 24px; color: var(--east-text-2); cursor: pointer; }
+.memo-page .memo-calendar-grid { gap: 4px; }
+.memo-page .memo-calendar-weekdays { margin-bottom: 8px; }
+.memo-page .memo-calendar-day { min-height: 42px; min-width: 0; height: 44px; padding: 4px 0; border: 1px solid transparent; border-radius: 9px; background: transparent; align-items: center; justify-content: flex-start; gap: 2px; box-shadow: none; }
+.memo-page .memo-calendar-day.selected { background: var(--east-cobalt-bg); border-color: transparent; box-shadow: none; }
+.memo-page .memo-calendar-day:hover:not(.blank) { background: #f1f3f8; border-color: transparent; }
+.memo-page .memo-day-header { align-items: center; justify-content: center; }
+.memo-page .calendar-day-number { min-width: 24px; height: 24px; padding: 0; border-radius: 7px; font-family: var(--east-font); font-size: 13px; font-weight: 500; }
+.memo-page .calendar-day-number.is-today { background: transparent; color: inherit; box-shadow: inset 0 0 0 1px var(--east-cobalt-mid); }
+.memo-page .memo-day-dots { justify-content: center; gap: 3px; min-height: 5px; }
+.memo-page .memo-type-dot { width: 4px; height: 4px; }
+.east-main .memo-page .memo-day-panel { margin: 0; background: #fff; }
+.memo-list-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.memo-list-heading h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--east-text-1); }
+.memo-page .memo-type-filter-row { gap: 6px; margin-bottom: 14px; }
+.memo-page .memo-type-filter-chip { gap: 4px; min-height: 28px; padding: 4px 8px; font-size: 10px; white-space: nowrap; box-shadow: none; }
+.memo-page .memo-type-filter-chip.is-active { background: var(--east-cobalt-bg); border-color: var(--east-cobalt-mid); color: var(--east-cobalt); }
+.memo-page .memo-day-list, .memo-page .memo-feed-date-cards { display: block; }
+.memo-page .memo-feed-groups { gap: 18px; }
+.memo-page .memo-feed-date-group { gap: 4px; }
+.memo-page .memo-feed-date-meta { padding: 7px 9px; border-radius: 7px; background: #f3f5f8; font-family: var(--east-font); font-size: 11px; color: var(--east-text-2); }
+.memo-page .memo-day-card { display: block; border: 0; border-radius: 0; padding: 12px 0; margin: 0; background: transparent; box-shadow: none; cursor: auto; overflow: visible; }
+.memo-page .memo-day-card::before { display: none; }
+.memo-page .memo-day-card + .memo-day-card { border-top: 1px solid var(--east-border); }
+.memo-page .memo-day-card.is-selected { background: transparent; }
+.memo-page .memo-day-card summary { display: block; list-style: none; cursor: pointer; border-radius: 5px; }
+.memo-page .memo-day-card summary::-webkit-details-marker { display: none; }
+.memo-page .memo-day-card-meta { justify-content: space-between; flex-wrap: nowrap; margin-bottom: 5px; }
+.memo-page .memo-type-chip { color: var(--east-text-2); font-size: 10px; }
+.memo-entry-chevron { font-size: 19px; line-height: 16px; color: var(--east-text-3); }
+.memo-day-card[open] .memo-entry-chevron { transform: rotate(90deg); }
+.memo-page .memo-day-card-title { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 600; }
+.memo-entry-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 1.6; color: var(--east-text-2); }
+.memo-day-card[open] .memo-entry-preview, .memo-day-card[open] .memo-attachment-count { display: none; }
+.memo-entry-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; color: var(--east-text-2); }
+.memo-entry-detail { padding-top: 6px; display: flex; flex-direction: column; gap: 10px; }
+.memo-page .memo-entry-edit { align-self: flex-end; min-height: 30px; padding: 4px 10px; font-size: 11px; }
+.memo-attachment-count { display: block; margin-top: 5px; color: var(--east-text-3); font-size: 10px; }
+@media (max-width: 380px) {
+  .memo-page .memo-view-toggle button { min-width: 50px; padding: 0 8px; }
+  .memo-page .memo-page-actions > input { width: 138px; font-size: 11px; }
+  .memo-composer-top select { font-size: 11px; padding-left: 5px; }
+}
 .perf-compare-legend > button { border: 0; padding: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .perf-compare-legend > button.is-muted { opacity: .42; }
 .perf-month-select { position: relative; min-width: 0; }

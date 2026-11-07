@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Modal } from "@/components/Modal";
 import MemoCalendarSection from "@/components/memo/MemoCalendarSection";
 import MemoEntriesList, { type MemoTypeFilter } from "@/components/memo/MemoEntriesList";
@@ -10,10 +10,9 @@ import {
   DEFAULT_MEMO_TYPE,
   MEMO_TYPES,
   MemoEntry,
-  MemoSentiment,
   MemoType,
 } from "@/lib/models/types";
-import { getDatesInMonthFromYm, getMonthRangeFromYm, toYm, todayKstYmd } from "@/lib/utils/date";
+import { getDatesInMonthFromYm, getMonthRangeFromYm, todayKstYmd } from "@/lib/utils/date";
 
 interface CalendarDayMeta {
   date: string;
@@ -46,16 +45,16 @@ function sortEntriesLatestFirst(entries: MemoEntry[]): MemoEntry[] {
 
 export default function MemoPage() {
   const { entries, loading, authLoading, isAuthenticated, create, update, remove } = useMemos();
-  const [selectedMonth, setSelectedMonth] = useState(() => toYm(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState(() => todayKstYmd().slice(0, 7));
   const [selectedDate, setSelectedDate] = useState(() => todayKstYmd());
-  const [viewMode, setViewMode] = useState<MemoViewMode>("calendar");
+  const [viewMode, setViewMode] = useState<MemoViewMode>("feed");
   const [feedTypeFilter, setFeedTypeFilter] = useState<MemoTypeFilter>("All");
   const [calendarMap, setCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [titleInput, setTitleInput] = useState("");
   const [contentInput, setContentInput] = useState("");
   const [memoTypeInput, setMemoTypeInput] = useState<MemoType>(DEFAULT_MEMO_TYPE);
-  const [sentimentInput, setSentimentInput] = useState<MemoSentiment | "">("");
+  const composerRef = useRef<HTMLDivElement>(null);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   const isAuthed = isAuthenticated;
   const today = useMemo(() => todayKstYmd(), []);
@@ -85,28 +84,28 @@ export default function MemoPage() {
 
   const feedTypeCounts = useMemo(() => {
     const counts: Record<MemoTypeFilter, number> = {
-      All: entries.length,
+      All: monthEntries.length,
       "Market Note": 0,
       "Investment Idea": 0,
       Macro: 0,
       "Trading Diary": 0,
     };
 
-    entries.forEach((entry) => {
+    monthEntries.forEach((entry) => {
       counts[entry.memoType] += 1;
     });
 
     return counts;
-  }, [entries]);
+  }, [monthEntries]);
 
   const feedEntries = useMemo(() => {
     const filteredEntries =
       feedTypeFilter === "All"
-        ? entries
-        : entries.filter((entry) => entry.memoType === feedTypeFilter);
+        ? monthEntries
+        : monthEntries.filter((entry) => entry.memoType === feedTypeFilter);
 
     return sortEntriesLatestFirst(filteredEntries);
-  }, [entries, feedTypeFilter]);
+  }, [monthEntries, feedTypeFilter]);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === editingId),
@@ -180,14 +179,12 @@ export default function MemoPage() {
       setTitleInput("");
       setContentInput("");
       setMemoTypeInput(DEFAULT_MEMO_TYPE);
-      setSentimentInput("");
       return;
     }
 
     setTitleInput(selectedEntry.title ?? "");
     setContentInput(selectedEntry.content || selectedEntry.comment || "");
     setMemoTypeInput(selectedEntry.memoType ?? DEFAULT_MEMO_TYPE);
-    setSentimentInput(selectedEntry.sentiment ?? "");
   }, [selectedEntry]);
 
   const resetForm = () => {
@@ -195,7 +192,6 @@ export default function MemoPage() {
     setTitleInput("");
     setContentInput("");
     setMemoTypeInput(DEFAULT_MEMO_TYPE);
-    setSentimentInput("");
   };
 
   const handleNew = () => {
@@ -217,7 +213,7 @@ export default function MemoPage() {
     const content = contentInput.trim();
 
     if (!content) {
-      window.alert("Content를 입력해주세요.");
+      window.alert("메모 본문을 입력해주세요.");
       return;
     }
 
@@ -226,7 +222,7 @@ export default function MemoPage() {
       title,
       content,
       memoType: memoTypeInput || DEFAULT_MEMO_TYPE,
-      sentiment: sentimentInput,
+      sentiment: selectedEntry?.sentiment ?? "",
       comment: content,
       imagePaths: selectedEntry?.imagePaths ?? [],
     };
@@ -268,102 +264,72 @@ export default function MemoPage() {
     setSelectedDate(entry.date);
     setSelectedMonth(entry.date.slice(0, 7));
     setEditingId(id);
-    setViewMode("calendar");
+    composerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return (
     <div className="memo-page east-page">
       <section className="memo-page-header east-page-header">
         <h1>Investment Journal</h1>
-        <div className="filter-row memo-header-row memo-page-actions">
-          <div className="memo-view-toggle" aria-label="Memo view mode">
-            <button
-              type="button"
-              className={viewMode === "calendar" ? "is-active" : ""}
-              onClick={() => setViewMode("calendar")}
-            >
-              Calendar
-            </button>
-            <button
-              type="button"
-              className={viewMode === "feed" ? "is-active" : ""}
-              onClick={() => setViewMode("feed")}
-            >
-              Feed
-            </button>
+        <div className="memo-page-actions">
+          <div className="memo-view-toggle" role="group" aria-label="메모 보기 방식">
+            <button type="button" className={viewMode === "feed" ? "is-active" : ""} aria-pressed={viewMode === "feed"} onClick={() => setViewMode("feed")}>피드</button>
+            <button type="button" className={viewMode === "calendar" ? "is-active" : ""} aria-pressed={viewMode === "calendar"} onClick={() => setViewMode("calendar")}>캘린더</button>
           </div>
-          {viewMode === "calendar" ? (
-            <>
-              <label>
-                월 선택
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(event) =>
-                    setSelectedMonth(event.target.value || toYm(new Date()))
-                  }
-                />
-              </label>
-            </>
-          ) : null}
+          <input type="month" aria-label="조회 월" value={selectedMonth} onChange={(event) => setSelectedMonth(event.target.value || today.slice(0, 7))} />
         </div>
       </section>
 
       {!authLoading && !isAuthed ? (
-        <section className="panel">
-          <p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p>
-        </section>
+        <section className="panel"><p className="auth-gate-message">로그인 후 데이터를 확인할 수 있습니다.</p></section>
       ) : null}
 
+      <div ref={composerRef} className="memo-composer-anchor">
+        <MemoEntryForm
+          isEditing={Boolean(editingId)}
+          titleInput={titleInput}
+          contentInput={contentInput}
+          memoTypeInput={memoTypeInput}
+          selectedDate={selectedDate}
+          onTitleChange={setTitleInput}
+          onContentChange={setContentInput}
+          onMemoTypeChange={setMemoTypeInput}
+          onDateChange={(date) => { setSelectedDate(date); setSelectedMonth(date.slice(0, 7)); }}
+          onNew={handleNew}
+          onSave={handleSave}
+          onDelete={handleDelete}
+          isAuthed={isAuthed}
+          canDelete={Boolean(editingId)}
+        />
+      </div>
+
       {viewMode === "calendar" ? (
-        <>
-          <section className="memo-layout">
-            <MemoCalendarSection
-              selectedMonth={selectedMonth}
-              monthDates={monthDates}
-              leadingBlankCount={leadingBlankCount}
-              calendarMap={calendarMap}
-              entriesByDate={entriesByDate}
-              selectedDate={selectedDate}
-              today={today}
-              onSelectDate={(date) => {
-                setSelectedDate(date);
-                setEditingId(null);
-              }}
-            />
-
-            <MemoEntryForm
-              isEditing={Boolean(editingId)}
-              titleInput={titleInput}
-              contentInput={contentInput}
-              memoTypeInput={memoTypeInput}
-              sentimentInput={sentimentInput}
-              onTitleChange={setTitleInput}
-              onContentChange={setContentInput}
-              onMemoTypeChange={setMemoTypeInput}
-              onSentimentChange={setSentimentInput}
-              onNew={handleNew}
-              onSave={handleSave}
-              onDelete={handleDelete}
-              isAuthed={isAuthed}
-              canDelete={Boolean(editingId)}
-            />
-          </section>
-
+        <section className="memo-calendar-board">
+          <MemoCalendarSection
+            selectedMonth={selectedMonth}
+            monthDates={monthDates}
+            leadingBlankCount={leadingBlankCount}
+            calendarMap={calendarMap}
+            entriesByDate={entriesByDate}
+            selectedDate={selectedDate}
+            today={today}
+            onSelectDate={(date) => { setSelectedDate(date); setEditingId(null); }}
+            onMonthChange={setSelectedMonth}
+          />
           <MemoEntriesList
             loading={loading}
             selectedDate={selectedDate}
             entries={selectedDateEntries}
             editingId={editingId}
-            onSelectEntry={setEditingId}
+            onSelectEntry={handleSelectEntry}
             onZoomImage={setZoomImageUrl}
           />
-        </>
+        </section>
       ) : (
         <MemoEntriesList
           loading={loading}
-          title="Feed"
-          emptyTitle="메모가 없습니다."
+          title="기록"
+          emptyTitle="이 달에 작성한 메모가 없습니다."
           entries={feedEntries}
           editingId={editingId}
           onSelectEntry={handleSelectEntry}
@@ -375,7 +341,6 @@ export default function MemoPage() {
           onTypeFilterChange={setFeedTypeFilter}
         />
       )}
-
       <Modal
         open={Boolean(zoomImageUrl)}
         title="Memo Image"

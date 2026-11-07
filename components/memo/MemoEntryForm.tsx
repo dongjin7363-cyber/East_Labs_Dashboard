@@ -1,6 +1,7 @@
 "use client";
 
-import { MEMO_SENTIMENTS, MEMO_TYPES, MemoSentiment, MemoType } from "@/lib/models/types";
+import { useEffect, useRef, useState } from "react";
+import { MEMO_TYPES, MemoType } from "@/lib/models/types";
 
 const TYPE_OPTION_PREFIX: Record<MemoType, string> = {
   "Market Note": "🔴",
@@ -14,11 +15,11 @@ interface MemoEntryFormProps {
   titleInput: string;
   contentInput: string;
   memoTypeInput: MemoType;
-  sentimentInput: MemoSentiment | "";
+  selectedDate: string;
   onTitleChange: (value: string) => void;
   onContentChange: (value: string) => void;
   onMemoTypeChange: (value: MemoType) => void;
-  onSentimentChange: (value: MemoSentiment | "") => void;
+  onDateChange: (value: string) => void;
   onNew: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -31,91 +32,93 @@ export function MemoEntryForm({
   titleInput,
   contentInput,
   memoTypeInput,
-  sentimentInput,
+  selectedDate,
   onTitleChange,
   onContentChange,
   onMemoTypeChange,
-  onSentimentChange,
+  onDateChange,
   onNew,
   onSave,
   onDelete,
   isAuthed,
   canDelete,
 }: MemoEntryFormProps) {
+  const [titleOpen, setTitleOpen] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const showTitle = titleOpen || Boolean(titleInput);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight + 2}px`;
+  }, [contentInput]);
+
+  useEffect(() => {
+    setTitleOpen(false);
+  }, [isEditing]);
+
   return (
-    <section className="memo-form-wrap">
-      <div className="panel-header-inline" style={{ marginBottom: 10 }}>
-        <h3>{isEditing ? "저널 수정" : "새 저널"}</h3>
+    <section className="memo-form-wrap" aria-label={isEditing ? "메모 편집" : "메모 작성"}>
+      <div className="memo-composer-top">
+        {showTitle ? (
+          <input
+            aria-label="제목 (선택)"
+            className="memo-title-input"
+            value={titleInput}
+            onChange={(event) => onTitleChange(event.target.value)}
+            placeholder="제목 (선택)"
+            disabled={!isAuthed}
+          />
+        ) : (
+          <button type="button" className="memo-title-toggle" onClick={() => setTitleOpen(true)} disabled={!isAuthed}>
+            + 제목
+          </button>
+        )}
+        <select
+          aria-label="메모 유형"
+          value={memoTypeInput}
+          onChange={(event) => onMemoTypeChange(event.target.value as MemoType)}
+          disabled={!isAuthed}
+        >
+          {MEMO_TYPES.map((type) => (
+            <option key={type} value={type}>{TYPE_OPTION_PREFIX[type]} {type}</option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        ref={textareaRef}
+        aria-label="메모 본문"
+        className="memo-composer-content"
+        rows={2}
+        value={contentInput}
+        onChange={(event) => onContentChange(event.target.value)}
+        placeholder="오늘의 시장 판단을 기록하세요."
+        disabled={!isAuthed}
+        required
+      />
+      <div className="memo-composer-footer">
+        <input
+          type="date"
+          aria-label="메모 날짜"
+          value={selectedDate}
+          onChange={(event) => { if (event.target.value) onDateChange(event.target.value); }}
+          disabled={!isAuthed}
+          required
+        />
+        <button type="button" className="primary-button" onClick={onSave} disabled={!isAuthed || !contentInput.trim()}>
+          {isEditing ? "수정 저장" : "저장"}
+        </button>
+      </div>
+      {isEditing ? (
+        <div className="memo-edit-actions">
         <button
           type="button"
           className="ghost-button"
           onClick={onNew}
           disabled={!isAuthed}
         >
-          New
-        </button>
-      </div>
-      <div className="form-grid memo-form-grid">
-        <label className="full">
-          Title (선택)
-          <input
-            value={titleInput}
-            onChange={(event) => onTitleChange(event.target.value)}
-            placeholder="비워두면 본문 첫 줄이 제목으로 사용됩니다"
-            disabled={!isAuthed}
-          />
-        </label>
-        <label>
-          Type *
-          <select
-            value={memoTypeInput}
-            onChange={(event) => onMemoTypeChange(event.target.value as MemoType)}
-            disabled={!isAuthed}
-            required
-          >
-            {MEMO_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {TYPE_OPTION_PREFIX[type]} {type}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Sentiment
-          <select
-            value={sentimentInput}
-            onChange={(event) => onSentimentChange(event.target.value as MemoSentiment | "")}
-            disabled={!isAuthed}
-          >
-            <option value="">미선택</option>
-            {MEMO_SENTIMENTS.map((sentiment) => (
-              <option key={sentiment} value={sentiment}>
-                {sentiment}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="full memo-form-comment-label">
-          Content *
-          <textarea
-            className="memo-form-comment-textarea"
-            rows={6}
-            value={contentInput}
-            onChange={(event) => onContentChange(event.target.value)}
-            placeholder="시장 판단, 아이디어, 매매 회고를 기록"
-            disabled={!isAuthed}
-            required
-          />
-        </label>
-      </div>
-      <div className="form-actions">
-        <button
-          type="button"
-          className="primary-button"
-          onClick={onSave}
-          disabled={!isAuthed}
-        >
-          Save
+          편집 취소
         </button>
         <button
           type="button"
@@ -123,9 +126,10 @@ export function MemoEntryForm({
           onClick={onDelete}
           disabled={!isAuthed || !canDelete}
         >
-          Delete
+          삭제
         </button>
-      </div>
+        </div>
+      ) : null}
     </section>
   );
 }
