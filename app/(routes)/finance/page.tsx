@@ -814,8 +814,8 @@ export default function FinancePage() {
   );
 
   return (
-    <div className="fin-page">
-      <div className="fin-page-header">
+    <div className="fin-page east-page">
+      <div className="fin-page-header east-page-header">
         <div>
           <h1 className="fin-page-title">Finance</h1>
           <p className="fin-page-sub">월간 지출 관리 · 날짜 클릭으로 입력</p>

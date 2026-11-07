@@ -272,8 +272,8 @@ export default function MemoPage() {
   };
 
   return (
-    <div className="memo-page">
-      <section className="memo-page-header">
+    <div className="memo-page east-page">
+      <section className="memo-page-header east-page-header">
         <h1>Investment Journal</h1>
         <div className="filter-row memo-header-row memo-page-actions">
           <div className="memo-view-toggle" aria-label="Memo view mode">

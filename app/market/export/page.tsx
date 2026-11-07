@@ -133,7 +133,7 @@ export default function MarketExportPage() {
   }, [itemsLoading, sectorItems, selectedItemId]);
 
   return (
-    <div className="market-page export-page">
+    <div className="market-page export-page east-page">
       <div className="export-page-title"><PageHeader title="수출입 데이터" />{isExportPreview && <span className="export-preview-label">로컬 미리보기</span>}</div>
 
       <div className="panel export-sector-tabs">

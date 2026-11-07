@@ -724,9 +724,9 @@ export default function PerformancePage() {
   );
 
   return (
-    <div className="perf-page">
+    <div className="perf-page east-page">
       {/* Page header */}
-      <div className="perf-page-header">
+      <div className="perf-page-header east-page-header">
         <div className="perf-heading"><h1 className="perf-page-title">Performance</h1><p>투자 성과와 실현손익을 한눈에</p></div>
         <div className="perf-header-filters"><span className="perf-filter-label">손익 · 거래 기준</span>
         <select

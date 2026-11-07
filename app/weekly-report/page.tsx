@@ -17,7 +17,7 @@ export default async function WeeklyReportPage() {
   const archive = categories.flatMap(category => category.reports.slice(1).map(report => ({
     report, category: category.id, label: category.label, href: `${category.base}/${report.published_date}`,
   }))).sort((a, b) => b.report.published_date.localeCompare(a.report.published_date) || a.category.localeCompare(b.category));
-  return <section>
+  return <section className="east-page weekly-page">
     <PageHeader title="Weekly Report" description="경제의 흐름부터 주식과 자산시장까지, 한 주의 핵심을 정리합니다." actions={<span className="weekly-schedule">매주 토요일 07:00 KST</span>} />
     <div className="weekly-latest">
       {categories.map(category => {

@@ -193,8 +193,8 @@ export default function SuperStockPage() {
     [data, detail?.ticker],
   );
   return (
-    <section className={styles.page}>
-      <header className={styles.hero}>
+    <section className={`${styles.page} east-page`}>
+      <header className={`${styles.hero} east-page-header`}>
         <div>
           <h1 className="east-page-title">Super Stock</h1>
           <p>좋은 기업을 넘어, 빠르게 성장하는 기업을 East Intelligence 로 발견하세요</p>
@@ -266,7 +266,7 @@ export default function SuperStockPage() {
         </div>
       )}
       <div className={styles.mainGrid}>
-        <article className={styles.panel}>
+        <article className={`${styles.panel} east-content-panel`}>
           <div className={styles.panelHead}>
             <div>
               <h2>Quality × Delta</h2>
@@ -275,7 +275,7 @@ export default function SuperStockPage() {
           </div>
           <QualityMap rows={rows} selected={detail?.ticker} onSelect={setSelected} />
         </article>
-        <article className={styles.panel}>
+        <article className={`${styles.panel} east-content-panel`}>
           <div className={styles.panelHead}>
             <div>
               <h2>Weekly ranking</h2>

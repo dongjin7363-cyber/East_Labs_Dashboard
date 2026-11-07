@@ -1360,9 +1360,9 @@ export default function PortfolioPage() {
   };
 
   return (
-    <div className="pf-page">
+    <div className="pf-page east-page">
       {/* Page header */}
-      <div className="pf-page-header">
+      <div className="pf-page-header east-page-header">
         <div className="pf-heading-row">
           <h1 className="pf-page-title">Portfolio</h1>
         <div className="pf-header-actions">
