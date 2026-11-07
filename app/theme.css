@@ -910,7 +910,8 @@ button:disabled { cursor: not-allowed; }
 .perf-summary-primary strong[data-long-amount="true"] { font-size: clamp(17px, 5.2vw, 28px); }
 
 /* Show all comparison indices by default; legend buttons toggle individual lines. */
-.perf-compare-legend { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.perf-compare-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.perf-compare-legend > div:first-child { grid-column: 1 / -1; }
 .perf-compare-legend > button { border: 0; padding: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
 .perf-compare-legend > button.is-muted { opacity: .42; }
 .perf-month-select { position: relative; min-width: 0; }
