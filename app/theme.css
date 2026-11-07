@@ -605,3 +605,63 @@ button:disabled { cursor: not-allowed; }
 .east-top-sheet-handle { display: block; flex-shrink: 0; width: 44px; height: 4px; margin: 0 auto 12px; border-radius: 4px; background: #bfc6d3; }
 @keyframes east-sheet-enter { from { opacity: 0; transform: translateY(calc(-100% - 8px)); } to { opacity: 1; transform: translateY(0); } }
 @keyframes east-scrim-enter { from { background: transparent; } to { background: rgba(25, 32, 44, .36); } }
+
+/* Portfolio: compact overview, with cash editing inside its own cards. */
+.pf-page-header { display: block; }
+.pf-heading-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.pf-heading-row .pf-page-title { width: auto; margin: 0; }
+.pf-heading-row .pf-header-actions { display: flex; flex: 0 0 auto; width: auto; margin: 0; gap: 8px; }
+.pf-heading-row .pf-header-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; min-height: 38px; height: 38px; padding: 0; border-radius: 10px; }
+.pf-refresh-spinning { animation: pf-refresh-spin .9s linear infinite; }
+@keyframes pf-refresh-spin { to { transform: rotate(360deg); } }
+.pf-summary-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.pf-summary-row .pf-header-stat { min-width: 0; padding: 0; border: 0; }
+.pf-summary-row .pf-header-stat strong { display: block; font-size: clamp(17px, 4.8vw, 26px); line-height: 1.4; overflow-wrap: anywhere; }
+.pf-summary-row .pf-header-stat + .pf-header-stat strong { font-size: clamp(15px, 4.2vw, 23px); }
+.pf-summary-percent { display: block; font-size: .8em; font-weight: 500; }
+.pf-overview-heading { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 8px 16px; margin-bottom: 14px; }
+.pf-overview-heading .pf-sec-title { margin: 0; font-size: 15px; }
+.pf-overview-details { display: contents; }
+.pf-overview-details > summary { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 5px; min-height: 36px; color: var(--east-text-2); font-size: 12px; cursor: pointer; list-style: none; }
+.pf-overview-details > summary::-webkit-details-marker { display: none; }
+.pf-overview-details > summary::before { content: ''; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid currentColor; }
+.pf-overview-details[open] > summary::before { transform: rotate(90deg); }
+.pf-overview-meta { grid-column: 1 / -1; padding: 12px 14px; background: #f1f4f8; border: 1px solid var(--east-border); border-radius: 12px; color: var(--east-text-2); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.pf-update-summary { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--east-border); }
+.pf-account-banner { container-type: inline-size; padding: 0 16px; background: white; border: 1px solid var(--east-border); border-radius: 16px; }
+.pf-country-account { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; row-gap: 4px; padding: 12px 0; }
+.pf-country-account + .pf-country-account { border-top: 1px solid var(--east-border); }
+.pf-country-flag { grid-column: 1 / -1; font-size: 16px; line-height: 20px; }
+.pf-country-assets, .pf-country-pnl { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.pf-country-account strong { font-size: clamp(16px, 6cqi, 23px); font-weight: 650; line-height: 1.3; letter-spacing: -.035em; white-space: nowrap; }
+.pf-country-pnl strong { font-size: clamp(15px, 5.6cqi, 21px); }
+.pf-country-secondary { color: var(--east-text-2); font-size: clamp(10px, 3.7cqi, 13px); line-height: 1.4; white-space: nowrap; }
+.pf-country-pnl.is-pos, .pf-country-pnl.is-pos .pf-country-secondary { color: var(--east-pos); }
+.pf-country-pnl.is-neg, .pf-country-pnl.is-neg .pf-country-secondary { color: var(--east-neg); }
+.pf-country-pnl:not(.is-pos):not(.is-neg) { color: var(--east-text-2); }
+.pf-funds-card { container-type: inline-size; min-width: 0; padding: 12px 14px; align-self: start; }
+.pf-funds-card[data-editing='true'] { border-color: var(--east-cobalt); background: #f4f6ff; }
+.pf-funds-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 4px; }
+.pf-funds-heading .pf-cash-label { margin: 0; color: var(--east-text-1); font-size: 13px; font-weight: 600; }
+.pf-funds-edit { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--east-text-3); cursor: pointer; flex-shrink: 0; }
+.pf-funds-edit:hover { background: var(--east-surface-2); }
+.pf-funds-edit:disabled { opacity: .45; }
+.pf-funds-card .pf-cash-val { font-size: clamp(15px, 12cqi, 21px); font-weight: 600; white-space: nowrap; }
+.pf-funds-caption { margin: 5px 0 0; font-size: 10px; color: var(--east-text-3); }
+.pf-funds-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.pf-funds-form label { color: var(--east-text-2); font-size: 11px; }
+.pf-funds-form input { width: 100%; min-width: 0; min-height: 36px; padding: 7px; border: 1px solid var(--east-border-md); background: white; font-size: 14px; }
+.pf-funds-rate { color: var(--east-text-3); font-size: 10px; }
+.pf-funds-total { padding-top: 5px; border-top: 1px solid var(--east-border); font-size: 12px; overflow-wrap: anywhere; }
+.pf-funds-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 3px; }
+.pf-funds-actions button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid var(--east-border); border-radius: 8px; color: var(--east-text-2); background: white; cursor: pointer; }
+.pf-funds-actions .pf-funds-save { color: white; background: var(--east-cobalt); }
+.pf-funds-error { margin: 2px 0; color: var(--east-neg); font-size: 11px; }
+@media (max-width: 760px) {
+  .pf-heading-row { margin-bottom: 18px; }
+  .pf-summary-row { gap: 12px; }
+  .pf-country-account { padding: 11px 0; }
+  .pf-account-banner { padding: 0 14px; }
+  .pf-funds-card { padding: 10px 12px 14px; }
+}
+@media (max-width: 760px) { .pf-funds-form input { font-size: 16px; } }

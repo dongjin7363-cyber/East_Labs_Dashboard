@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import type { MarketIndexes } from "@/lib/marketIndexes";
-import { FormattedNumberInput } from "@/components/FormattedNumberInput";
+import { PortfolioFundsCard } from "@/components/portfolio/PortfolioFundsCard";
 import { Modal } from "@/components/Modal";
 import { PortfolioFormModal } from "@/components/portfolio/PortfolioFormModal";
 import { usePortfolioAccountState } from "@/lib/hooks/usePortfolioAccountState";
@@ -33,7 +33,6 @@ import {
 import {
   moneyFormat,
   moneyFormatParts,
-  parsePriceInputToInt,
   percentFormat,
   usdCentsToUsdFloat,
   usdToKrw,
@@ -560,16 +559,10 @@ export default function PortfolioPage() {
   const {
     state: accountState,
     loading: accountStateLoading,
-    loadedAt: accountStateLoadedAt,
-    setDepositKrwInt,
-    setDepositUsdCents,
-    setCashKrwInt,
+    saveFunds,
   } = usePortfolioAccountState();
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
   const [fxAsOf, setFxAsOf] = useState("");
-  const [depositKrwInput, setDepositKrwInput] = useState("");
-  const [depositUsdInput, setDepositUsdInput] = useState("");
-  const [cashInput, setCashInput] = useState("");
   const [isRefreshingQuotes, setIsRefreshingQuotes] = useState(false);
   const [lastQuoteRefreshAt, setLastQuoteRefreshAt] = useState<number | null>(null);
   const [lastQuoteFailAt, setLastQuoteFailAt] = useState<number | null>(null);
@@ -586,7 +579,6 @@ export default function PortfolioPage() {
   const [indexesLoading, setIndexesLoading] = useState(true);
   const [indexesFailed, setIndexesFailed] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
-  const depositUsdInputFocusedRef = useRef(false);
   const isAuthed = isCloudMode;
   const depositKrw = accountState.depositKrwInt;
   const depositUsdCents = accountState.depositUsdCents;
@@ -638,17 +630,6 @@ export default function PortfolioPage() {
     return () => { controller.abort(); window.clearInterval(id); };
   }, []);
 
-  useEffect(() => {
-    if (authLoading || accountStateLoading) {
-      return;
-    }
-
-    setDepositKrwInput(depositKrw === 0 ? "" : `${depositKrw}`);
-    if (!depositUsdInputFocusedRef.current) {
-      setDepositUsdInput(depositUsdCents === 0 ? "" : (depositUsdCents / 100).toFixed(2));
-    }
-    setCashInput(cashKrw === 0 ? "" : `${cashKrw}`);
-  }, [accountStateLoadedAt, accountStateLoading, authLoading]);
 
   useEffect(() => {
     let mounted = true;
@@ -1139,68 +1120,6 @@ export default function PortfolioPage() {
     [sortState, tableRows, totalMarketValueKrwForWeight, resolveHoldingDisplayName],
   );
 
-  const handleDepositKrwInputChange = (rawDigits: string) => {
-    if (!isAuthed) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    if (!rawDigits) {
-      setDepositKrwInput("");
-      setDepositKrwInt(0);
-      return;
-    }
-
-    const amount = Number.parseInt(rawDigits, 10);
-    setDepositKrwInput(rawDigits);
-    setDepositKrwInt(amount);
-  };
-
-  const handleDepositUsdInputChange = (rawValue: string) => {
-    if (!isAuthed) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    setDepositUsdInput(rawValue);
-
-    const normalizedValue = rawValue.trim().replace(/,/g, "");
-
-    if (!normalizedValue) {
-      setDepositUsdCents(0);
-      return;
-    }
-
-    if (/^\d+\.$/.test(normalizedValue)) {
-      return;
-    }
-
-    const nextCents = parsePriceInputToInt("USD", rawValue);
-
-    if (nextCents === null) {
-      return;
-    }
-
-    setDepositUsdCents(nextCents);
-  };
-
-  const handleCashInputChange = (rawDigits: string) => {
-    if (!isAuthed) {
-      window.alert("로그인 후 사용 가능합니다.");
-      return;
-    }
-
-    if (!rawDigits) {
-      setCashInput("");
-      setCashKrwInt(0);
-      return;
-    }
-
-    const amount = Number.parseInt(rawDigits, 10);
-    setCashInput(rawDigits);
-    setCashKrwInt(amount);
-  };
-
   const handleCreate = () => {
     if (!isAuthed) {
       window.alert("로그인 후 사용 가능합니다.");
@@ -1472,41 +1391,36 @@ export default function PortfolioPage() {
     return "";
   };
 
-  const renderPnlPctChip = (pct: number | null, prefix?: string): ReactNode => {
-    if (pct === null) {
-      return <span className="pf-nsc-pnl-pct is-muted">—</span>;
-    }
-    const sign = pct > 0 ? "+" : "";
-    return (
-      <span className={`pf-nsc-pnl-pct ${pnlToneClass(pct, "is-pos", "is-neg")}`}>
-        {prefix ?? ""}
-        {sign}
-        {percentFormat(pct)}
-      </span>
-    );
-  };
-
-  const renderPnlAmt = (
-    currency: Currency,
-    amount: number,
-    isMuted = false,
-  ): ReactNode => {
-    if (isMuted) {
-      return <span className="pf-nsc-pnl-amt is-muted">—</span>;
-    }
-    return (
-      <span className={`pf-nsc-pnl-amt ${pnlToneClass(amount, "is-pos", "is-neg")}`}>
-        <DualCurrencyMoney currency={currency} amountInt={amount} fxRate={fxRate} signed />
-      </span>
-    );
-  };
-
   return (
     <div className="pf-page">
       {/* Page header */}
       <div className="pf-page-header">
-        <h1 className="pf-page-title">Portfolio</h1>
+        <div className="pf-heading-row">
+          <h1 className="pf-page-title">Portfolio</h1>
+        <div className="pf-header-actions">
+          <button
+            type="button"
+            className="pf-btn pf-header-icon"
+            aria-label={isRefreshingQuotes ? "현재가 갱신 중" : "현재가 갱신"} title="현재가 갱신" aria-busy={isRefreshingQuotes}
+            onClick={() => {
+              void handleManualQuoteRefresh();
+            }}
+            disabled={!isAuthed || isRefreshingQuotes}
+          >
+            <svg className={isRefreshingQuotes ? "pf-refresh-spinning" : undefined} width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6.1 7a7 7 0 0 1 11.6-1L20 9M4 15l2.3 3A7 7 0 0 0 17.9 17" /></svg>
+          </button>
+          <button
+            type="button"
+            className="pf-btn pf-btn-primary pf-header-icon" aria-label="종목 추가" title="종목 추가"
+            onClick={handleCreate}
+            disabled={!isAuthed}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+          </button>
+        </div>
+        </div>
 
+        <div className="pf-summary-row">
         <span className="pf-header-stat">
           <span className="pf-header-label">총 자산</span>
           <strong>
@@ -1518,80 +1432,35 @@ export default function PortfolioPage() {
           <span className="pf-header-label">총 계좌 손익</span>
           <strong className={pnlToneClass(accountPnlKrw, "is-pos", "is-neg")}>
             <Money currency="KRW" amountInt={accountPnlKrw} />
-            {totalPnlPct !== null && <>{" "}({percentFormat(totalPnlPct)})</>}
+            {totalPnlPct !== null && <span className="pf-summary-percent">({percentFormat(totalPnlPct)})</span>}
           </strong>
         </span>
-        <div className="pf-header-actions">
-          <button
-            type="button"
-            className="pf-btn"
-            onClick={() => {
-              void handleManualQuoteRefresh();
-            }}
-            disabled={!isAuthed || isRefreshingQuotes}
-          >
-            {isRefreshingQuotes ? "갱신 중..." : "현재가 갱신"}
-          </button>
-          <button
-            type="button"
-            className="pf-btn pf-btn-primary"
-            onClick={handleCreate}
-            disabled={!isAuthed}
-          >
-            + 추가
-          </button>
+
         </div>
       </div>
 
-      {/* Input row */}
-      <div className="pf-input-row">
-        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
-          <label htmlFor="pf-deposit-krw">예수금 (KRW)</label>
-          <FormattedNumberInput
-            id="pf-deposit-krw"
-            placeholder="예: 1,000,000"
-            value={depositKrwInput}
-            onValueChange={handleDepositKrwInputChange}
-            disabled={!isAuthed}
-          />
+      {/* Auth gate */}
+      {!authLoading && !isAuthed ? (
+        <div className="pf-auth-gate">
+          로그인 후 데이터를 확인할 수 있습니다.
         </div>
-        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
-          <label htmlFor="pf-deposit-usd">예수금 (USD)</label>
-          <FormattedNumberInput
-            id="pf-deposit-usd"
-            placeholder="예: 1,250.75"
-            value={depositUsdInput}
-            onValueChange={handleDepositUsdInputChange}
-            onFocus={() => {
-              depositUsdInputFocusedRef.current = true;
-            }}
-            onBlur={() => {
-              depositUsdInputFocusedRef.current = false;
-            }}
-            allowDecimal
-            maxDecimals={2}
-            disabled={!isAuthed}
-          />
-        </div>
-        <div className="pf-ig" style={{ flex: '0 0 auto' }}>
-          <label htmlFor="pf-cash">현금 (KRW)</label>
-          <FormattedNumberInput
-            id="pf-cash"
-            placeholder="예: 500,000"
-            value={cashInput}
-            onValueChange={handleCashInputChange}
-            disabled={!isAuthed}
-          />
-        </div>
-        <div className="pf-rate-info">
+      ) : null}
+
+      {/* Content */}
+      <div className="pf-content">
+        <div className="pf-overview-heading">
+          <h2 className="pf-sec-title">투자 현황</h2>
+          <details className="pf-overview-details">
+            <summary>Detail</summary>
+            <div className="pf-overview-meta">
           {fxSummaryText.split("\n").map((line, idx) => (
             <div key={idx}>{line}</div>
           ))}
           {quoteRefreshSummary && quoteRefreshSummary !== "-" ? (
-            <details className="pf-update-details">
-              <summary>시세 갱신 상세</summary>
+            <div className="pf-update-summary">
+              <span>시세 갱신 상세</span>
               <div>{quoteRefreshSummary}</div>
-            </details>
+            </div>
           ) : null}
           {quoteWarningLine ? (
             <div className="pf-quote-warning">
@@ -1612,92 +1481,44 @@ export default function PortfolioPage() {
               ) : null}
             </div>
           ) : null}
+            </div>
+          </details>
         </div>
-      </div>
-
-      {/* Auth gate */}
-      {!authLoading && !isAuthed ? (
-        <div className="pf-auth-gate">
-          로그인 후 데이터를 확인할 수 있습니다.
-        </div>
-      ) : null}
-
-      {/* Content */}
-      <div className="pf-content">
-        <div className="pf-sec-title">투자 현황</div>
 
         <div className="pf-invest-wrap">
-          {/* Left: NAV stack */}
+          {/* Compact accounts and inline cash editors. */}
           <div className="pf-nav-stack">
-            <div className="pf-nav-stat-card">
-              <div className="pf-nsc-top">
-                <span className="pf-nsc-label">KR NAV</span>
-                <span className="pf-nsc-flag">🇰🇷</span>
-              </div>
-              <div className="pf-nsc-val">
-                <Money currency="KRW" amountInt={krHoldingsMarketValueKrw} />
-              </div>
-              <div className="pf-nsc-pnl">
-                {renderPnlAmt("KRW", krHoldingsPnlKrw)}
-                {renderPnlPctChip(krPnlPct)}
-              </div>
-              {krPnlPct !== null ? (
-                <div className="pf-loss-bar-wrap">
-                  <div className="pf-loss-bar-track">
-                    <div
-                      className={`pf-loss-bar-fill${krPnlPct > 0 ? " is-pos" : ""}`}
-                      style={{ width: `${Math.min(Math.abs(krPnlPct), 100)}%` }}
-                    />
-                  </div>
-                  <div className="pf-loss-bar-label">
-                    <span>{krPnlPct >= 0 ? "수익률" : "손실률"}</span>
-                    <span>{percentFormat(Math.abs(krPnlPct))}</span>
-                  </div>
+            <div className="pf-account-banner">
+              <section className="pf-country-account" aria-label="미국 계좌">
+                <span className="pf-country-flag" role="img" aria-label="미국">🇺🇸</span>
+                <div className="pf-country-assets" aria-label="미국 자산 금액">
+                  <strong><Money currency="USD" amountInt={usHoldingsMarketValueCents} /></strong>
+                  <span className="pf-country-secondary">≈ <Money currency="KRW" amountInt={usdToKrw(usdCentsToUsdFloat(usHoldingsMarketValueCents), fxRate)} /></span>
                 </div>
-              ) : null}
-            </div>
-
-            <div className="pf-nav-stat-card">
-              <div className="pf-nsc-top">
-                <span className="pf-nsc-label">US NAV</span>
-                <span className="pf-nsc-flag">🇺🇸</span>
-              </div>
-              <div className="pf-nsc-val">
-                <DualCurrencyMoney currency="USD" amountInt={usHoldingsMarketValueCents} fxRate={fxRate} />
-              </div>
-              <div className="pf-nsc-pnl">
-                {renderPnlAmt("USD", usdHoldingsPnlCents)}
-                {renderPnlPctChip(usPnlPct)}
-              </div>
-              {usPnlPct !== null ? (
-                <div className="pf-loss-bar-wrap">
-                  <div className="pf-loss-bar-track">
-                    <div
-                      className={`pf-loss-bar-fill${usPnlPct > 0 ? " is-pos" : ""}`}
-                      style={{ width: `${Math.min(Math.abs(usPnlPct), 100)}%` }}
-                    />
-                  </div>
-                  <div className="pf-loss-bar-label">
-                    <span>{usPnlPct >= 0 ? "수익률" : "손실률"}</span>
-                    <span>{percentFormat(Math.abs(usPnlPct))}</span>
-                  </div>
+                <div className={"pf-country-pnl " + pnlToneClass(usdHoldingsPnlCents, "is-pos", "is-neg")} aria-label="미국 계좌 손익">
+                  <strong><Money currency="USD" amountInt={usdHoldingsPnlCents} signed /></strong>
+                  <span className="pf-country-secondary">{usPnlPct === null ? "—" : percentFormat(usPnlPct)}</span>
                 </div>
-              ) : null}
+              </section>
+              <section className="pf-country-account" aria-label="한국 계좌">
+                <span className="pf-country-flag" role="img" aria-label="한국">🇰🇷</span>
+                <div className="pf-country-assets" aria-label="한국 자산 금액">
+                  <strong><Money currency="KRW" amountInt={krHoldingsMarketValueKrw} /></strong>
+                  <span className="pf-country-secondary">—</span>
+                </div>
+                <div className={"pf-country-pnl " + pnlToneClass(krHoldingsPnlKrw, "is-pos", "is-neg")} aria-label="한국 계좌 손익">
+                  <strong><Money currency="KRW" amountInt={krHoldingsPnlKrw} signed /></strong>
+                  <span className="pf-country-secondary">{krPnlPct === null ? "—" : percentFormat(krPnlPct)}</span>
+                </div>
+              </section>
             </div>
-
             <div className="pf-cash-row">
-              <div className="pf-cash-card">
-                <p className="pf-cash-label">예수금</p>
-                <p className="pf-cash-val">
-                  <Money currency="KRW" amountInt={totalDepositKrw} />
-                </p>
-              </div>
-              <div className="pf-cash-card">
-                <p className="pf-cash-label">현금</p>
-                <p className="pf-cash-val">
-                  <Money currency="KRW" amountInt={cashKrw} />
-                </p>
-              </div>
+              <PortfolioFundsCard key={"deposit:" + userId} kind="deposit" krw={depositKrw} usdCents={depositUsdCents} fxRate={fxRate}
+                amount={<Money currency="KRW" amountInt={totalDepositKrw} />} disabled={!isAuthed || accountStateLoading}
+                onSave={(krw, usdCents) => saveFunds({ depositKrwInt: krw, depositUsdCents: usdCents })} />
+              <PortfolioFundsCard key={"cash:" + userId} kind="cash" krw={cashKrw} fxRate={fxRate}
+                amount={<Money currency="KRW" amountInt={cashKrw} />} disabled={!isAuthed || accountStateLoading}
+                onSave={krw => saveFunds({ cashKrwInt: krw })} />
             </div>
           </div>
 

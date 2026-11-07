@@ -48,6 +48,9 @@ export function usePortfolioAccountState() {
   const [loading, setLoading] = useState(true);
   const [loadedAt, setLoadedAt] = useState<number>(0);
   const syncAttemptedUserRef = useRef<string | null>(null);
+  const fundsSavingRef = useRef(false);
+  const activeOwnerRef = useRef(userId);
+  activeOwnerRef.current = userId;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -165,6 +168,31 @@ export function usePortfolioAccountState() {
     [commit],
   );
 
+  // Inline editors save both deposit currencies together, only after confirmation.
+  const saveFunds = useCallback(
+    async (values: Partial<Pick<PortfolioAccountState, "depositKrwInt" | "depositUsdCents" | "cashKrwInt">>) => {
+      if (!isAuthenticated) throw new Error("로그인 후 사용 가능합니다.");
+      if (fundsSavingRef.current) throw new Error("다른 금액을 저장하고 있습니다.");
+      for (const value of Object.values(values)) {
+        if (!Number.isSafeInteger(value) || value < 0) {
+          throw new Error("금액을 확인해 주세요.");
+        }
+      }
+      const next = normalizeState({ ...state, ...values });
+      fundsSavingRef.current = true;
+      try {
+        await persist(next);
+        if (activeOwnerRef.current === userId) {
+          setState(next);
+          setLoadedAt(Date.now());
+        }
+      } finally {
+        fundsSavingRef.current = false;
+      }
+    },
+    [isAuthenticated, persist, state, userId],
+  );
+
   return {
     state,
     loading: loading || authLoading,
@@ -172,5 +200,6 @@ export function usePortfolioAccountState() {
     setDepositKrwInt,
     setDepositUsdCents,
     setCashKrwInt,
+    saveFunds,
   };
 }
