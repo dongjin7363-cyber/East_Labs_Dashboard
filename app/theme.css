@@ -906,3 +906,5 @@ button:disabled { cursor: not-allowed; }
 
 .perf-trades-panel .perf-tbl-scroll { margin: 0; max-height: 360px; }
 .perf-page > .perf-monthly-panel .perf-section-heading { flex-wrap: wrap; }
+
+.perf-summary-primary strong[data-long-amount="true"] { font-size: clamp(17px, 5.2vw, 28px); }

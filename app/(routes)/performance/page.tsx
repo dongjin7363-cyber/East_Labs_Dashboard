@@ -764,7 +764,7 @@ export default function PerformancePage() {
           </div>
           <div>
             <span className="perf-summary-label">월 실현손익</span>
-            <strong className={monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={monthlyTotal} signed /></strong>
+            <strong data-long-amount={Math.abs(monthlyTotal) >= 1_000_000} className={monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={monthlyTotal} signed /></strong>
           </div>
         </div>
         <div className="perf-summary-footer">
