@@ -731,7 +731,7 @@ button:disabled { cursor: not-allowed; }
 .pf-funds-dialog .pf-funds-total { padding-top: 12px; margin-top: 4px; font-size: 16px; font-weight: 600; }
 .pf-funds-dialog .pf-funds-actions { gap: 8px; margin-top: 18px; }
 .pf-funds-dialog .pf-funds-actions button { width: auto; min-width: 76px; min-height: 42px; padding: 9px 16px; font: inherit; font-size: 14px; }
-.pf-mobile-holdings { display: none; }
+.pf-mobile-holdings, .pf-mobile-sort { display: none; }
 @media (max-width: 760px) {
   .pf-overview-card { padding: 12px 14px; margin-bottom: 22px; }
   .pf-overview-card .pf-country-account { column-gap: 8px; }
@@ -743,13 +743,13 @@ button:disabled { cursor: not-allowed; }
   .pf-holdings-bar .pf-tab-group, .pf-holdings-bar .pf-filter-group { display: flex; min-width: 0; gap: 2px; margin: 0; }
   .pf-holdings-bar .pf-tab { min-width: 0; padding: 6px 7px; font-size: 11px; white-space: nowrap; }
   .pf-holdings-bar .pf-chip { padding: 6px; min-width: 30px; font-size: 11px; }
-  .pf-holdings-bar .pf-search-input { grid-column: 1 / -1; width: 100%; min-width: 0; min-height: 36px; margin: 0; font-size: 14px; }
+  .pf-holdings-bar .pf-search-input { grid-column: 1; width: 100%; min-width: 0; min-height: 36px; margin: 0; font-size: 14px; }
   .pf-content > .pf-tbl-wrap { display: none; }
   .pf-mobile-holdings { display: block; min-width: 0; border: 1px solid var(--east-border); border-radius: 14px; overflow: hidden; background: #fff; }
-  .pf-mobile-sort { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 9px 12px; background: #f5f6f8; }
-  .pf-mobile-sort label { font-size: 11px; color: var(--east-text-3); }
-  .pf-mobile-sort select { max-width: 170px; padding: 4px 6px; border: 0; background: transparent; color: var(--east-text-2); font: inherit; font-size: 11px; }
+  .pf-mobile-sort { display: flex; align-items: center; min-width: 0; }
+  .pf-mobile-sort select { width: 100%; max-width: 110px; min-height: 36px; padding: 7px 5px; border: 1px solid var(--east-border); border-radius: 9px; background: #fff; color: var(--east-text-2); font: inherit; font-size: 11px; cursor: pointer; }
   .pf-mobile-position { display: block; width: 100%; padding: 14px 12px; border: 0; border-top: 1px solid var(--east-border); border-radius: 0; background: #fff; font: inherit; text-align: left; color: var(--east-text-1); cursor: pointer; }
+  .pf-mobile-position:first-child { border-top: 0; }
   .pf-mobile-position:hover { background: #fafbfe; }
   .pf-mobile-position-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
   .pf-mobile-position-name { display: block; min-width: 0; }
@@ -759,7 +759,7 @@ button:disabled { cursor: not-allowed; }
   .pf-mobile-day.is-down { color: var(--east-neg); background: var(--east-neg-bg); }
   .pf-mobile-day.is-flat { color: var(--east-text-3); background: #f1f3f6; }
   .pf-mobile-metric-label { display: block; color: var(--east-text-3); font-size: 10px; font-weight: 400; margin-bottom: 3px; }
-  .pf-mobile-position-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: clamp(13px, 4vw, 16px); font-weight: 600; }
+  .pf-mobile-position-values { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 8px; font-size: clamp(12px, 3.4vw, 15px); font-weight: 600; }
   .pf-mobile-position-values > span { min-width: 0; }
   .pf-mobile-position-values > span:last-child { text-align: right; }
   .pf-mobile-position .pf-dual-money { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; white-space: normal; }
@@ -768,8 +768,9 @@ button:disabled { cursor: not-allowed; }
   .pf-mobile-position .pf-money-symbol { font-size: .8em; opacity: .8; margin-right: 2px; }
   .pf-mobile-position .pf-krw-equivalent { color: inherit; opacity: .7; font-size: 10px; font-weight: 400; white-space: normal; }
   .pf-mobile-position .pf-krw-equivalent .pf-money { display: inline; }
-  .pf-mobile-position-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; color: var(--east-text-3); font-size: 10px; }
-  .pf-mobile-position-foot > span > span { margin-left: 4px; font-weight: 500; }
+  .pf-mobile-position .pf-money-with-suffix { display: flex; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; gap: 3px; max-width: 100%; }
+  .pf-mobile-position .pf-money-with-suffix > .pf-money { white-space: nowrap; }
+  .pf-mobile-pnl-rate { font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; white-space: nowrap; }
   .pf-mobile-empty { padding: 20px 14px; font-size: 12px; color: var(--east-text-2); }
 }
 @media (min-width: 761px) {

@@ -518,15 +518,17 @@ function Money({
   );
 }
 
-function DualCurrencyMoney({ currency, amountInt, fxRate, signed = false }: {
+function DualCurrencyMoney({ currency, amountInt, fxRate, signed = false, suffix }: {
   currency: Currency;
   amountInt: number;
   fxRate: number;
   signed?: boolean;
+  suffix?: ReactNode;
 }) {
   return (
     <span className="pf-dual-money">
-      <Money currency={currency} amountInt={amountInt} signed={signed} />
+      {suffix ? <span className="pf-money-with-suffix"><Money currency={currency} amountInt={amountInt} signed={signed} />{suffix}</span>
+        : <Money currency={currency} amountInt={amountInt} signed={signed} />}
       {currency === "USD" ? (
         <span className="pf-krw-equivalent" title="현재 적용 환율 기준 원화 환산액">
           ≈ <Money currency="KRW" amountInt={usdToKrw(usdCentsToUsdFloat(amountInt), fxRate)} signed={signed} />
@@ -1651,12 +1653,8 @@ export default function PortfolioPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
-        </div>
-
-        <section className="pf-mobile-holdings" aria-label="보유 종목">
           <div className="pf-mobile-sort">
-            <label htmlFor="pf-mobile-sort">정렬</label>
-            <select id="pf-mobile-sort" value={sortState.key && sortState.mode ? sortState.key + ":" + sortState.mode : "default"}
+            <select aria-label="보유종목 정렬" id="pf-mobile-sort" value={sortState.key && sortState.mode ? sortState.key + ":" + sortState.mode : "default"}
               onChange={event => {
                 if (event.target.value === "default") { setSortState({ key: null, mode: null }); return; }
                 const [key, mode] = event.target.value.split(":");
@@ -1674,11 +1672,13 @@ export default function PortfolioPage() {
               <option value="weight:DESC">비중 높은순</option>
             </select>
           </div>
+        </div>
+
+        <section className="pf-mobile-holdings" aria-label="보유 종목">
           {loading ? <p className="pf-mobile-empty">로딩 중...</p> : sortedTableRows.length === 0 ?
             <p className="pf-mobile-empty">데이터가 없습니다.</p> : sortedTableRows.map(row => {
               const { holding, computed, dailyChangeRate } = row;
               const name = resolveHoldingDisplayName(holding);
-              const weight = totalMarketValueKrwForWeight > 0 ? row.marketValueComparableKrw / totalMarketValueKrwForWeight * 100 : 0;
               return <button type="button" key={holding.id} className="pf-mobile-position"
                 aria-label={name + " 보유종목 편집"} onClick={() => handleEdit(holding)}>
                 <span className="pf-mobile-position-head">
@@ -1696,13 +1696,10 @@ export default function PortfolioPage() {
                   </span>
                   <span><span className="pf-mobile-metric-label">평가손익</span>
                     <span className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}>
-                      <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed />
+                      <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed
+                        suffix={<span className="pf-mobile-pnl-rate">({computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)})</span>} />
                     </span>
                   </span>
-                </span>
-                <span className="pf-mobile-position-foot">
-                  <span>수익률 <span className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}>{computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)}</span></span>
-                  <span>비중 <span>{weight.toFixed(2)}%</span></span>
                 </span>
               </button>;
             })}
