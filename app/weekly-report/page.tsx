@@ -24,9 +24,11 @@ export default async function WeeklyReportPage() {
         const latest = category.reports[0];
         return latest ? <Link key={category.id} className={`weekly-feature weekly-feature-${category.id}`} href={`${category.base}/${latest.published_date}`}>
           <div className="weekly-feature-meta">
-            <span className="weekly-feature-label">Latest Report</span>
-            <span>{category.label}</span>
-            <time dateTime={latest.published_date}>{formatReportDate(latest.published_date).replace(" · ", " ")}</time>
+            <div className="weekly-feature-info">
+              <span>{category.label}</span>
+              <time dateTime={latest.published_date}>{formatReportDate(latest.published_date).replace(" · ", " ")}</time>
+            </div>
+            <span className="weekly-feature-label">Latest</span>
           </div>
           <h2>{latest.headline}</h2>
           <span className="weekly-read">리포트 읽기 <span aria-hidden="true">↗</span></span>
