@@ -10,6 +10,7 @@ function editor(onSave) {
   const slots = []; let cursor = 0;
   const react = {
     useId: () => 'funds',
+    useEffect: () => {},
     useRef: initial => { const i = cursor++; return slots[i] ??= { current: initial }; },
     useState: initial => { const i = cursor++; if (!(i in slots)) slots[i] = initial;
       return [slots[i], value => { slots[i] = typeof value === 'function' ? value(slots[i]) : value; }]; },
@@ -22,9 +23,9 @@ function editor(onSave) {
     const source = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: {
       module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX,
     } }).outputText;
-    const req = name => name === 'react' ? react : name === '@/components/FormattedNumberInput' ? { FormattedNumberInput: input }
+    const req = name => name === 'react' ? react : name === 'react-dom' ? { createPortal: child => child } : name === '@/components/FormattedNumberInput' ? { FormattedNumberInput: input }
       : name.startsWith('@/') ? load(path.join(root, name.slice(2)) + '.ts') : require(name);
-    vm.runInNewContext('(function(require,module,exports){' + source + '\n})', {})(req, mod, mod.exports);
+    vm.runInNewContext('(function(require,module,exports){' + source + '\n})', {document:{body:{}}})(req, mod, mod.exports);
     return mod.exports;
   }
   const { PortfolioFundsCard } = load(path.join(root, 'components/portfolio/PortfolioFundsCard.tsx'));
@@ -50,11 +51,13 @@ test('deposit edits stay local until save; cancel leaves saved amounts untouched
   ui.find('예수금 USD').props.onValueChange('250.75');
   ui.render();
   assert.equal(calls.length, 0);
+  assert.ok(ui.all().some(n => n.type === 'dialog'));
   const total = ui.all().find(n => n.props?.className === 'pf-funds-total');
   assert.match(JSON.stringify(total.props.children), /5,340,188/);
   ui.find('예수금 편집 취소').props.onClick(); ui.render();
   assert.equal(calls.length, 0);
   assert.equal(ui.find('예수금 KRW'), undefined);
+  assert.ok(!ui.all().some(n => n.type === 'dialog'));
 });
 
 test('one confirmed save passes both currencies atomically, preserving USD cents', async () => {

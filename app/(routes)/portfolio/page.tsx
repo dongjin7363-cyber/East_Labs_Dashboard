@@ -552,6 +552,7 @@ export default function PortfolioPage() {
   const [market, setMarket] = useState<"ALL" | Market>("ALL");
   const [search, setSearch] = useState("");
   const [donutMode, setDonutMode] = useState<DonutMode>("TICKER");
+  const [overviewExpanded, setOverviewExpanded] = useState(false);
   const [sortState, setSortState] = useState<SortState<PortfolioSortKey>>({
     key: null,
     mode: null,
@@ -1448,10 +1449,53 @@ export default function PortfolioPage() {
 
       {/* Content */}
       <div className="pf-content">
-        <div className="pf-overview-heading">
-          <h2 className="pf-sec-title">투자 현황</h2>
-          <details className="pf-overview-details">
-            <summary>Detail</summary>
+        <section className="pf-overview-card" aria-labelledby="pf-overview-title">
+          <div className="pf-overview-heading">
+            <h2 id="pf-overview-title" className="pf-sec-title">투자 현황</h2>
+            <button type="button" className="pf-detail-toggle" aria-expanded={overviewExpanded}
+              aria-controls="pf-overview-extra" onClick={() => setOverviewExpanded(value => !value)}>
+              <span aria-hidden="true">{overviewExpanded ? "▾" : "▸"}</span> Detail
+            </button>
+          </div>
+        <div className="pf-minimal-assets">
+          {/* Compact accounts and inline cash editors. */}
+          <div className="pf-nav-stack">
+            <div className="pf-account-banner">
+              <section className="pf-country-account" aria-label="미국 계좌" data-empty={usHoldingsMarketValueCents === 0 && usdHoldingsPnlCents === 0}>
+                <span className="pf-country-flag" role="img" aria-label="미국">🇺🇸</span>
+                <div className="pf-country-assets" aria-label="미국 자산 금액">
+                  <strong><Money currency="USD" amountInt={usHoldingsMarketValueCents} /></strong>
+                  <span className="pf-country-secondary">≈ <Money currency="KRW" amountInt={usdToKrw(usdCentsToUsdFloat(usHoldingsMarketValueCents), fxRate)} /></span>
+                </div>
+                <div className={"pf-country-pnl " + pnlToneClass(usdHoldingsPnlCents, "is-pos", "is-neg")} aria-label="미국 계좌 손익">
+                  <strong><Money currency="USD" amountInt={usdHoldingsPnlCents} signed /></strong>
+                  <span className="pf-country-secondary">{usPnlPct === null ? "—" : percentFormat(usPnlPct)}</span>
+                </div>
+              </section>
+              <section className="pf-country-account" aria-label="한국 계좌" data-empty={krHoldingsMarketValueKrw === 0 && krHoldingsPnlKrw === 0}>
+                <span className="pf-country-flag" role="img" aria-label="한국">🇰🇷</span>
+                <div className="pf-country-assets" aria-label="한국 자산 금액">
+                  <strong><Money currency="KRW" amountInt={krHoldingsMarketValueKrw} /></strong>
+                  <span className="pf-country-secondary">—</span>
+                </div>
+                <div className={"pf-country-pnl " + pnlToneClass(krHoldingsPnlKrw, "is-pos", "is-neg")} aria-label="한국 계좌 손익">
+                  <strong><Money currency="KRW" amountInt={krHoldingsPnlKrw} signed /></strong>
+                  <span className="pf-country-secondary">{krPnlPct === null ? "—" : percentFormat(krPnlPct)}</span>
+                </div>
+              </section>
+            </div>
+            <div className="pf-cash-row">
+              <PortfolioFundsCard key={"deposit:" + userId} kind="deposit" krw={depositKrw} usdCents={depositUsdCents} fxRate={fxRate}
+                amount={<Money currency="KRW" amountInt={totalDepositKrw} />} disabled={!isAuthed || accountStateLoading}
+                onSave={(krw, usdCents) => saveFunds({ depositKrwInt: krw, depositUsdCents: usdCents })} />
+              <PortfolioFundsCard key={"cash:" + userId} kind="cash" krw={cashKrw} fxRate={fxRate}
+                amount={<Money currency="KRW" amountInt={cashKrw} />} disabled={!isAuthed || accountStateLoading}
+                onSave={krw => saveFunds({ cashKrwInt: krw })} />
+            </div>
+          </div>
+
+        </div>
+          <div id="pf-overview-extra" className="pf-overview-extra" hidden={!overviewExpanded}>
             <div className="pf-overview-meta">
           {fxSummaryText.split("\n").map((line, idx) => (
             <div key={idx}>{line}</div>
@@ -1482,47 +1526,6 @@ export default function PortfolioPage() {
             </div>
           ) : null}
             </div>
-          </details>
-        </div>
-
-        <div className="pf-invest-wrap">
-          {/* Compact accounts and inline cash editors. */}
-          <div className="pf-nav-stack">
-            <div className="pf-account-banner">
-              <section className="pf-country-account" aria-label="미국 계좌">
-                <span className="pf-country-flag" role="img" aria-label="미국">🇺🇸</span>
-                <div className="pf-country-assets" aria-label="미국 자산 금액">
-                  <strong><Money currency="USD" amountInt={usHoldingsMarketValueCents} /></strong>
-                  <span className="pf-country-secondary">≈ <Money currency="KRW" amountInt={usdToKrw(usdCentsToUsdFloat(usHoldingsMarketValueCents), fxRate)} /></span>
-                </div>
-                <div className={"pf-country-pnl " + pnlToneClass(usdHoldingsPnlCents, "is-pos", "is-neg")} aria-label="미국 계좌 손익">
-                  <strong><Money currency="USD" amountInt={usdHoldingsPnlCents} signed /></strong>
-                  <span className="pf-country-secondary">{usPnlPct === null ? "—" : percentFormat(usPnlPct)}</span>
-                </div>
-              </section>
-              <section className="pf-country-account" aria-label="한국 계좌">
-                <span className="pf-country-flag" role="img" aria-label="한국">🇰🇷</span>
-                <div className="pf-country-assets" aria-label="한국 자산 금액">
-                  <strong><Money currency="KRW" amountInt={krHoldingsMarketValueKrw} /></strong>
-                  <span className="pf-country-secondary">—</span>
-                </div>
-                <div className={"pf-country-pnl " + pnlToneClass(krHoldingsPnlKrw, "is-pos", "is-neg")} aria-label="한국 계좌 손익">
-                  <strong><Money currency="KRW" amountInt={krHoldingsPnlKrw} signed /></strong>
-                  <span className="pf-country-secondary">{krPnlPct === null ? "—" : percentFormat(krPnlPct)}</span>
-                </div>
-              </section>
-            </div>
-            <div className="pf-cash-row">
-              <PortfolioFundsCard key={"deposit:" + userId} kind="deposit" krw={depositKrw} usdCents={depositUsdCents} fxRate={fxRate}
-                amount={<Money currency="KRW" amountInt={totalDepositKrw} />} disabled={!isAuthed || accountStateLoading}
-                onSave={(krw, usdCents) => saveFunds({ depositKrwInt: krw, depositUsdCents: usdCents })} />
-              <PortfolioFundsCard key={"cash:" + userId} kind="cash" krw={cashKrw} fxRate={fxRate}
-                amount={<Money currency="KRW" amountInt={cashKrw} />} disabled={!isAuthed || accountStateLoading}
-                onSave={krw => saveFunds({ cashKrwInt: krw })} />
-            </div>
-          </div>
-
-          {/* Right: Donut chart */}
           <div className="pf-chart-card">
             <div className="pf-donut-outer">
               <DonutChart slices={donutSlices} total={donutTotal} />
@@ -1561,7 +1564,8 @@ export default function PortfolioPage() {
               </div>
             )}
           </div>
-        </div>
+          </div>
+        </section>
 
         {/* Holdings bar */}
         <div className="pf-holdings-bar">
@@ -1620,6 +1624,63 @@ export default function PortfolioPage() {
             onChange={(event) => setSearch(event.target.value)}
           />
         </div>
+
+        <section className="pf-mobile-holdings" aria-label="보유 종목">
+          <div className="pf-mobile-sort">
+            <label htmlFor="pf-mobile-sort">정렬</label>
+            <select id="pf-mobile-sort" value={sortState.key && sortState.mode ? sortState.key + ":" + sortState.mode : "default"}
+              onChange={event => {
+                if (event.target.value === "default") { setSortState({ key: null, mode: null }); return; }
+                const [key, mode] = event.target.value.split(":");
+                setSortState({ key: key as PortfolioSortKey, mode: mode as "ASC" | "DESC" });
+              }}>
+              <option value="default">기본 순서</option>
+              <option value="ticker:ASC">종목명순</option>
+              <option value="dailyChangeRate:DESC">당일 등락률 높은순</option>
+              <option value="dailyChangeRate:ASC">당일 등락률 낮은순</option>
+              <option value="marketValue:DESC">평가금액 높은순</option>
+              <option value="pnl:DESC">손익 높은순</option>
+              <option value="pnl:ASC">손익 낮은순</option>
+              <option value="pnlRate:DESC">수익률 높은순</option>
+              <option value="pnlRate:ASC">수익률 낮은순</option>
+              <option value="weight:DESC">비중 높은순</option>
+            </select>
+          </div>
+          {loading ? <p className="pf-mobile-empty">로딩 중...</p> : sortedTableRows.length === 0 ?
+            <p className="pf-mobile-empty">데이터가 없습니다.</p> : sortedTableRows.map(row => {
+              const { holding, computed, dailyChangeRate } = row;
+              const name = resolveHoldingDisplayName(holding);
+              const weight = totalMarketValueKrwForWeight > 0 ? row.marketValueComparableKrw / totalMarketValueKrwForWeight * 100 : 0;
+              return <button type="button" key={holding.id} className="pf-mobile-position"
+                aria-label={name + " 보유종목 편집"} onClick={() => handleEdit(holding)}>
+                <span className="pf-mobile-position-head">
+                  <span className="pf-mobile-position-name">
+                    <span className="pf-mobile-position-title"><span aria-hidden="true">{holding.market === "KR" ? "🇰🇷" : "🇺🇸"}</span> {name}</span>
+                    <span className="pf-mobile-position-code">{holding.tickerCode ?? holding.ticker}</span>
+                  </span>
+                  <span className="pf-mobile-day"><span className="pf-mobile-metric-label">당일</span>
+                    <span className={dailyChangeRate === null ? "" : pnlToneClass(dailyChangeRate, "pf-pnl-pos", "pf-pnl-neg")}>
+                      {dailyChangeRate === null ? "—" : formatDailyChangeLabel(dailyChangeRate)}
+                    </span>
+                  </span>
+                </span>
+                <span className="pf-mobile-position-values">
+                  <span><span className="pf-mobile-metric-label">평가금액</span>
+                    <DualCurrencyMoney currency={holding.currency} amountInt={computed.marketValue} fxRate={fxRate} />
+                  </span>
+                  <span><span className="pf-mobile-metric-label">평가손익</span>
+                    <span className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}>
+                      <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed />
+                    </span>
+                  </span>
+                </span>
+                <span className="pf-mobile-position-foot">
+                  <span>수익률 <span className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}>{computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)}</span></span>
+                  <span>비중 <span>{weight.toFixed(2)}%</span></span>
+                </span>
+              </button>;
+            })}
+        </section>
 
         {/* Holdings table */}
         <div className="pf-tbl-wrap">
