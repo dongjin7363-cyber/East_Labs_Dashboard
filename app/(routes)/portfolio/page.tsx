@@ -42,6 +42,8 @@ import { supabase } from "@/lib/supabaseClient";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
 const LAST_QUOTE_REFRESH_STORAGE_KEY = "pf_last_quote_refresh_at_v1";
+const QUOTE_REFRESH_COMPLETED_STORAGE_KEY = "pf_quote_refresh_completed_at_v1";
+const QUOTE_AUTO_REFRESH_INTERVAL_MS = 600_000;
 const LAST_QUOTE_FAIL_STORAGE_KEY = "pf_last_quote_fail_at_v1";
 const QUOTE_BLACKLIST_STORAGE_KEY = "pf_quote_blacklist_v1";
 const DEFAULT_FX_RATE = 1350;
@@ -580,6 +582,7 @@ export default function PortfolioPage() {
   const [indexesLoading, setIndexesLoading] = useState(true);
   const [indexesFailed, setIndexesFailed] = useState(false);
   const quoteRefreshInFlightRef = useRef(false);
+  const quoteRefreshCompletedRef = useRef<{ userId: string | null; at: number } | null>(null);
   const isAuthed = isCloudMode;
   const depositKrw = accountState.depositKrwInt;
   const depositUsdCents = accountState.depositUsdCents;
@@ -782,7 +785,24 @@ export default function PortfolioPage() {
       if (!force) {
         const now = Date.now();
 
-        if (lastQuoteFailAt !== null && now - lastQuoteFailAt < QUOTE_FAIL_COOLDOWN_MS) {
+        // Read storage on every entry/visibility change, including after a remount.
+        let storedCompletedAt: number | null = null;
+        let storedQuoteAt: number | null = null;
+        try {
+          storedCompletedAt = parseStoredTimestamp(window.localStorage.getItem(
+            `${QUOTE_REFRESH_COMPLETED_STORAGE_KEY}:${userId}`,
+          ));
+          storedQuoteAt = parseStoredTimestamp(window.localStorage.getItem(LAST_QUOTE_REFRESH_STORAGE_KEY));
+        } catch {
+          // The in-memory record still prevents repeats if storage is unavailable.
+        }
+        const memoryCompletedAt = quoteRefreshCompletedRef.current?.userId === userId
+          ? quoteRefreshCompletedRef.current.at : null;
+        const recentlyRefreshed = [memoryCompletedAt, storedCompletedAt, storedQuoteAt, lastQuoteRefreshAt]
+          .some(at => at !== null && now >= at && now - at < QUOTE_AUTO_REFRESH_INTERVAL_MS);
+        if (recentlyRefreshed) return;
+
+        if (lastQuoteFailAt !== null && now >= lastQuoteFailAt && now - lastQuoteFailAt < QUOTE_FAIL_COOLDOWN_MS) {
           return;
         }
       }
@@ -830,6 +850,14 @@ export default function PortfolioPage() {
           throw new Error(message);
         }
 
+        // Cooldown uses the request completion time; market data may be from an older session.
+        const refreshedAt = Date.now();
+        quoteRefreshCompletedRef.current = { userId, at: refreshedAt };
+        try {
+          window.localStorage.setItem(`${QUOTE_REFRESH_COMPLETED_STORAGE_KEY}:${userId}`, `${refreshedAt}`);
+        } catch {
+          // Keep the in-memory completion record when storage is unavailable.
+        }
         const serverCompletedAt =
           parseIsoTimestampMs(payload?.last_updated) ??
           parseIsoTimestampMs(payload?.finishedAt);
@@ -891,7 +919,7 @@ export default function PortfolioPage() {
         setIsRefreshingQuotes(false);
       }
     },
-    [lastQuoteFailAt, refresh],
+    [lastQuoteFailAt, lastQuoteRefreshAt, userId, refresh],
   );
 
   const accessRefreshUserRef = useRef<string | null>(null);
@@ -902,7 +930,7 @@ export default function PortfolioPage() {
     }
     if (loading || !quoteMetaLoaded || !userId || accessRefreshUserRef.current === userId) return;
     accessRefreshUserRef.current = userId;
-    void refreshQuotesForVisible({ force: true });
+    void refreshQuotesForVisible();
   }, [isAuthed, userId, loading, quoteMetaLoaded, refreshQuotesForVisible]);
 
   useEffect(() => {
@@ -1655,13 +1683,11 @@ export default function PortfolioPage() {
                 aria-label={name + " 보유종목 편집"} onClick={() => handleEdit(holding)}>
                 <span className="pf-mobile-position-head">
                   <span className="pf-mobile-position-name">
-                    <span className="pf-mobile-position-title"><span aria-hidden="true">{holding.market === "KR" ? "🇰🇷" : "🇺🇸"}</span> {name}</span>
-                    <span className="pf-mobile-position-code">{holding.tickerCode ?? holding.ticker}</span>
+                    <span className="pf-mobile-position-title" title={name}><span aria-hidden="true">{holding.market === "KR" ? "🇰🇷" : "🇺🇸"}</span> {name}</span>
                   </span>
-                  <span className="pf-mobile-day"><span className="pf-mobile-metric-label">당일</span>
-                    <span className={dailyChangeRate === null ? "" : pnlToneClass(dailyChangeRate, "pf-pnl-pos", "pf-pnl-neg")}>
-                      {dailyChangeRate === null ? "—" : formatDailyChangeLabel(dailyChangeRate)}
-                    </span>
+                  <span className={"pf-mobile-day " + (dailyChangeRate === null || dailyChangeRate === 0 ? "is-flat" : dailyChangeRate > 0 ? "is-up" : "is-down")}
+                    aria-label={"1일 등락률 " + (dailyChangeRate === null ? "정보 없음" : percentFormat(dailyChangeRate))}>
+                    {dailyChangeRate === null ? "—" : (dailyChangeRate > 0 ? "+" : "") + percentFormat(dailyChangeRate)}
                   </span>
                 </span>
                 <span className="pf-mobile-position-values">
@@ -1751,9 +1777,6 @@ export default function PortfolioPage() {
                       <td>
                         <span className="pf-t-flag">{flag}</span>
                         <span className="pf-t-name">{displayName}</span>
-                        <span className="pf-t-code">
-                          {holding.tickerCode ?? holding.ticker}
-                        </span>
                       </td>
                       <td>
                         {row.dailyChangeRate === null ? (
