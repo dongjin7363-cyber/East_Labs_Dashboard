@@ -39,6 +39,8 @@ const SSR_SAFE_DATE = "1970-01-01";
 const SSR_SAFE_MONTH = "1970-01";
 
 type PeriodKey = "1m" | "3m" | "6m" | "1y" | "custom";
+type BenchmarkKey = Exclude<AssetTrendBenchmarkKey, "portfolio">;
+const PERIOD_SHORT_LABELS = { "1m": "1M", "3m": "3M", "6m": "6M", "1y": "1Y" };
 
 const PERIOD_LABELS: Record<PeriodKey, string> = {
   "1m": "이번 달",
@@ -49,11 +51,11 @@ const PERIOD_LABELS: Record<PeriodKey, string> = {
 };
 
 const SERIES_COLOR: Record<AssetTrendBenchmarkKey, string> = {
-  portfolio: "#111111",
-  kospi: "#ef4444",
-  sp500: "#16a34a",
-  kosdaq: "#2563eb",
-  nasdaq: "#f97316",
+  portfolio: "#4564c7",
+  kospi: "#9ca3af",
+  sp500: "#9ca3af",
+  kosdaq: "#9ca3af",
+  nasdaq: "#9ca3af",
 };
 
 const SERIES_LABEL: Record<AssetTrendBenchmarkKey, string> = {
@@ -229,8 +231,21 @@ function buildSmoothPath(
 }
 
 function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
-  const W = 640;
-  const H = 190;
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 640, height: 220 });
+  useEffect(() => {
+    const node = canvasRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width <= 0 || entry.contentRect.height <= 0) return;
+      const width = Math.round(entry.contentRect.width), height = Math.round(entry.contentRect.height);
+      setSize(previous => previous.width === width && previous.height === height ? previous : { width, height });
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  const W = Math.max(240, size.width);
+  const H = Math.max(160, size.height);
   const padL = 44;
   const padR = 12;
   const padT = 16;
@@ -252,7 +267,7 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
 
   if (allValues.length === 0 || n === 0) {
     return (
-      <div className="perf-empty-chart">선택한 기간의 비교 데이터가 없습니다.</div>
+      <div ref={canvasRef} className="perf-line-canvas"><div className="perf-empty-chart">선택한 기간의 비교 데이터가 없습니다.</div></div>
     );
   }
 
@@ -284,7 +299,7 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
   const labelLast = points[n - 1]?.date ?? "";
 
   return (
-    <svg
+    <div ref={canvasRef} className="perf-line-canvas"><svg
       viewBox={`0 0 ${W} ${H}`}
       preserveAspectRatio="xMidYMid meet"
       width="100%"
@@ -325,10 +340,12 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
         return (
           <path
             key={key}
+            data-series={key}
             d={d}
             fill="none"
             stroke={SERIES_COLOR[key]}
-            strokeWidth={key === "portfolio" ? 1.5 : 0.8}
+            strokeWidth={key === "portfolio" ? 2.2 : 1.5}
+            vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -350,7 +367,7 @@ function BenchmarkLineChart({ data, visible }: BenchmarkLineChartProps) {
       >
         {labelLast}
       </text>
-    </svg>
+    </svg></div>
   );
 }
 
@@ -388,7 +405,8 @@ export default function PerformancePage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RealizedTrade | undefined>();
   const [selected, setSelected] = useState<RealizedTrade | undefined>();
-  const [chartTab, setChartTab] = useState<"benchmark" | "nav">("benchmark");
+  const [chartTab, setChartTab] = useState<"benchmark" | "nav" | "trades">("benchmark");
+  const [selectedBenchmark, setSelectedBenchmark] = useState<BenchmarkKey>("kospi");
   const [navSelectedDate, setNavSelectedDate] = useState(SSR_SAFE_DATE);
   const [navCalendarMap, setNavCalendarMap] = useState<Record<string, CalendarDayInfo>>({});
   const [isRecording, setIsRecording] = useState(false);
@@ -612,7 +630,6 @@ export default function PerformancePage() {
   );
 
   const portfolioReturnPct = benchmarkSummary.portfolio.periodReturnPct;
-  const kospiReturnPct = benchmarkSummary.kospi.periodReturnPct;
 
   const monthSnapshots = useMemo(
     () =>
@@ -725,137 +742,53 @@ export default function PerformancePage() {
 
   return (
     <div className="perf-page east-page">
-      {/* Page header */}
-      <div className="perf-page-header east-page-header">
-        <div className="perf-heading"><h1 className="perf-page-title">Performance</h1><p>투자 성과와 실현손익을 한눈에</p></div>
-        <div className="perf-header-filters"><span className="perf-filter-label">손익 · 거래 기준</span>
-        <select
-          aria-label="손익 조회 월"
-          className="perf-select-sm"
-          value={selectedMonth}
-          onChange={(event) => setSelectedMonth(event.target.value)}
-          disabled={!mounted}
-        >
-          {monthOptions.map((ym) => (
-            <option key={ym} value={ym}>
-              {formatMonthLabel(ym)}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className={`perf-chip${market === "ALL" ? " is-active" : ""}`}
-          onClick={() => setMarket("ALL")}
-        >
-          ALL
-        </button>
-        <button
-          type="button"
-          className={`perf-chip${market === "KR" ? " is-active" : ""}`}
-          onClick={() => setMarket("KR")}
-        >
-          KR
-        </button>
-        <button
-          type="button"
-          className={`perf-chip${market === "US" ? " is-active" : ""}`}
-          onClick={() => setMarket("US")}
-        >
-          US
-        </button>
+      <div className="perf-page-header east-page-header perf-summary-card">
+        <div className="perf-summary-top">
+          <h1 className="perf-page-title">Performance</h1>
+          <button type="button" className="perf-btn-add perf-add-icon" aria-label="거래 추가" title="거래 추가" onClick={handleAdd} disabled={!isAuthenticated}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+          </button>
         </div>
-        <button
-          type="button"
-          className="perf-btn-add"
-          onClick={handleAdd}
-          disabled={!isAuthenticated}
-        >
-          + 거래 추가
-        </button>
-      </div>
-
-      {/* Summary cards */}
-      <div className="perf-stats-row">
-        <div className="perf-scard">
-          <p className="perf-scard-label">월 실현손익</p>
-          <p
-            className={`perf-scard-val ${monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""}`}
-          >
-            <MoneyText currency="KRW" amountInt={monthlyTotal} signed />
-          </p><p className="perf-scard-sub">{formatMonthLabel(selectedMonth)} · {market}</p>
+        <div className="perf-summary-filters">
+          <select aria-label="손익 조회 월" className="perf-select-sm" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)} disabled={!mounted}>
+            {monthOptions.map(ym => <option key={ym} value={ym}>{formatMonthLabel(ym)}</option>)}
+          </select>
+          <div className="perf-market-toggle" aria-label="손익 조회 국가">
+            {(["ALL", "KR", "US"] as const).map(value => <button key={value} type="button" aria-pressed={market === value} className={market === value ? "is-active" : ""} onClick={() => setMarket(value)}>{value}</button>)}
+          </div>
         </div>
-        <div className="perf-scard">
-          <p className="perf-scard-label">총 거래</p>
-          <p className="perf-scard-val">
-            {summary.totalCount}
-            <span className="perf-scard-unit"> 건</span>
-          </p>
-          <p className="perf-scard-sub">
-            수익 {summary.winCount}건 ·{" "}
-            {summary.totalCount > 0 ? percentFormat(summary.winRate) : "—"}
-          </p>
+        <div className="perf-summary-primary">
+          <div title={`전체 자산 기준 · ${periodRange.from} — ${periodRange.to}`}>
+            <span className="perf-summary-label">포트폴리오 수익률</span>
+            <strong className={portfolioReturnPct === null ? "" : portfolioReturnPct > 0 ? "is-pos" : portfolioReturnPct < 0 ? "is-neg" : ""}>{portfolioReturnPct === null ? "—" : `${portfolioReturnPct > 0 ? "+" : ""}${portfolioReturnPct.toFixed(2)}%`}</strong>
+          </div>
+          <div>
+            <span className="perf-summary-label">월 실현손익</span>
+            <strong className={monthlyTotal > 0 ? "is-pos" : monthlyTotal < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={monthlyTotal} signed /></strong>
+          </div>
         </div>
-        <div className="perf-scard">
-          <p className="perf-scard-label">포트폴리오 수익률</p>
-          <p
-            className={`perf-scard-val ${
-              portfolioReturnPct === null
-                ? ""
-                : portfolioReturnPct > 0
-                  ? "is-pos"
-                  : portfolioReturnPct < 0
-                    ? "is-neg"
-                    : ""
-            }`}
-          >
-            {portfolioReturnPct === null
-              ? "—"
-              : `${portfolioReturnPct > 0 ? "+" : ""}${portfolioReturnPct.toFixed(2)}%`}
-          </p>
-          <p className="perf-scard-sub">
-            KOSPI{" "}
-            {kospiReturnPct === null
-              ? "—"
-              : `${kospiReturnPct > 0 ? "+" : ""}${kospiReturnPct.toFixed(2)}%`}{" "}
-            · {PERIOD_LABELS[period]} 비교
-          </p>
-        </div>
-        <div className="perf-scard">
-          <p className="perf-scard-label">연 누적 실현손익</p>
-          <p
-            className={`perf-scard-val ${yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""}`}
-          >
-            <MoneyText currency="KRW" amountInt={yearlyCumulative} signed />
-          </p><p className="perf-scard-sub">{selectedYear}년 · {market} · 원화 환산</p>
+        <div className="perf-summary-footer">
+          <div title={`${selectedYear}년 · ${market} · 원화 환산`}><span>연 누적 실현손익</span><strong className={yearlyCumulative > 0 ? "is-pos" : yearlyCumulative < 0 ? "is-neg" : ""}><MoneyText currency="KRW" amountInt={yearlyCumulative} signed /></strong></div>
+          <button type="button" onClick={() => setChartTab("trades")} aria-label="거래 내역 보기">거래 {summary.totalCount}건</button>
         </div>
       </div>
 
-      {!authLoading && !isAuthenticated ? (
-        <div className="perf-auth-gate">로그인 후 데이터를 확인할 수 있습니다.</div>
-      ) : null}
+      {!authLoading && !isAuthenticated ? <div className="perf-auth-gate">로그인 후 데이터를 확인할 수 있습니다.</div> : null}
 
-      {/* Main grid */}
-      <div className="perf-main-grid">
-        {/* LEFT: chart */}
-        <div className="perf-col-chart">
-          {/* Panel tab chips */}
-          <div className="perf-main-tabs">
-            <div className="perf-main-tabs-left">
-              <button
-                type="button"
-                className={`perf-main-tab${chartTab === "benchmark" ? " is-active" : ""}`}
-                onClick={() => setChartTab("benchmark")}
-              >
-                포트폴리오 vs 지수
-              </button>
-              <button
-                type="button"
-                className={`perf-main-tab${chartTab === "nav" ? " is-active" : ""}`}
-                onClick={() => setChartTab("nav")}
-              >
-                일별 자산
-              </button>
-            </div>
+      <section className="perf-analysis-panel" aria-label="성과 분석">
+        <div className="perf-analysis-heading">
+          <div className="perf-analysis-tabs" role="tablist" aria-label="성과 분석 보기" onKeyDown={event => {
+            const keys = ["benchmark", "nav", "trades"] as const;
+            const index = keys.indexOf(chartTab);
+            const nextIndex = event.key === "ArrowRight" ? (index + 1) % keys.length : event.key === "ArrowLeft" ? (index + keys.length - 1) % keys.length : event.key === "Home" ? 0 : event.key === "End" ? keys.length - 1 : null;
+            if (nextIndex === null) return;
+            event.preventDefault();
+            const next = keys[nextIndex];
+            setChartTab(next);
+            event.currentTarget.querySelector<HTMLButtonElement>(`#perf-tab-${next}`)?.focus();
+          }}>
+            {([["benchmark", "수익률"], ["nav", "일별 자산"], ["trades", "거래 내역"]] as const).map(([key, label]) => <button key={key} type="button" role="tab" id={`perf-tab-${key}`} aria-controls="perf-analysis-content" aria-selected={chartTab === key} tabIndex={chartTab === key ? 0 : -1} className={chartTab === key ? "is-active" : ""} onClick={() => setChartTab(key)}>{label}</button>)}
+          </div>
             {chartTab === "nav" && (
               <button
                 type="button"
@@ -874,26 +807,93 @@ export default function PerformancePage() {
                   : `${Number(navSelectedDate.slice(5, 7))}/${Number(navSelectedDate.slice(8, 10))} 기록`}
               </button>
             )}
+        </div>
+        <div role="tabpanel" id="perf-analysis-content" aria-labelledby={`perf-tab-${chartTab}`}>
+          {chartTab === "trades" ? (
+<div className="perf-trades-panel">
+          <div className="perf-section-heading perf-trades-heading"><div><h2>거래 내역</h2><p>{formatMonthLabel(selectedMonth)} · {market} · {tableTrades.length}건</p></div>
+            <input
+              className="perf-search-sm"
+              type="text"
+              placeholder="종목 검색"
+              aria-label="거래 종목 검색"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
-
-          {chartTab === "benchmark" ? (
-            <>
-              <div className="perf-chart-header">
-                <span className="perf-chart-caption">전체 자산 기준 · {periodRange.from} — {periodRange.to}</span>
-                <div className="perf-period-tabs">
-                  {(Object.keys(PERIOD_LABELS) as PeriodKey[]).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      className={`perf-period-tab${period === key ? " is-active" : ""}`}
-                      onClick={() => handlePeriodClick(key)}
-                    >
-                      {PERIOD_LABELS[key]}
-                    </button>
-                  ))}
-                </div>
+          <div className="perf-tbl-scroll" style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) 52px minmax(90px, 1.4fr)', minWidth: 0, padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
+              <span>마켓</span>
+              <span>종목</span>
+              <button type="button" className="perf-sort-button" onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+                PnL%
+                <span style={{ fontSize: '10px', color: sortCol === 'returnPct' ? '#1D4ED8' : '#9ca3af' }}>
+                  {sortCol === 'returnPct' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
+                </span>
+              </button>
+              <button type="button" className="perf-sort-button" onClick={() => handleSort('pnlInt')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
+                PnL
+                <span style={{ fontSize: '10px', color: sortCol === 'pnlInt' ? '#1D4ED8' : '#9ca3af' }}>
+                  {sortCol === 'pnlInt' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
+                </span>
+              </button>
+            </div>
+            {tradesLoading ? (
+              <div className="perf-empty-row">로딩 중...</div>
+            ) : sortedTrades.length === 0 ? (
+              <div className="perf-empty-row"><strong>표시할 거래가 없습니다</strong><span>조회 월이나 마켓을 변경해 보세요.</span></div>
+            ) : (
+              sortedTrades.map((trade) => {
+                const currency = resolveTradeCurrency(trade.market);
+                return (
+                  <div
+                    key={trade.id}
+                    className="perf-row-click"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(trade); } }}
+                    onClick={() => setSelected(trade)}
+                    style={{ display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr) 52px minmax(90px, 1.4fr)', minWidth: 0, padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
+                  >
+                    <span>
+                      <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
+                        {trade.market}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: '13px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {trade.ticker}
+                    </span>
+                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280' }}>
+                      {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
+                    </span>
+                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
+                      {currency === 'KRW' ? (
+                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
+                      ) : (
+                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}<span className="perf-trade-krw"> ({moneyFormat("KRW", convertTradeAmountToKrw(trade.pnlInt, trade.market, fxRate))})</span></>
+                      )}
+                    </span>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+          ) : chartTab === "nav" ? (
+            <div className="perf-nav-content">
+              <TotalAssetCalendar month={selectedMonth} selectedDate={navSelectedDate} today={today} snapshots={snapshots} calendarMap={navCalendarMap} onSelectDate={setNavSelectedDate} />
+            </div>
+          ) : <>
+            <div className="perf-analysis-controls">
+              <div className="perf-period-tabs" aria-label="비교 기간">
+                {(["1m", "3m", "6m", "1y", "custom"] as const).map(key => <button key={key} type="button" className={`perf-period-tab${period === key ? " is-active" : ""}`} aria-label={PERIOD_LABELS[key]} aria-pressed={period === key} title={PERIOD_LABELS[key]} onClick={() => handlePeriodClick(key)}>
+                  {key === "custom" ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 2v6M17 2v6M3 11h18" /></svg> : PERIOD_SHORT_LABELS[key]}
+                </button>)}
               </div>
-
+              <select aria-label="비교 지수" className="perf-benchmark-select" value={selectedBenchmark} onChange={event => setSelectedBenchmark(event.target.value as BenchmarkKey)}>
+                {(["kospi", "kosdaq", "sp500", "nasdaq"] as const).map(key => <option key={key} value={key}>{SERIES_LABEL[key]}</option>)}
+              </select>
+            </div>
               {period === "custom" ? (
                 <div className="perf-custom-range">
                   <input
@@ -921,65 +921,22 @@ export default function PerformancePage() {
                 </div>
               ) : null}
 
-              {historyStatus && <p className="perf-history-status" role="status">{historyStatus}</p>}
-              <div className="perf-chart-svg-wrap">
-                <BenchmarkLineChart
-                  data={benchmarkData}
-                  visible={{
-                    portfolio: true,
-                    kospi: true,
-                    sp500: true,
-                    kosdaq: true,
-                    nasdaq: true,
-                  }}
-                />
-              </div>
-
-              <div className="perf-rate-strip">
-                {SERIES_ORDER.map((key) => {
-                  const period = benchmarkSummary[key].periodReturnPct;
-                  const daily = benchmarkSummary[key].dailyReturnPct;
-                  return (
-                    <div className="perf-rate-item" key={key}>
-                      <div className="perf-rate-topline">
-                      <div className="perf-rate-name">
-                        <span
-                          className="perf-rate-dot"
-                          style={{ background: SERIES_COLOR[key] }}
-                        />
-                        {SERIES_LABEL[key]}
-                      </div>
-                      <div className="perf-rate-today" aria-label={`${SERIES_LABEL[key]} 일간 등락률`}>
-                        <span className={daily === null || daily === 0 ? "pf-chip-flat" : daily > 0 ? "pf-chip-pos" : "pf-chip-neg"}>
-                          {daily === null ? "—" : `${daily > 0 ? "↑ " : daily < 0 ? "↓ " : ""}${Math.abs(daily).toFixed(2)}%`}
-                        </span>
-                      </div>
-                      </div>
-                      <div className="perf-rate-period">
-                        {period === null
-                          ? "—"
-                          : `${period > 0 ? "+" : ""}${period.toFixed(2)}%`}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="perf-nav-content">
-              <TotalAssetCalendar
-                month={selectedMonth}
-                selectedDate={navSelectedDate}
-                today={today}
-                snapshots={snapshots}
-                calendarMap={navCalendarMap}
-                onSelectDate={setNavSelectedDate}
-              />
+            {historyStatus && <p className="perf-history-status" role="status">{historyStatus}</p>}
+            <div className="perf-benchmark-chart">
+              <BenchmarkLineChart data={benchmarkData} visible={{ portfolio: true, kospi: selectedBenchmark === "kospi", kosdaq: selectedBenchmark === "kosdaq", sp500: selectedBenchmark === "sp500", nasdaq: selectedBenchmark === "nasdaq" }} />
             </div>
-          )}
+            <div className="perf-compare-legend" aria-label="선택 기간 수익률">
+              {(["portfolio", selectedBenchmark] as const).map(key => {
+                const value = benchmarkSummary[key].periodReturnPct;
+                return <div key={key}><span><i style={{ background: SERIES_COLOR[key] }} />{SERIES_LABEL[key]}</span><strong className={key !== "portfolio" || value === null ? "" : value > 0 ? "is-pos" : value < 0 ? "is-neg" : ""}>{value === null ? "—" : `${value > 0 ? "+" : ""}${value.toFixed(2)}%`}</strong></div>;
+              })}
+            </div>
+            <p className="perf-analysis-caption">전체 자산 기준 · {periodRange.from} — {periodRange.to}</p>
+          </>}
         </div>
+      </section>
 
-        <section className="perf-monthly-panel" aria-label="월별 실현손익">
+<section className="perf-monthly-panel" aria-label="월별 실현손익">
           <div className="perf-section-heading">
             <div><div className="perf-monthly-heading-line"><h2>월별 실현손익</h2>          <div className="perf-monthly-legend">
             {market !== "US" && <span><i style={{ background: "#4c78bb" }} />KR</span>}
@@ -1022,80 +979,6 @@ export default function PerformancePage() {
           </div>
           </div>
         </section>
-
-        {/* RIGHT: table */}
-        <div className="perf-col-table">
-          <div className="perf-section-heading perf-trades-heading"><div><h2>거래 내역</h2><p>{formatMonthLabel(selectedMonth)} · {market} · {tableTrades.length}건</p></div>
-            <input
-              className="perf-search-sm"
-              type="text"
-              placeholder="종목 검색"
-              aria-label="거래 종목 검색"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
-          <div className="perf-tbl-scroll" style={{ overflowX: 'auto' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '32px minmax(60px, 1fr) 48px 190px', minWidth: '350px', padding: '6px 8px', borderBottom: '2px solid #e5e7eb', fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>
-              <span>마켓</span>
-              <span>종목</span>
-              <button type="button" className="perf-sort-button" onClick={() => handleSort('returnPct')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
-                PnL%
-                <span style={{ fontSize: '10px', color: sortCol === 'returnPct' ? '#1D4ED8' : '#9ca3af' }}>
-                  {sortCol === 'returnPct' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
-                </span>
-              </button>
-              <button type="button" className="perf-sort-button" onClick={() => handleSort('pnlInt')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '3px' }}>
-                PnL
-                <span style={{ fontSize: '10px', color: sortCol === 'pnlInt' ? '#1D4ED8' : '#9ca3af' }}>
-                  {sortCol === 'pnlInt' ? (sortDir === 'desc' ? '▼' : '▲') : '⇅'}
-                </span>
-              </button>
-            </div>
-            {tradesLoading ? (
-              <div className="perf-empty-row">로딩 중...</div>
-            ) : sortedTrades.length === 0 ? (
-              <div className="perf-empty-row"><strong>표시할 거래가 없습니다</strong><span>조회 월이나 마켓을 변경해 보세요.</span></div>
-            ) : (
-              sortedTrades.map((trade) => {
-                const currency = resolveTradeCurrency(trade.market);
-                return (
-                  <div
-                    key={trade.id}
-                    className="perf-row-click"
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelected(trade); } }}
-                    onClick={() => setSelected(trade)}
-                    style={{ display: 'grid', gridTemplateColumns: '32px minmax(60px, 1fr) 48px 190px', minWidth: '350px', padding: '6px 8px', borderBottom: '1px solid #f3f4f6', alignItems: 'center' }}
-                  >
-                    <span>
-                      <span className={trade.market === "KR" ? "perf-mkt-kr" : "perf-mkt-us"}>
-                        {trade.market}
-                      </span>
-                    </span>
-                    <span style={{ fontSize: '13px', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {trade.ticker}
-                    </span>
-                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.returnPct > 0 ? '#16a34a' : trade.returnPct < 0 ? '#dc2626' : '#6b7280' }}>
-                      {trade.returnPct > 0 ? '+' : ''}{Number(trade.returnPct).toFixed(1)}%
-                    </span>
-                    <span style={{ fontSize: '13px', textAlign: 'right', color: trade.pnlInt > 0 ? '#16a34a' : trade.pnlInt < 0 ? '#dc2626' : '#6b7280' }}>
-                      {currency === 'KRW' ? (
-                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+₩' : '-₩'}</span>{Math.abs(trade.pnlInt).toLocaleString()}</>
-                      ) : (
-                        <><span style={{ fontSize: '0.7em', opacity: 0.65 }}>{trade.pnlInt >= 0 ? '+$' : '-$'}</span>{Math.abs(trade.pnlInt / 100).toFixed(2)}<span className="perf-trade-krw"> ({moneyFormat("KRW", convertTradeAmountToKrw(trade.pnlInt, trade.market, fxRate))})</span></>
-                      )}
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-
-      </div>
 
       {/* Modals */}
       <RealizedTradeModal
