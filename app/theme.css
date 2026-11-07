@@ -739,7 +739,6 @@ button:disabled { cursor: not-allowed; }
 .pf-funds-dialog .pf-funds-total { padding-top: 12px; margin-top: 4px; font-size: 16px; font-weight: 600; }
 .pf-funds-dialog .pf-funds-actions { gap: 8px; margin-top: 18px; }
 .pf-funds-dialog .pf-funds-actions button { width: auto; min-width: 76px; min-height: 42px; padding: 9px 16px; font: inherit; font-size: 14px; }
-.pf-mobile-holdings, .pf-mobile-sort { display: none; }
 @media (max-width: 760px) {
   .pf-overview-card { padding: 12px 14px; margin-bottom: 22px; }
   .pf-overview-card .pf-country-account { column-gap: 8px; }
@@ -747,41 +746,37 @@ button:disabled { cursor: not-allowed; }
   .pf-overview-card .pf-funds-heading .pf-cash-label { font-size: 12px; }
   .pf-overview-card .pf-funds-heading-note { font-size: 8px; }
   .pf-overview-card .pf-cash-val { font-size: clamp(14px, 4.3vw, 17px); }
-  .pf-holdings-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 6px; }
-  .pf-holdings-bar .pf-tab-group, .pf-holdings-bar .pf-filter-group { display: flex; min-width: 0; gap: 2px; margin: 0; }
-  .pf-holdings-bar .pf-tab { min-width: 0; padding: 6px 7px; font-size: 11px; white-space: nowrap; }
-  .pf-holdings-bar .pf-chip { padding: 6px; min-width: 30px; font-size: 11px; }
-  .pf-holdings-bar .pf-search-input { grid-column: 1; width: 100%; min-width: 0; min-height: 36px; margin: 0; font-size: 14px; }
-  .pf-content > .pf-tbl-wrap { display: none; }
-  .pf-mobile-holdings { display: block; min-width: 0; border: 1px solid var(--east-border); border-radius: 14px; overflow: hidden; background: #fff; }
-  .pf-mobile-sort { display: flex; align-items: center; min-width: 0; }
-  .pf-mobile-sort select { width: 100%; max-width: 110px; min-height: 36px; padding: 7px 5px; border: 1px solid var(--east-border); border-radius: 9px; background: #fff; color: var(--east-text-2); font: inherit; font-size: 11px; cursor: pointer; }
-  .pf-mobile-position { display: block; width: 100%; padding: 14px 12px; border: 0; border-top: 1px solid var(--east-border); border-radius: 0; background: #fff; font: inherit; text-align: left; color: var(--east-text-1); cursor: pointer; }
-  .pf-mobile-position:first-child { border-top: 0; }
-  .pf-mobile-position:hover { background: #fafbfe; }
-  .pf-mobile-position-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
-  .pf-mobile-position-name { display: block; min-width: 0; }
-  .pf-mobile-position-title { display: block; font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pf-mobile-day { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .pf-mobile-day.is-up { color: var(--east-pos); background: var(--east-pos-bg); }
-  .pf-mobile-day.is-down { color: var(--east-neg); background: var(--east-neg-bg); }
-  .pf-mobile-day.is-flat { color: var(--east-text-3); background: #f1f3f6; }
-  .pf-mobile-metric-label { display: block; color: var(--east-text-3); font-size: 10px; font-weight: 400; margin-bottom: 3px; }
-  .pf-mobile-position-values { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr); gap: 8px; font-size: clamp(12px, 3.4vw, 15px); font-weight: 600; }
-  .pf-mobile-position-values > span { min-width: 0; }
-  .pf-mobile-position-values > span:last-child { text-align: right; }
-  .pf-mobile-position .pf-dual-money { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; white-space: normal; }
-  .pf-mobile-position-values > span:last-child .pf-dual-money { align-items: flex-end; }
-  .pf-mobile-position .pf-money { max-width: 100%; white-space: normal; overflow-wrap: anywhere; font-family: var(--east-font); }
-  .pf-mobile-position .pf-money-symbol { font-size: .8em; opacity: .8; margin-right: 2px; }
-  .pf-mobile-position .pf-krw-equivalent { color: inherit; opacity: .7; font-size: 10px; font-weight: 400; white-space: normal; }
-  .pf-mobile-position .pf-krw-equivalent .pf-money { display: inline; }
-  .pf-mobile-position .pf-money-with-suffix { display: flex; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; gap: 3px; max-width: 100%; }
-  .pf-mobile-position .pf-money-with-suffix > .pf-money { white-space: nowrap; }
-  .pf-mobile-pnl-rate { font-size: clamp(9px, 2.5vw, 11px); font-weight: 500; white-space: nowrap; }
-  .pf-mobile-empty { padding: 20px 14px; font-size: 12px; color: var(--east-text-2); }
+
 }
-@media (min-width: 761px) {
-  .pf-overview-card .pf-nav-stack { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-  .pf-overview-card .pf-cash-row { border-top: 0; border-left: 1px solid var(--east-border); margin: 0; padding: 6px 0 6px 24px; align-self: center; }
-}
+/* Integrated account groups: subtle stock separators, clearer section boundaries. */
+.pf-overview-card .pf-nav-stack { display: block; }
+.pf-country-group + .pf-country-group { border-top: 1px solid rgba(36,48,66,.14); padding-top: 6px; margin-top: 14px; }
+.pf-overview-card .pf-cash-row { border-top: 1px solid rgba(36,48,66,.14); border-left: 0; padding: 10px 0 0; margin: 12px 0 0; }
+.pf-country-holdings { min-width: 0; border: 1px solid rgba(36,48,66,.10); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.6); margin: 2px 0 4px; }
+.pf-position-row { position: relative; display: block; width: 100%; padding: 12px 10px; border: 0; border-radius: 0; background: transparent; font: inherit; text-align: left; color: var(--east-text-1); cursor: pointer; }
+.pf-position-row + .pf-position-row::before { content: ''; position: absolute; top: 0; left: 10px; right: 10px; height: .5px; background: rgba(36,48,66,.08); }
+.pf-position-row:hover { background: #fafbfe; }
+.pf-position-row:focus-visible { outline-offset: -3px; }
+.pf-position-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.pf-position-row-name { display: block; min-width: 0; }
+.pf-position-row-title { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-position-day { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.25; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pf-position-day.is-up { color: var(--east-pos); background: var(--east-pos-bg); }
+.pf-position-day.is-down { color: var(--east-neg); background: var(--east-neg-bg); }
+.pf-position-day.is-flat { color: var(--east-text-3); background: #f1f3f6; }
+.pf-position-metric-label { display: block; color: var(--east-text-3); font-size: 9px; font-weight: 400; margin-bottom: 3px; }
+.pf-position-row-values { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.4fr); gap: 8px; font-size: clamp(11px, 3.2vw, 14px); font-weight: 600; }
+.pf-position-row-values > span { min-width: 0; }
+.pf-position-row-values > span:last-child { text-align: right; }
+.pf-position-row .pf-dual-money { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; white-space: normal; }
+.pf-position-row-values > span:last-child .pf-dual-money { align-items: flex-end; }
+.pf-position-row .pf-money { max-width: 100%; white-space: normal; overflow-wrap: anywhere; font-family: var(--east-font); }
+.pf-position-row .pf-money-symbol { font-size: .8em; opacity: .8; margin-right: 2px; }
+.pf-position-row .pf-krw-equivalent { color: inherit; opacity: .7; font-size: 9px; font-weight: 400; white-space: normal; }
+.pf-position-row .pf-krw-equivalent .pf-money { display: inline; }
+.pf-position-row .pf-money-with-suffix { display: flex; align-items: baseline; justify-content: flex-end; flex-wrap: wrap; gap: 3px; max-width: 100%; }
+.pf-position-row .pf-money-with-suffix > .pf-money { white-space: nowrap; }
+.pf-position-pnl-rate { font-size: clamp(9px, 2.5vw, 10px); font-weight: 500; white-space: nowrap; }
+.pf-country-loading { font-size: 11px; color: var(--east-text-3); padding: 4px 0; }
+.pf-allocation-tabs { display: flex; gap: 2px; margin: 6px 0 0; }
+.pf-allocation-tabs .pf-tab { padding: 5px 10px; font-size: 10px; min-height: 28px; }

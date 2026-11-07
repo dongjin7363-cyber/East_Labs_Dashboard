@@ -22,7 +22,6 @@ import {
 import {
   calcHoldingComputed,
   calculatePortfolioTotalAsset,
-  filterHoldings,
   PortfolioInput,
 } from "@/lib/services/portfolioService";
 import {
@@ -37,7 +36,6 @@ import {
   usdCentsToUsdFloat,
   usdToKrw,
 } from "@/lib/utils/money";
-import { SortState, sortRows, toggleSort } from "@/lib/utils/sort";
 import { supabase } from "@/lib/supabaseClient";
 
 const FX_STORAGE_KEY = "pf_fx_usdkrw_v1";
@@ -120,14 +118,6 @@ interface QuoteBlacklistItem {
 }
 
 type QuoteBlacklistMap = Record<string, QuoteBlacklistItem>;
-
-type PortfolioSortKey =
-  | "ticker"
-  | "dailyChangeRate"
-  | "marketValue"
-  | "pnl"
-  | "pnlRate"
-  | "weight";
 
 interface PortfolioTableRow {
   holding: PortfolioHolding;
@@ -244,18 +234,6 @@ function CompactKrw({ amount }: { amount: number }) {
   }
 
   return <>{SYM_KRW}{moneyFormat("KRW", amount).replace("₩", "")}</>;
-}
-
-function formatDailyChangeLabel(rate: number): string {
-  if (rate > 0) {
-    return `↑ ${percentFormat(rate)}`;
-  }
-
-  if (rate < 0) {
-    return `↓ ${percentFormat(rate)}`;
-  }
-
-  return percentFormat(rate);
 }
 
 function resolveHoldingDayChangePct(holding: PortfolioHolding): number | null {
@@ -550,13 +528,7 @@ export default function PortfolioPage() {
   } = usePortfolio();
   const [isModalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<PortfolioHolding | undefined>();
-  const [market, setMarket] = useState<"ALL" | Market>("ALL");
-  const [search, setSearch] = useState("");
   const [donutMode, setDonutMode] = useState<DonutMode>("TICKER");
-  const [sortState, setSortState] = useState<SortState<PortfolioSortKey>>({
-    key: null,
-    mode: null,
-  });
   const {
     state: accountState,
     loading: accountStateLoading,
@@ -683,13 +655,6 @@ export default function PortfolioPage() {
     setManualKrTicker(null);
     setManualKrCodeInput("");
   }, [authLoading, isAuthed]);
-
-  const filtered = useMemo(() => {
-    return filterHoldings(holdings, {
-      market,
-      search,
-    });
-  }, [holdings, market, search]);
 
   const parsePercentValue = useCallback((value: unknown): number | null => {
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -1066,7 +1031,7 @@ export default function PortfolioPage() {
 
   const tableRows = useMemo<PortfolioTableRow[]>(
     () => {
-      const rows = filtered.map((holding) => {
+      const rows = holdings.map((holding) => {
         const computed = calcHoldingComputed(holding);
         const marketValueComparableKrw =
           holding.market === "US"
@@ -1098,53 +1063,7 @@ export default function PortfolioPage() {
           defaultIndex: index,
         }));
     },
-    [filtered, fxRate],
-  );
-
-  const totalMarketValueKrwForWeight = useMemo(
-    () =>
-      tableRows.reduce(
-        (sum, row) => sum + Math.max(row.marketValueComparableKrw, 0),
-        0,
-      ) +
-      Math.max(totalDepositKrw, 0) +
-      Math.max(cashKrw, 0),
-    [tableRows, totalDepositKrw, cashKrw],
-  );
-
-  const sortedTableRows = useMemo(
-    () =>
-      sortRows(
-        tableRows,
-        sortState,
-        (row, key) => {
-          if (key === "ticker") {
-            return resolveHoldingDisplayName(row.holding);
-          }
-
-          if (key === "dailyChangeRate") {
-            return row.dailyChangeRate ?? Number.NEGATIVE_INFINITY;
-          }
-
-          if (key === "marketValue") {
-            return row.marketValueComparableKrw;
-          }
-
-          if (key === "pnl") {
-            return row.computed.pnl;
-          }
-
-          if (key === "weight") {
-            return totalMarketValueKrwForWeight > 0
-              ? row.marketValueComparableKrw / totalMarketValueKrwForWeight
-              : 0;
-          }
-
-          return row.computed.pnlRate;
-        },
-        (a, b) => a.defaultIndex - b.defaultIndex,
-      ),
-    [sortState, tableRows, totalMarketValueKrwForWeight, resolveHoldingDisplayName],
+    [holdings, fxRate],
   );
 
   const handleCreate = () => {
@@ -1160,6 +1079,42 @@ export default function PortfolioPage() {
   const handleEdit = (holding: PortfolioHolding) => {
     setEditing(holding);
     setModalOpen(true);
+  };
+
+  const renderCountryHoldings = (country: Market) => {
+    const countryName = country === "US" ? "미국" : "한국";
+    const rows = tableRows.filter(row => row.holding.market === country);
+    if (loading) return <p className="pf-country-loading" role="status">로딩 중...</p>;
+    if (rows.length === 0) return null;
+    return <section className="pf-country-holdings" aria-label={countryName + " 보유 종목"}>
+      {rows.map(row => {
+              const { holding, computed, dailyChangeRate } = row;
+              const name = resolveHoldingDisplayName(holding);
+              return <button type="button" key={holding.id} className="pf-position-row"
+                aria-label={name + " 보유종목 편집"} onClick={() => handleEdit(holding)}>
+                <span className="pf-position-row-head">
+                  <span className="pf-position-row-name">
+                    <span className="pf-position-row-title" title={name}>{name}</span>
+                  </span>
+                  <span className={"pf-position-day " + (dailyChangeRate === null || dailyChangeRate === 0 ? "is-flat" : dailyChangeRate > 0 ? "is-up" : "is-down")}
+                    aria-label={"1일 등락률 " + (dailyChangeRate === null ? "정보 없음" : percentFormat(dailyChangeRate))}>
+                    {dailyChangeRate === null ? "—" : (dailyChangeRate > 0 ? "+" : "") + percentFormat(dailyChangeRate)}
+                  </span>
+                </span>
+                <span className="pf-position-row-values">
+                  <span><span className="pf-position-metric-label">평가금액</span>
+                    <DualCurrencyMoney currency={holding.currency} amountInt={computed.marketValue} fxRate={fxRate} />
+                  </span>
+                  <span><span className="pf-position-metric-label">평가손익</span>
+                    <span className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}>
+                      <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed
+                        suffix={<span className="pf-position-pnl-rate">({computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)})</span>} />
+                    </span>
+                  </span>
+                </span>
+              </button>;
+      })}
+    </section>;
   };
 
   const handleDelete = (id: string): boolean => {
@@ -1191,10 +1146,6 @@ export default function PortfolioPage() {
     }),
     [],
   );
-
-  const handleSortClick = (key: PortfolioSortKey) => {
-    setSortState((prev) => toggleSort(prev, key));
-  };
 
   const handleManualQuoteRefresh = async () => {
     if (!isAuthed) {
@@ -1402,16 +1353,6 @@ export default function PortfolioPage() {
     void refreshQuotesForVisible({ force: true, includeExtended: true });
   };
 
-  const renderSortArrow = (key: PortfolioSortKey): ReactNode => {
-    const isActive = sortState.key === key && sortState.mode;
-    const arrow = isActive ? (sortState.mode === "DESC" ? "▼" : "▲") : "↕";
-    return (
-      <span className={`pf-sort-arrow${isActive ? " is-active" : ""}`}>
-        {arrow}
-      </span>
-    );
-  };
-
   const pnlToneClass = (value: number, posClass: string, negClass: string): string => {
     if (value > 0) return posClass;
     if (value < 0) return negClass;
@@ -1480,6 +1421,29 @@ export default function PortfolioPage() {
             <h2 id="pf-overview-title" className="pf-sec-title">투자 현황</h2>
           </div>
           <div className="pf-overview-allocation" aria-label="자산 구성">
+          <div className="pf-tab-group pf-allocation-tabs" aria-label="자산 구성 기준">
+            <button
+              type="button"
+              className={`pf-tab${donutMode === "TICKER" ? " is-active" : ""}`}
+              onClick={() => setDonutMode("TICKER")}
+            >
+              종목별
+            </button>
+            <button
+              type="button"
+              className={`pf-tab${donutMode === "SECTOR" ? " is-active" : ""}`}
+              onClick={() => setDonutMode("SECTOR")}
+            >
+              섹터별
+            </button>
+            <button
+              type="button"
+              className={`pf-tab${donutMode === "COUNTRY" ? " is-active" : ""}`}
+              onClick={() => setDonutMode("COUNTRY")}
+            >
+              국가별
+            </button>
+          </div>
             <div className="pf-donut-outer">
               <DonutChart slices={donutSlices} total={donutTotal} />
               <div className="pf-donut-center">
@@ -1503,6 +1467,7 @@ export default function PortfolioPage() {
           {/* Compact accounts and modal cash editors. */}
           <div className="pf-nav-stack">
             <div className="pf-account-banner">
+              <div className="pf-country-group" aria-label="미국 투자 현황">
               <section className="pf-country-account" aria-label="미국 계좌" data-empty={usHoldingsMarketValueCents === 0 && usdHoldingsPnlCents === 0}>
                 <span className="pf-country-flag" role="img" aria-label="미국">🇺🇸</span>
                 <div className="pf-country-assets" aria-label="미국 자산 금액">
@@ -1514,6 +1479,9 @@ export default function PortfolioPage() {
                   <span className="pf-country-secondary">{usPnlPct === null ? "—" : percentFormat(usPnlPct)}</span>
                 </div>
               </section>
+                {renderCountryHoldings("US")}
+              </div>
+              <div className="pf-country-group" aria-label="한국 투자 현황">
               <section className="pf-country-account" aria-label="한국 계좌" data-empty={krHoldingsMarketValueKrw === 0 && krHoldingsPnlKrw === 0}>
                 <span className="pf-country-flag" role="img" aria-label="한국">🇰🇷</span>
                 <div className="pf-country-assets" aria-label="한국 자산 금액">
@@ -1525,8 +1493,10 @@ export default function PortfolioPage() {
                   <span className="pf-country-secondary">{krPnlPct === null ? "—" : percentFormat(krPnlPct)}</span>
                 </div>
               </section>
+                {renderCountryHoldings("KR")}
+              </div>
             </div>
-            <div className="pf-cash-row">
+            <div className="pf-cash-row" role="group" aria-label="예수금 및 현금">
               <PortfolioFundsCard key={"deposit:" + userId} kind="deposit" krw={depositKrw} usdCents={depositUsdCents} fxRate={fxRate}
                 amount={<Money currency="KRW" amountInt={totalDepositKrw} />} disabled={!isAuthed || accountStateLoading}
                 onSave={(krw, usdCents) => saveFunds({ depositKrwInt: krw, depositUsdCents: usdCents })} />
@@ -1569,230 +1539,6 @@ export default function PortfolioPage() {
             </div>
         </section>
 
-        {/* Holdings bar */}
-        <div className="pf-holdings-bar">
-          <div className="pf-tab-group">
-            <button
-              type="button"
-              className={`pf-tab${donutMode === "TICKER" ? " is-active" : ""}`}
-              onClick={() => setDonutMode("TICKER")}
-            >
-              종목별
-            </button>
-            <button
-              type="button"
-              className={`pf-tab${donutMode === "SECTOR" ? " is-active" : ""}`}
-              onClick={() => setDonutMode("SECTOR")}
-            >
-              섹터별
-            </button>
-            <button
-              type="button"
-              className={`pf-tab${donutMode === "COUNTRY" ? " is-active" : ""}`}
-              onClick={() => setDonutMode("COUNTRY")}
-            >
-              국가별
-            </button>
-          </div>
-          <div className="pf-filter-group">
-            <button
-              type="button"
-              className={`pf-chip${market === "ALL" ? " is-active" : ""}`}
-              onClick={() => setMarket("ALL")}
-            >
-              ALL
-            </button>
-            <button
-              type="button"
-              className={`pf-chip${market === "KR" ? " is-active" : ""}`}
-              onClick={() => setMarket("KR")}
-            >
-              KR
-            </button>
-            <button
-              type="button"
-              className={`pf-chip${market === "US" ? " is-active" : ""}`}
-              onClick={() => setMarket("US")}
-            >
-              US
-            </button>
-          </div>
-          <input
-            className="pf-search-input"
-            aria-label="보유종목 검색"
-            type="text"
-            placeholder="Ticker 검색..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          <div className="pf-mobile-sort">
-            <select aria-label="보유종목 정렬" id="pf-mobile-sort" value={sortState.key && sortState.mode ? sortState.key + ":" + sortState.mode : "default"}
-              onChange={event => {
-                if (event.target.value === "default") { setSortState({ key: null, mode: null }); return; }
-                const [key, mode] = event.target.value.split(":");
-                setSortState({ key: key as PortfolioSortKey, mode: mode as "ASC" | "DESC" });
-              }}>
-              <option value="default">기본 순서</option>
-              <option value="ticker:ASC">종목명순</option>
-              <option value="dailyChangeRate:DESC">당일 등락률 높은순</option>
-              <option value="dailyChangeRate:ASC">당일 등락률 낮은순</option>
-              <option value="marketValue:DESC">평가금액 높은순</option>
-              <option value="pnl:DESC">손익 높은순</option>
-              <option value="pnl:ASC">손익 낮은순</option>
-              <option value="pnlRate:DESC">수익률 높은순</option>
-              <option value="pnlRate:ASC">수익률 낮은순</option>
-              <option value="weight:DESC">비중 높은순</option>
-            </select>
-          </div>
-        </div>
-
-        <section className="pf-mobile-holdings" aria-label="보유 종목">
-          {loading ? <p className="pf-mobile-empty">로딩 중...</p> : sortedTableRows.length === 0 ?
-            <p className="pf-mobile-empty">데이터가 없습니다.</p> : sortedTableRows.map(row => {
-              const { holding, computed, dailyChangeRate } = row;
-              const name = resolveHoldingDisplayName(holding);
-              return <button type="button" key={holding.id} className="pf-mobile-position"
-                aria-label={name + " 보유종목 편집"} onClick={() => handleEdit(holding)}>
-                <span className="pf-mobile-position-head">
-                  <span className="pf-mobile-position-name">
-                    <span className="pf-mobile-position-title" title={name}><span aria-hidden="true">{holding.market === "KR" ? "🇰🇷" : "🇺🇸"}</span> {name}</span>
-                  </span>
-                  <span className={"pf-mobile-day " + (dailyChangeRate === null || dailyChangeRate === 0 ? "is-flat" : dailyChangeRate > 0 ? "is-up" : "is-down")}
-                    aria-label={"1일 등락률 " + (dailyChangeRate === null ? "정보 없음" : percentFormat(dailyChangeRate))}>
-                    {dailyChangeRate === null ? "—" : (dailyChangeRate > 0 ? "+" : "") + percentFormat(dailyChangeRate)}
-                  </span>
-                </span>
-                <span className="pf-mobile-position-values">
-                  <span><span className="pf-mobile-metric-label">평가금액</span>
-                    <DualCurrencyMoney currency={holding.currency} amountInt={computed.marketValue} fxRate={fxRate} />
-                  </span>
-                  <span><span className="pf-mobile-metric-label">평가손익</span>
-                    <span className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}>
-                      <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed
-                        suffix={<span className="pf-mobile-pnl-rate">({computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)})</span>} />
-                    </span>
-                  </span>
-                </span>
-              </button>;
-            })}
-        </section>
-
-        {/* Holdings table */}
-        <div className="pf-tbl-wrap">
-          <table className="pf-table">
-            <colgroup>
-              <col className="pf-c1" />
-              <col className="pf-c2" />
-              <col className="pf-c3" />
-              <col className="pf-c4" />
-              <col className="pf-c5" />
-              <col className="pf-c6" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th onClick={() => handleSortClick("ticker")}>
-                  보유종목 {renderSortArrow("ticker")}
-                </th>
-                <th onClick={() => handleSortClick("dailyChangeRate")}>
-                  1일 등락률 {renderSortArrow("dailyChangeRate")}
-                </th>
-                <th onClick={() => handleSortClick("marketValue")}>
-                  NAV {renderSortArrow("marketValue")}
-                </th>
-                <th onClick={() => handleSortClick("pnl")}>
-                  PnL {renderSortArrow("pnl")}
-                </th>
-                <th onClick={() => handleSortClick("pnlRate")}>
-                  PnL% {renderSortArrow("pnlRate")}
-                </th>
-                <th onClick={() => handleSortClick("weight")}>
-                  비중 {renderSortArrow("weight")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6}>로딩 중...</td>
-                </tr>
-              ) : sortedTableRows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="pf-muted">
-                    데이터가 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                sortedTableRows.map((row) => {
-                  const { holding, computed } = row;
-                  const displayName = resolveHoldingDisplayName(holding);
-                  const flag = holding.market === "KR" ? "🇰🇷" : "🇺🇸";
-                  const weightPct =
-                    totalMarketValueKrwForWeight > 0
-                      ? (row.marketValueComparableKrw / totalMarketValueKrwForWeight) * 100
-                      : 0;
-
-                  return (
-                    <tr
-                      key={holding.id}
-                      onClick={() => handleEdit(holding)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          handleEdit(holding);
-                        }
-                      }}
-                      tabIndex={0}
-                    >
-                      <td>
-                        <span className="pf-t-flag">{flag}</span>
-                        <span className="pf-t-name">{displayName}</span>
-                      </td>
-                      <td>
-                        {row.dailyChangeRate === null ? (
-                          <span className="pf-chip-flat">—</span>
-                        ) : row.dailyChangeRate > 0 ? (
-                          <span className="pf-chip-pos">
-                            {formatDailyChangeLabel(row.dailyChangeRate)}
-                          </span>
-                        ) : row.dailyChangeRate < 0 ? (
-                          <span className="pf-chip-neg">
-                            {formatDailyChangeLabel(row.dailyChangeRate)}
-                          </span>
-                        ) : (
-                          <span className="pf-chip-flat">
-                            {formatDailyChangeLabel(row.dailyChangeRate)}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <DualCurrencyMoney currency={holding.currency} amountInt={computed.marketValue} fxRate={fxRate} />
-                      </td>
-                      <td
-                        className={pnlToneClass(computed.pnl, "pf-pnl-pos", "pf-pnl-neg")}
-                        style={{
-                          color: computed.pnl > 0 ? "#16a34a" : computed.pnl < 0 ? "#dc2626" : "#6b7280",
-                          fontWeight: computed.pnl !== 0 ? 600 : undefined,
-                        }}
-                      >
-                        <DualCurrencyMoney currency={holding.currency} amountInt={computed.pnl} fxRate={fxRate} signed />
-                      </td>
-                      <td
-                        className={pnlToneClass(computed.pnlRate, "pf-pnl-pos", "pf-pnl-neg")}
-                        style={{
-                          color: computed.pnlRate > 0 ? "#16a34a" : computed.pnlRate < 0 ? "#dc2626" : "#6b7280",
-                          fontWeight: computed.pnlRate !== 0 ? 600 : undefined,
-                        }}
-                      >
-                        {computed.pnlRate > 0 ? "+" : ""}{percentFormat(computed.pnlRate)}
-                      </td>
-                      <td className="pf-muted">{weightPct.toFixed(2)}%</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
 
       {/* Ticker strip (bottom) */}
