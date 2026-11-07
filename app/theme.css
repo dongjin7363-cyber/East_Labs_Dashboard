@@ -619,10 +619,10 @@ button:disabled { cursor: not-allowed; }
 .pf-summary-row .pf-header-stat strong { display: block; font-size: clamp(17px, 4.8vw, 26px); line-height: 1.4; overflow-wrap: anywhere; }
 .pf-summary-row .pf-header-stat + .pf-header-stat strong { font-size: clamp(15px, 4.2vw, 23px); }
 .pf-summary-percent { display: block; font-size: .8em; font-weight: 500; }
-.pf-overview-heading { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 8px 16px; margin-bottom: 14px; }
+.pf-overview-heading { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 16px; margin-bottom: 6px; }
 .pf-overview-heading .pf-sec-title { margin: 0; font-size: 15px; }
 .pf-overview-details { display: contents; }
-.pf-overview-details > summary { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 5px; min-height: 36px; color: var(--east-text-2); font-size: 12px; cursor: pointer; list-style: none; }
+.pf-overview-details > summary { grid-column: 2; grid-row: 1; display: flex; align-items: center; gap: 5px; min-height: 28px; color: var(--east-text-2); font-size: 12px; cursor: pointer; list-style: none; }
 .pf-overview-details > summary::-webkit-details-marker { display: none; }
 .pf-overview-details > summary::before { content: ''; width: 0; height: 0; border-top: 4px solid transparent; border-bottom: 4px solid transparent; border-left: 5px solid currentColor; }
 .pf-overview-details[open] > summary::before { transform: rotate(90deg); }
@@ -647,7 +647,6 @@ button:disabled { cursor: not-allowed; }
 .pf-funds-edit:hover { background: var(--east-surface-2); }
 .pf-funds-edit:disabled { opacity: .45; }
 .pf-funds-card .pf-cash-val { font-size: clamp(15px, 12cqi, 21px); font-weight: 600; white-space: nowrap; }
-.pf-funds-caption { margin: 5px 0 0; font-size: 10px; color: var(--east-text-3); }
 .pf-funds-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .pf-funds-form label { color: var(--east-text-2); font-size: 11px; }
 .pf-funds-form input { width: 100%; min-width: 0; min-height: 36px; padding: 7px; border: 1px solid var(--east-border-md); background: white; font-size: 14px; }
@@ -665,3 +664,30 @@ button:disabled { cursor: not-allowed; }
   .pf-funds-card { padding: 10px 12px 14px; }
 }
 @media (max-width: 760px) { .pf-funds-form input { font-size: 16px; } }
+
+/* Match currency symbols, native amounts, and converted figures in the overview. */
+:is(.pf-summary-row, .pf-account-banner, .pf-funds-card) .pf-money {
+  font-family: var(--east-font); font-weight: inherit; letter-spacing: inherit;
+  font-variant-numeric: lining-nums tabular-nums; gap: 0; line-height: inherit;
+}
+:is(.pf-summary-row, .pf-account-banner, .pf-funds-card) .pf-money-symbol {
+  font-family: inherit; font-size: .78em; font-weight: inherit;
+  opacity: .8; margin-right: 3px; line-height: inherit;
+}
+.pf-summary-row .pf-header-stat strong,
+.pf-summary-row .pf-header-stat + .pf-header-stat strong {
+  font-family: var(--east-font); font-size: clamp(17px, 4.6vw, 24px);
+  font-weight: 600; letter-spacing: -.025em; line-height: 1.4;
+}
+.pf-country-account strong, .pf-country-pnl strong {
+  font-family: var(--east-font); font-size: clamp(16px, 5.8cqi, 22px);
+  font-weight: 600; letter-spacing: -.025em;
+}
+.pf-country-secondary { font-family: var(--east-font); font-size: clamp(11px, 4cqi, 13px); font-weight: 400; letter-spacing: -.01em; }
+.pf-country-secondary .pf-money-symbol { font-size: .95em; margin-right: 2px; opacity: 1; }
+.pf-overview-details[open] .pf-overview-meta { margin-top: 8px; }
+.pf-funds-heading { gap: 2px; }
+.pf-funds-label-group { display: flex; align-items: baseline; gap: 2px; min-width: 0; white-space: nowrap; }
+.pf-funds-heading .pf-cash-label { font-size: clamp(11px, 9cqi, 13px); }
+.pf-funds-heading-note { color: var(--east-text-3); font-size: clamp(8px, 6.5cqi, 10px); font-weight: 400; letter-spacing: -.025em; }
+.pf-funds-heading .pf-funds-edit { width: 32px; height: 32px; }

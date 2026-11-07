@@ -63,7 +63,10 @@ export function PortfolioFundsCard({
   return (
     <div className="pf-cash-card pf-funds-card" data-editing={editing}>
       <div className="pf-funds-heading">
-        <p className="pf-cash-label">{label}</p>
+        <div className="pf-funds-label-group">
+          <p className="pf-cash-label">{label}</p>
+          {kind === "deposit" ? <span className="pf-funds-heading-note">원화 합산</span> : null}
+        </div>
         <button ref={editRef} type="button" className="pf-funds-edit"
           aria-label={label + " 편집"} title={label + " 편집"} aria-expanded={editing}
           aria-controls={editing ? id : undefined} disabled={disabled || saving}
@@ -104,7 +107,6 @@ export function PortfolioFundsCard({
         </form>
       ) : <>
         <p className="pf-cash-val">{amount}</p>
-        {kind === "deposit" ? <p className="pf-funds-caption">원화 환산 합계</p> : null}
       </>}
     </div>
   );
