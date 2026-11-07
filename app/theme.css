@@ -808,7 +808,7 @@ button:disabled { cursor: not-allowed; }
   --east-panel-radius: 18px;
   --east-layout-gap: 14px;
 }
-.east-main > .east-page {
+.east-main > .east-page, .east-main > .weekly-shell > .east-page {
   --pf-card-padding: var(--east-panel-padding);
   display: flex; flex-direction: column; gap: var(--east-layout-gap);
   width: 100%; min-width: 0; max-width: none; margin: 0;
@@ -845,3 +845,6 @@ button:disabled { cursor: not-allowed; }
 @media (max-width: 760px) {
   :root { --east-page-inset: 8px; --east-page-top: 0px; --east-panel-padding: 14px; }
 }
+
+/* The report list has a route layout wrapper; avoid adding its gutters twice. */
+.east-main > .weekly-shell:has(> .east-page) { padding: 0; max-width: none; margin: 0; width: 100%; }
